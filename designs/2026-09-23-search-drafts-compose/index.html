@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Busta Search, Drafts & Compose mockup, approved 2026-09-23. Published copy: https://claude.ai/artifact/BRR7hE4FJ3djCPJWkQetyM -->
+</head>
+<body>
+<title>Busta Search, Drafts &amp; Compose</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root, .cm-light {
+  color-scheme: light;
+  --bg: #F5F7FB; --surface: #FFFFFF; --surface-2: #F2F5FA; --border: #E1E6EE;
+  --text: #1C2129; --muted: #5B6472; --faint: #8A93A1;
+  --row-unread: #FFFFFF; --row-read: #F2F5FA; --row-hover: #EAF0FA;
+  --primary: #1A5FD0; --on-primary: #FFFFFF; --primary-soft: #DCE7FB;
+  --secondary: #4B5566; --secondary-soft: #E9EDF3;
+  --tertiary: #6B42C8; --tertiary-soft: #EEE8FB;
+  --attention: #D2301F; --on-attention: #FFFFFF; --attention-soft: #FDE9E6;
+  --error: #A8201A; --error-soft: #FCE8E6;
+  --warn: #8A5300; --warn-fill: #F2A900; --warn-soft: #FEF3D6;
+  --success: #1B7F3B; --success-soft: #E4F4E8;
+  --star: #F4B400; --star-stroke: #B07A00;
+  --shadow: 0 1px 2px rgba(28,33,41,.06), 0 1px 3px rgba(28,33,41,.08);
+  --sans: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111418; --surface: #1B1F26; --surface-2: #232830; --border: #2F353F;
+    --text: #E7EAF0; --muted: #9BA4B2; --faint: #6D7684;
+    --row-unread: #232830; --row-read: #1B1F26; --row-hover: #26324A;
+    --primary: #8AB2F7; --on-primary: #0A1A38; --primary-soft: #1E2F52;
+    --secondary: #B4BDCA; --secondary-soft: #2A313B;
+    --tertiary: #BBA2F7; --tertiary-soft: #2C2447;
+    --attention: #FF6F61; --on-attention: #2A0906; --attention-soft: #3D1B17;
+    --error: #FF9B8F; --error-soft: #3B1A18;
+    --warn: #F2B544; --warn-fill: #F2B544; --warn-soft: #3A2C0E;
+    --success: #74D68F; --success-soft: #16301E;
+    --star: #FDD663; --star-stroke: #FDD663;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"], .cm-dark {
+  color-scheme: dark;
+  --bg: #111418; --surface: #1B1F26; --surface-2: #232830; --border: #2F353F;
+  --text: #E7EAF0; --muted: #9BA4B2; --faint: #6D7684;
+  --row-unread: #232830; --row-read: #1B1F26; --row-hover: #26324A;
+  --primary: #8AB2F7; --on-primary: #0A1A38; --primary-soft: #1E2F52;
+  --secondary: #B4BDCA; --secondary-soft: #2A313B;
+  --tertiary: #BBA2F7; --tertiary-soft: #2C2447;
+  --attention: #FF6F61; --on-attention: #2A0906; --attention-soft: #3D1B17;
+  --error: #FF9B8F; --error-soft: #3B1A18;
+  --warn: #F2B544; --warn-fill: #F2B544; --warn-soft: #3A2C0E;
+  --success: #74D68F; --success-soft: #16301E;
+  --star: #FDD663; --star-stroke: #FDD663;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); padding-inline: 16px; padding-block: 32px 72px; }
+.wrap { max-width: 1480px; margin: 0 auto; display: grid; gap: 22px; }
+h1, h2, h3 { margin: 0; line-height: 1.2; text-wrap: balance; }
+p { margin: 0; }
+.eyebrow { font: 500 11.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.intro { display: grid; gap: 10px; max-width: 760px; }
+.intro h1 { font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+.intro p { color: var(--muted); }
+.switcher { display: flex; flex-wrap: wrap; gap: 10px 16px; justify-content: space-between; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button { font: 600 13px var(--sans); color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); }
+.seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.stage { display: grid; gap: 24px; grid-template-columns: 1fr; }
+@media (min-width: 1400px) { .stage.both { grid-template-columns: 1fr 1fr; } }
+.stage-item { min-width: 0; display: grid; gap: 8px; }
+.stage-label { display: flex; justify-content: space-between; align-items: baseline; }
+.stage-label h3 { font-size: 14px; font-weight: 600; }
+
+/* ---- App chrome ---- */
+.app { container-type: inline-size; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; font: 13.5px/1.45 var(--sans); }
+.app-top { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.brand { --mark: 24px; display: inline-flex; align-items: center; gap: calc(var(--mark) * .36); white-space: nowrap; flex-shrink: 0; }
+.brand-mark { width: var(--mark); height: var(--mark); border-radius: 27%; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font: 700 calc(var(--mark) * .62)/1 var(--sans); padding-bottom: calc(var(--mark) * .04); }
+.wordmark { color: var(--text); font: 700 calc(var(--mark) * .7)/1 var(--sans); letter-spacing: -.01em; }
+.search { flex: 1; min-width: 0; max-width: 620px; display: flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--muted); border-radius: 999px; padding: 8px 14px; white-space: nowrap; overflow: hidden; }
+.cm-dark .search { background: var(--surface); }
+.acct { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.pill-btn { font: 500 12px var(--sans); padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-weight: 700; font-size: 11.5px; }
+.signout { font-size: 12px; color: var(--muted); }
+.app-main { display: grid; grid-template-columns: 188px 1fr; gap: 8px; padding: 0 12px 12px 0; }
+.nav { display: grid; align-content: start; gap: 2px; }
+.compose-btn { display: inline-flex; align-items: center; gap: 8px; margin: 2px 0 10px 10px; justify-self: start; background: var(--primary); color: var(--on-primary); border: 0; border-radius: 14px; padding: 12px 18px; font: 600 13.5px var(--sans); box-shadow: var(--shadow); }
+.nav a { display: flex; align-items: center; gap: 11px; padding: 6px 12px 6px 16px; border-radius: 0 999px 999px 0; color: var(--text); text-decoration: none; }
+.nav a:hover { background: var(--surface-2); }
+.nav a.on { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.nav .n { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.nav .n.attn { color: var(--attention); font-weight: 700; }
+.nav .grp { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 14px 16px 6px; }
+.sq { width: 9px; height: 9px; border-radius: 2px; background: var(--secondary); opacity: .7; margin-inline: 4px 3px; }
+.pane { background: var(--surface); border-radius: 14px; overflow: hidden; min-width: 0; }
+@container (max-width: 640px) {
+  .app-main { grid-template-columns: 1fr; padding-left: 12px; }
+  .nav { display: none; }
+  .signout, .pill-btn { display: none; }
+}
+.head { display: flex; align-items: baseline; gap: 12px; padding: 16px 16px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.head h2 { font-size: 20px; font-weight: 600; }
+.muted { color: var(--muted); }
+
+/* ---- Banners ---- */
+.banner { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 12.5px; }
+.banner.ok { background: var(--success-soft); color: var(--success); }
+.banner.err { background: var(--error-soft); color: var(--error); }
+.banner b { font-weight: 600; }
+
+/* ---- Rows ---- */
+.rows { list-style: none; margin: 0; padding: 0; }
+.row { position: relative; display: flex; align-items: center; background: var(--row-read); border-bottom: 1px solid var(--border); }
+.row.unread { background: var(--row-unread); }
+.row:hover { background: var(--row-hover); }
+.lead { display: flex; align-items: center; gap: 4px; padding-left: 12px; flex-shrink: 0; }
+.udot { width: 8px; height: 8px; border-radius: 50%; }
+.unread .udot { background: var(--attention); }
+.star { width: 30px; display: inline-grid; place-items: center; color: var(--faint); }
+.star.on { color: var(--star-stroke); }
+.star.on svg { fill: var(--star); }
+.body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(120px, 26%) 1fr auto; gap: 12px; align-items: center; padding: 10px 14px 10px 6px; }
+.from, .main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unread .from, .unread .subj { font-weight: 700; }
+.out { color: var(--success); font-weight: 700; margin-right: 4px; }
+.snip { color: var(--muted); }
+.meta { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.unread .meta time { color: var(--text); font-weight: 700; }
+.tag { display: inline-block; font: 500 11px/1 var(--mono); padding: 4px 7px; border-radius: 6px; background: var(--secondary-soft); color: var(--secondary); margin-right: 6px; vertical-align: 1px; }
+.st { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 8px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; }
+.st.q { background: var(--warn-soft); color: var(--warn); }
+.st.q i { width: 6px; height: 6px; border-radius: 50%; background: var(--warn-fill); }
+.st.bad { background: var(--error-soft); color: var(--error); }
+.st.reply { background: var(--secondary-soft); color: var(--secondary); }
+mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding: 0 2px; }
+.hover-act { position: absolute; right: 10px; top: 50%; translate: 0 -50%; display: flex; background: inherit; padding-left: 8px; }
+.row:not(.hovered) .hover-act { display: none; }
+.row:hover .hover-act { display: flex; }
+.ghost-danger { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--sans); color: var(--error); background: transparent; border: 1px solid transparent; border-radius: 999px; padding: 5px 10px; cursor: pointer; }
+.ghost-danger:hover { border-color: var(--error); }
+@container (max-width: 640px) {
+  .body { grid-template-columns: 1fr auto; grid-template-areas: "from meta" "main main"; row-gap: 2px; }
+  .from { grid-area: from; } .main { grid-area: main; } .meta { grid-area: meta; }
+}
+
+/* ---- Search ---- */
+.filters { display: grid; gap: 12px; padding: 16px; border-bottom: 1px solid var(--border); }
+.qrow { display: flex; gap: 8px; }
+.qrow .q { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; border: 1.5px solid var(--primary); background: var(--surface); box-shadow: 0 0 0 3px var(--primary-soft); color: var(--text); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font: 600 13px var(--sans); padding: 9px 16px; border-radius: 999px; border: 1px solid transparent; cursor: pointer; white-space: nowrap; }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn.p { background: var(--primary); color: var(--on-primary); }
+.btn.s { background: transparent; color: var(--secondary); border-color: var(--border); }
+.btn.g { background: transparent; color: var(--muted); }
+.btn.g:hover { background: var(--surface-2); color: var(--text); }
+.btn.sm { font-size: 12px; padding: 6px 13px; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.opt { display: inline-flex; gap: 6px; align-items: center; }
+.inp { padding: 5px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: 12.5px var(--sans); }
+.chk { display: inline-flex; gap: 6px; align-items: center; }
+.box { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--faint); display: grid; place-items: center; }
+.box.on { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.resmeta { display: flex; justify-content: space-between; gap: 12px; padding: 9px 16px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--border); flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.seam { height: 1px; background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent); }
+.specimens { display: grid; border-top: 1px solid var(--border); }
+.spec { display: grid; grid-template-columns: 150px 1fr; align-items: center; border-bottom: 1px dashed var(--border); }
+.spec:last-child { border-bottom: 0; }
+.spec-lbl { padding: 12px 16px; font: 500 10.5px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.lm { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 16px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lm .pbtn { font: 600 12.5px var(--sans); padding: 7px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--primary); cursor: pointer; }
+.lm.err { color: var(--error); }
+.lm.err .pbtn { color: var(--error); border-color: var(--error); }
+.lm .note { max-width: 46ch; text-align: center; }
+.spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--primary-soft); border-top-color: var(--primary); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+.empty { padding: 48px 16px; text-align: center; color: var(--muted); display: grid; justify-items: center; gap: 10px; }
+.empty .ic { width: 44px; height: 44px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; color: var(--muted); }
+@container (max-width: 640px) { .spec { grid-template-columns: 1fr; } .spec-lbl { padding-bottom: 0; } }
+
+/* ---- Compose ---- */
+.cbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px 12px; border-bottom: 1px solid var(--border); }
+.cbar h2 { font-size: 20px; font-weight: 600; }
+.vseg { display: inline-flex; background: var(--surface-2); border-radius: 999px; padding: 3px; gap: 2px; }
+.vseg button { font: 600 12.5px var(--sans); color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.vseg button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); }
+.cform { display: grid; gap: 0; }
+.cf { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; padding: 4px 16px; border-bottom: 1px solid var(--border); min-height: 44px; }
+.cf label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+.cf .val { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; padding-block: 6px; }
+.cf .hint { font-size: 11.5px; color: var(--faint); }
+.cf.invalid { background: var(--error-soft); }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 5px 3px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-size: 12.5px; max-width: 100%; }
+.chip .x { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); }
+.chip.bad { background: var(--surface); border-color: var(--error); color: var(--error); }
+.chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subject { font-weight: 600; }
+.msg { padding: 14px 16px; min-height: 260px; white-space: pre-wrap; line-height: 1.6; color: var(--text); font-size: 13.5px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.msg .fwd { color: var(--muted); }
+.caret { display: inline-block; width: 1.5px; height: 1.1em; background: var(--primary); vertical-align: -2px; }
+.files { display: grid; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.files .lbl { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pick { display: inline-flex; align-items: center; gap: 7px; font: 500 12.5px var(--sans); padding: 5px 11px 5px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--secondary); }
+.pick.on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.pick .sz { opacity: .75; font-variant-numeric: tabular-nums; }
+.pick .cb { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid currentColor; display: grid; place-items: center; }
+.pick.on .cb { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.fcard { display: inline-flex; align-items: center; gap: 9px; padding: 6px 6px 6px 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); max-width: 280px; }
+.fcard .fi { width: 30px; height: 30px; border-radius: 6px; background: var(--secondary-soft); color: var(--secondary); display: grid; place-items: center; flex-shrink: 0; }
+.fcard .ft { display: grid; min-width: 0; }
+.fcard .fn { font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fcard .fs { font-size: 11px; color: var(--muted); }
+.fcard .link { color: var(--warn); }
+.fcard .x { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex-shrink: 0; }
+.limits { font-size: 11.5px; color: var(--muted); max-width: 70ch; }
+.cactions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 14px 16px 16px; }
+.cactions .saved { margin-left: auto; font-size: 12px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+.cerr { display: flex; gap: 10px; align-items: flex-start; padding: 10px 16px; background: var(--error-soft); color: var(--error); font-size: 12.5px; }
+.cerr svg { flex-shrink: 0; margin-top: 1px; }
+@container (max-width: 640px) { .cf { grid-template-columns: 1fr; gap: 0; padding-block: 8px; } }
+
+/* ---- Notes ---- */
+.notes { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.note-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.note-card h3 { font-size: 14.5px; font-weight: 600; }
+.note-card p { color: var(--muted); font-size: 13.5px; }
+.note-card code { font-family: var(--mono); font-size: 12px; }
+svg.i { flex-shrink: 0; vertical-align: middle; fill: none; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13l2.5-7h11L20 13v5a1 1 0 01-1 1H5a1 1 0 01-1-1z M4 13h4.5l1 2.5h5l1-2.5H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 01-.5.5h-10A.5.5 0 017 20z M14 3.5V8h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14 M9.5 7V4.5h5V7 M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4.5L16 4.5l3.5 3.5L8.5 19z M13.5 7l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M16.5 7.5l-7.8 7.8a2 2 0 102.8 2.8l8-8a4 4 0 10-5.7-5.7l-8 8a6 6 0 108.5 8.5l6.2-6.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z M11.5 13.5L20 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11 M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1 M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-reply" viewBox="0 0 24 24"><path d="M10 6L4 12l6 6 M4 12h10a6 6 0 016 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+  <header class="intro">
+    <span class="eyebrow">Busta · page mocks · for review before porting</span>
+    <h1>Search, Drafts and Compose</h1>
+    <p>These three pages go to Astro next. They use the approved palette and the same shell as Mailbox and Thread, and they only show what the backend already does: cursor-based search with filters, saved drafts, and one compose form for new mail, forwards and draft edits.</p>
+  </header>
+
+  <div class="switcher">
+    <div class="seg" role="group" aria-label="Page">
+      <button type="button" data-page="search" aria-pressed="true">Search</button>
+      <button type="button" data-page="drafts" aria-pressed="false">Drafts</button>
+      <button type="button" data-page="compose" aria-pressed="false">Compose</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" data-theme="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+      <button type="button" data-theme="both" aria-pressed="true">Both</button>
+    </div>
+  </div>
+
+  <div class="stage both" id="stage"></div>
+
+  <section class="notes" aria-label="Design notes">
+    <div class="note-card"><h3>Search loads as you scroll</h3><p>The first 25 results are rendered on the server. A small island loads the next slice when the list end comes into view, with a Load more button as a fallback. Without JavaScript the button is a plain link. There are no page numbers because the index is walked newest to oldest with a cursor and has no total.</p></div>
+    <div class="note-card"><h3>Scanned vs shown</h3><p>Each request scans a bounded window of the mailbox. A window can find nothing and still not be the end, so the island says so and keeps going instead of reporting "no results".</p></div>
+    <div class="note-card"><h3>Matches are highlighted</h3><p>The query term is marked in amber in subjects and snippets. Amber here is a highlight, not a state; if that reads as "in flight", we can switch it to the primary tint.</p></div>
+    <div class="note-card"><h3>One compose form</h3><p>New, Forward and Edit draft are the same page. Forward pre-checks the original's attachments; Edit draft shows files already saved with it. Send, Save draft and Discard are the only actions.</p></div>
+    <div class="note-card"><h3>Large files become links</h3><p>Files over the inline limit are marked "link · 30 days" in amber before sending, so the sender knows the recipient gets a download link instead of an attachment.</p></div>
+    <div class="note-card"><h3>Errors name the recipient</h3><p>A refused send keeps the form, turns the offending address chip crimson, and says what to do: remove it and try again.</p></div>
+  </section>
+</div>
+
+<script>
+const I = (id, s = 16, cls = "i") => `<svg class="${cls}" width="${s}" height="${s}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const hl = (s, q) => q ? esc(s).replace(new RegExp(`(${q})`, "ig"), "<mark>$1</mark>") : esc(s);
+
+function shell(mode, active, inner, title) {
+  const nav = [
+    ["inbox", "Inbox", '<span class="n attn">3</span>'],
+    ["star", "Starred", '<span class="n">2</span>'],
+    ["search", "Search", ""],
+    ["file", "Drafts", '<span class="n">3</span>'],
+    ["trash", "Trash", '<span class="n">4</span>'],
+  ].map(([ic, lbl, n]) => `<a href="#" class="${lbl === active ? "on" : ""}">${I(ic, 17)}${lbl}${n}</a>`).join("");
+  const tags = [["+triage", '<span class="n attn">1</span>'], ["+orders", '<span class="n">4</span>'], ["+newsletter", '<span class="n">12</span>'], ["+q4.pipeline", ""]]
+    .map(([t, n]) => `<a href="#"><span class="sq"></span>${t}${n}</a>`).join("");
+  return `<div class="stage-item"><div class="stage-label"><h3>${title}</h3><span class="eyebrow">${mode}</span></div>
+  <div class="app cm-${mode}">
+    <div class="app-top">
+      <span class="brand"><span class="brand-mark">b</span><span class="wordmark">Busta</span></span>
+      <span class="search">${I("search", 15)}Search jtaylorcpp@busta.app</span>
+      <span class="acct"><span class="pill-btn">System</span><span class="avatar">JT</span><span class="signout">Sign out</span></span>
+    </div>
+    <div class="app-main">
+      <nav class="nav"><span class="compose-btn">${I("pen", 16)}Compose</span>${nav}<span class="grp">Folders</span>${tags}</nav>
+      <main class="pane">${inner}</main>
+    </div>
+  </div></div>`;
+}
+
+function row(r, q) {
+  const status = r.st === "q" ? `<span class="st q"><i></i>Queued</span>` : r.st === "bad" ? `<span class="st bad">${I("alert", 11)}Bounced</span>` : "";
+  return `<li class="row ${r.u ? "unread" : ""}">
+    <span class="lead"><span class="udot"></span><span class="star ${r.star ? "on" : ""}">${I("star", 16)}</span></span>
+    <span class="body">
+      <span class="from">${r.out ? '<span class="out">→</span>To: ' : ""}${esc(r.from)}</span>
+      <span class="main">${status}${r.tag ? `<span class="tag">${r.tag}</span>` : ""}<span class="subj">${hl(r.subj, q)}</span><span class="snip"> — ${hl(r.snip, q)}</span></span>
+      <span class="meta">${r.clip ? I("clip", 13) : ""}<time>${r.date}</time></span>
+    </span></li>`;
+}
+
+const Q = "pricing";
+const results1 = [
+  { u: 1, from: "Carol Diaz", tag: "+q4.pipeline", subj: "Re: Quote request — 50 widgets", snip: "Can you confirm pricing holds with net-30 terms?", date: "09:05" },
+  { u: 1, from: "Alice Chen", subj: "Updated pricing for the 200-unit tier", snip: "Attached the revised sheet with January volumes.", date: "08:40", clip: 1 },
+  { out: 1, from: "carol@example.org", subj: "Pricing sheet", snip: "Here's the updated sheet with volume tiers.", date: "Sep 21", st: "q" },
+  { star: 1, from: "Bob Park", subj: "Partnership follow-up", snip: "Happy to share our pricing model on a call next week.", date: "Sep 18" },
+  { out: 1, from: "dave@old-domain.example", subj: "Contract draft and pricing", snip: "Redlines attached, see section 4 on pricing.", date: "Sep 14", st: "bad", clip: 1 },
+];
+const results2 = [
+  { from: "news@vendor.example", tag: "+newsletter", subj: "Weekly industry digest", snip: "How component pricing moved this quarter.", date: "Aug 30" },
+  { from: "Alice Chen", tag: "+q4.pipeline", subj: "Intro call notes", snip: "They asked about pricing for 40 seats.", date: "Aug 12" },
+];
+
+function searchPage() {
+  const chk = (lbl, on) => `<span class="chk"><span class="box ${on ? "on" : ""}">${on ? I("check", 10) : ""}</span>${lbl}</span>`;
+  const form = `<div class="filters">
+    <div class="qrow"><span class="q">${I("search", 15)}${Q}<span class="caret"></span></span><span class="btn p">${I("search", 14)}Search</span></div>
+    <div class="opts">
+      <span class="opt">From <span class="inp">anyone@example.com</span></span>
+      <span class="opt">Folder <span class="inp">+q4.pipeline (2) ▾</span></span>
+      ${chk("Unread", false)}${chk("Has files", false)}${chk("No newsletters", true)}${chk("No auto-replies", true)}
+    </div></div>`;
+  const specs = [
+    ["Loading", `<div class="lm"><span class="spin"></span><span>Loading more…</span><span>25 shown · 1,200 scanned</span></div>`],
+    ["Idle", `<div class="lm"><span class="pbtn">Load more</span><span>25 shown · 1,200 scanned</span></div>`],
+    ["Window empty", `<div class="lm"><span class="note">No matches in the newest messages yet. Keep going to search older mail.</span><span class="pbtn">Keep searching</span></div>`],
+    ["End", `<div class="lm"><span>End of results · 3,412 scanned</span></div>`],
+    ["Error", `<div class="lm err">${I("alert", 15)}<span>Couldn't load more results.</span><span class="pbtn">Try again</span></div>`],
+    ["Before a query", `<div class="empty"><span class="ic">${I("search", 20)}</span><span>Search subjects, senders and message text. Results run newest to oldest.</span></div>`],
+  ].map(([l, h]) => `<div class="spec"><span class="spec-lbl">${l}</span>${h}</div>`).join("");
+  return `${form}
+    <div class="resmeta"><span>Results for “${Q}”, newest first</span><span>7 shown · 3,412 scanned</span></div>
+    <ul class="rows">${results1.map((r) => row(r, Q)).join("")}</ul>
+    <div class="seam" aria-hidden="true"></div>
+    <ul class="rows">${results2.map((r) => row(r, Q)).join("")}</ul>
+    <div class="specimens" aria-label="Load-more island states">${specs}</div>`;
+}
+
+function draftsPage() {
+  const drafts = [
+    { to: "Alice Chen, Carol Diaz", subj: "Re: Quote request — 50 widgets", snip: "Confirming 50 units at the second-band price, net-30…", files: 1, date: "14:02", reply: 1, hovered: 1 },
+    { to: "bob@example.net", subj: "Partnership proposal", snip: "Bob, following our call, here's an outline of…", files: 2, date: "Sep 22" },
+    { to: "(no recipient)", subj: "(no subject)", snip: "Notes for the Q4 pipeline review: follow up with…", files: 0, date: "Sep 20", empty: 1 },
+  ];
+  const rows = drafts.map((d) => `<li class="row ${d.hovered ? "hovered" : ""}">
+    <span class="lead"><span class="star">${I("file", 15)}</span></span>
+    <span class="body">
+      <span class="from ${d.empty ? "muted" : ""}">${esc(d.to)}</span>
+      <span class="main">${d.reply ? `<span class="st reply">${I("reply", 11)}Reply</span>` : ""}<span class="subj ${d.empty ? "muted" : ""}">${esc(d.subj)}</span><span class="snip"> — ${esc(d.snip)}</span></span>
+      <span class="meta">${d.files ? `${I("clip", 13)}${d.files}` : ""}<time>${d.date}</time></span>
+    </span>
+    <span class="hover-act"><span class="ghost-danger">${I("trash", 14)}Discard</span></span></li>`).join("");
+  return `<div class="banner ok">${I("check", 15)}<span>Draft discarded.</span></div>
+    <div class="head"><h2>Drafts</h2><span class="muted">3 saved</span></div>
+    <ul class="rows">${rows}</ul>
+    <div class="specimens"><div class="spec"><span class="spec-lbl">Empty</span><div class="empty"><span class="ic">${I("file", 20)}</span><span>No drafts.</span></div></div></div>`;
+}
+
+let composeVariant = "new";
+function composePage(mode) {
+  const v = composeVariant;
+  const vseg = ["new:New", "forward:Forward", "draft:Edit draft"].map((p) => { const [k, l] = p.split(":"); return `<button type="button" data-variant="${k}" aria-pressed="${v === k}">${l}</button>`; }).join("");
+  const chip = (t, bad) => `<span class="chip ${bad ? "bad" : ""}">${bad ? I("alert", 12) : ""}<span class="nm">${t}</span><span class="x">${I("x", 11)}</span></span>`;
+  const fcard = (n, s, link) => `<span class="fcard"><span class="fi">${I(link ? "link" : "file", 15)}</span><span class="ft"><span class="fn">${n}</span><span class="fs">${s}${link ? ' · <span class="link">link · 30 days</span>' : ""}</span></span><span class="x">${I("x", 12)}</span></span>`;
+  const pick = (n, s, on) => `<span class="pick ${on ? "on" : ""}"><span class="cb">${on ? I("check", 10) : ""}</span>${n}<span class="sz">· ${s}</span></span>`;
+  let to, cc, subj, body, files, saved = "", err = "";
+  if (v === "new") {
+    to = chip("Alice Chen") + chip("dave@old-domain.example", true);
+    cc = chip("Carol Diaz");
+    subj = "Contract draft for review";
+    body = `Hi Alice,\n\nThe contract draft is attached. Section 4 covers volume pricing and the net-30 terms we discussed.\n\nThanks,\nJesse<span class="caret"></span>`;
+    files = `<div class="files"><span class="lbl">Attachments</span><div class="picks">${fcard("contract-draft-v2.pdf", "184 KB")}${fcard("widget-spec-v3.zip", "31 MB", true)}<span class="btn g sm">${I("clip", 14)}Attach files</span></div><p class="limits">Files up to 2 MB ride along with the message. Larger files are stored and sent as a download link that expires in 30 days.</p></div>`;
+    err = `<div class="cerr" role="alert">${I("alert", 16)}<span>dave@old-domain.example previously bounced, so Busta won't send to it. Remove it and try again.</span></div>`;
+  } else if (v === "forward") {
+    to = chip("Bob Park");
+    cc = "";
+    subj = "Fwd: Quote request — 50 widgets";
+    body = `Bob, see Alice's request below.<span class="caret"></span>\n\n<span class="fwd">---------- Forwarded message ----------\nFrom: alice@example.net\nDate: Mon, 21 Sep 2026 09:14:02 GMT\nSubject: Quote request — 50 widgets\nTo: jtaylorcpp@busta.app\n\nHi, we're evaluating vendors for Q4 and wanted pricing on 50 widgets. Could you send tiers?</span>`;
+    files = `<div class="files"><span class="lbl">Forward these attachments</span><div class="picks">${pick("spec-sheet.pdf", "277 K", true)}${pick("PO-2025-1187.xlsx", "18 K", true)}<span class="btn g sm">${I("clip", 14)}Attach files</span></div><p class="limits">Files up to 2 MB ride along with the message. Larger files are stored and sent as a download link that expires in 30 days.</p></div>`;
+  } else {
+    to = chip("Alice Chen") + chip("Carol Diaz");
+    cc = "";
+    subj = "Re: Quote request — 50 widgets";
+    body = `Hi Alice, Carol: confirming 50 units at the second-band price, net-30, shipping in two weeks.<span class="caret"></span>`;
+    files = `<div class="files"><span class="lbl">Saved with this draft</span><div class="picks">${fcard("pricing-tiers-q4.pdf", "84 KB")}<span class="btn g sm">${I("clip", 14)}Attach files</span></div><p class="limits">Files up to 2 MB ride along with the message. Larger files are stored and sent as a download link that expires in 30 days.</p></div>`;
+    saved = `<span class="saved">${I("clock", 13)}Last saved 14:02</span>`;
+  }
+  return `<div class="cbar"><h2>${v === "forward" ? "Forward" : v === "draft" ? "Edit draft" : "New message"}</h2><div class="vseg" role="group" aria-label="Compose variant">${vseg}</div></div>
+    ${err}
+    <div class="cform">
+      <div class="cf ${v === "new" ? "invalid" : ""}"><label>To</label><span class="val">${to}</span></div>
+      <div class="cf"><label>Cc</label><span class="val">${cc || '<span class="hint">Optional</span>'}</span></div>
+      <div class="cf"><label>Bcc</label><span class="val"><span class="hint">Hidden from other recipients</span></span></div>
+      <div class="cf"><label>Subject</label><span class="val subject">${subj}</span></div>
+      <div class="msg">${body}</div>
+      ${files}
+      <div class="cactions"><span class="btn p">${I("send", 14)}Send</span><span class="btn s">Save draft</span><span class="btn g">Discard</span>${saved}</div>
+    </div>`;
+}
+
+const PAGES = { search: ["Search", searchPage], drafts: ["Drafts", draftsPage], compose: ["Compose", composePage] };
+let page = "search", theme = "both";
+function render() {
+  const [label, fn] = PAGES[page];
+  const modes = theme === "both" ? ["light", "dark"] : [theme];
+  const stage = document.getElementById("stage");
+  stage.className = "stage" + (theme === "both" ? " both" : "");
+  stage.innerHTML = modes.map((m) => shell(m, label === "Compose" ? "" : label, fn(m), `${label} · ${m === "light" ? "Light" : "Dark"}`)).join("");
+  stage.querySelectorAll("[data-variant]").forEach((b) => b.addEventListener("click", () => { composeVariant = b.dataset.variant; render(); }));
+  stage.querySelectorAll("a").forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
+}
+document.querySelectorAll("[data-page]").forEach((b) => b.addEventListener("click", () => {
+  page = b.dataset.page;
+  document.querySelectorAll("[data-page]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  render();
+}));
+document.querySelectorAll("[data-theme]").forEach((b) => b.addEventListener("click", () => {
+  theme = b.dataset.theme;
+  document.querySelectorAll("[data-theme]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  render();
+}));
+render();
+</script>
+
+</body>
+</html>
