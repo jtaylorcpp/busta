@@ -1,0 +1,23 @@
+---
+/**
+ * GET /mb/<address>/search/more?…&cursor=N — the next slice of search results
+ * as bare <li> rows, for the LoadMore island. Same auth gate as every page.
+ * Paging state travels in headers so the body stays plain HTML.
+ */
+export const partial = true;
+import { env } from "cloudflare:workers";
+import SearchRows from "../../../../components/app/SearchRows.astro";
+import { base, openMailbox, runSearch } from "../../../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId || !orgId) return new Response("Sign in again", { status: 401 });
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+
+const page = await runSearch(access.stub, Astro.url.searchParams);
+Astro.response.headers.set("cache-control", "no-store");
+Astro.response.headers.set("x-count", String(page.results.length));
+Astro.response.headers.set("x-examined", String(page.examined));
+if (page.nextCursor !== null) Astro.response.headers.set("x-next-cursor", String(page.nextCursor));
+---
+<SearchRows base={base(access.address)} results={page.results} q={page.q} />

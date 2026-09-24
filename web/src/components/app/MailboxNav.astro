@@ -5,7 +5,7 @@ import type { View } from "../../lib/mail-data";
 /** Sidebar for a real mailbox: views, then one folder per +label. */
 interface Props {
   base: string;
-  view: View | null;
+  view: View | "search" | "drafts" | null;
   activeLabel: string | null;
   stats: { unread: number; total: number; trashed: number; starred: number };
   labels: { label: string; total: number; unread: number }[];
@@ -15,8 +15,8 @@ const inboxActive = view === "inbox" && !activeLabel;
 ---
 <NavItem href={base} icon="inbox" label="Inbox" unread={stats.unread} total={stats.total} active={inboxActive} />
 <NavItem href={`${base}?view=starred`} icon="star" label="Starred" total={stats.starred} active={view === "starred"} />
-<NavItem href={`${base}/search`} icon="search" label="Search" />
-<NavItem href={`${base}/drafts`} icon="file" label="Drafts" />
+<NavItem href={`${base}/search`} icon="search" label="Search" active={view === "search"} />
+<NavItem href={`${base}/drafts`} icon="file" label="Drafts" active={view === "drafts"} />
 <NavItem href={`${base}?view=trash`} icon="trash" label="Trash" total={stats.trashed} active={view === "trash"} />
 {labels.length > 0 && <span class="grp">Folders</span>}
 {labels.map((l) => (

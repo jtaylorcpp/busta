@@ -1,0 +1,42 @@
+---
+/** GET /mb/<address>/drafts/<id> — reopen a saved draft in the compose form. */
+import { env } from "cloudflare:workers";
+import ComposePage from "../../../../components/app/ComposePage.astro";
+import ComposeForm from "../../../../components/app/ComposeForm.astro";
+import { base, composeLimits, formatListDate, openMailbox } from "../../../../lib/mail-data";
+import type { Draft } from "../../../../../../src/mailbox-do";
+import type { ThreadAttachment } from "../../../../../../src/thread-do";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+
+const draft = (await stub.getDraft(Astro.params.draft!)) as Draft | null;
+if (!draft) return new Response("Draft not found", { status: 404 });
+const [stats, labels] = await Promise.all([stub.stats(), stub.labels()]);
+const files = draft.attachments_json ? (JSON.parse(draft.attachments_json) as ThreadAttachment[]) : [];
+const recipients = [draft.to, draft.cc, draft.bcc].join(",").split(/[,;\s]+/).map((a) => a.trim().toLowerCase()).filter(Boolean);
+const bounced = recipients.length ? ((await stub.suppressed(recipients)) as string[]) : [];
+const b = base(address);
+const url = Astro.url;
+---
+<ComposePage
+  title={draft.subject || "Draft"}
+  address={address}
+  base={b}
+  stats={stats}
+  labels={labels}
+  flash={{ ok: url.searchParams.get("ok"), warn: url.searchParams.get("warn"), error: url.searchParams.get("error") }}
+>
+  <ComposeForm
+    base={b}
+    prefill={{ to: draft.to, cc: draft.cc, bcc: draft.bcc, subject: draft.subject, body: draft.body }}
+    bounced={bounced}
+    draft={{ id: draft.id, threadId: draft.thread_id, attachments: files, savedAt: formatListDate(draft.updated_at) }}
+    limits={composeLimits(env)}
+  />
+</ComposePage>

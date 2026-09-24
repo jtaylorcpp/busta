@@ -5,7 +5,9 @@
  * posts to the original handlers in ../../../src/index.ts.
  */
 import { authorizeMailbox } from "../../../src/index";
-import { threadStub } from "../../../src/mail";
+import {
+  attachmentBudget, FLAG, inlineThreshold, linkLifetimeMs, normalizeAddress, threadStub,
+} from "../../../src/mail";
 import type { AgentConfig, IndexedMessage, MailboxDO } from "../../../src/mailbox-do";
 import type { BodySource, ThreadAttachment, ThreadMessage } from "../../../src/thread-do";
 import type { Envelope } from "./audience";
@@ -199,4 +201,110 @@ export function deliveryStatus(m: IndexedMessage): { tone: "delivered" | "queued
     default:
       return { tone: "queued", label: m.delivery_status, title };
   }
+}
+
+// --- search ---------------------------------------------------------------
+
+export const SEARCH_PAGE_SIZE = 25;
+
+export interface SearchFilters {
+  unreadOnly: boolean;
+  sender: string;
+  label: string;
+  hasAttachments: boolean;
+  hideBulk: boolean;
+  hideAuto: boolean;
+}
+
+export function searchFilters(params: URLSearchParams): SearchFilters {
+  return {
+    unreadOnly: params.get("unread") === "1",
+    sender: normalizeAddress(params.get("from") ?? ""),
+    label: params.get("tag") ?? "",
+    hasAttachments: params.get("attach") === "1",
+    hideBulk: params.get("nobulk") === "1",
+    hideAuto: params.get("noauto") === "1",
+  };
+}
+
+/** Query string for a search, optionally resuming at `cursor`. */
+export function searchQuery(q: string, f: SearchFilters, cursor: number | null = null): string {
+  const s = new URLSearchParams({ q });
+  if (f.unreadOnly) s.set("unread", "1");
+  if (f.sender) s.set("from", f.sender);
+  if (f.label) s.set("tag", f.label);
+  if (f.hasAttachments) s.set("attach", "1");
+  if (f.hideBulk) s.set("nobulk", "1");
+  if (f.hideAuto) s.set("noauto", "1");
+  if (cursor !== null) s.set("cursor", String(cursor));
+  return s.toString();
+}
+
+/**
+ * One slice of a search, newest to oldest. The index scans a bounded window
+ * per call, so a slice can be empty yet not exhausted: `nextCursor` says where
+ * to resume, `exhausted` says the whole mailbox has been walked.
+ */
+export async function runSearch(stub: MailboxStub, params: URLSearchParams) {
+  const q = (params.get("q") ?? "").trim();
+  const filters = searchFilters(params);
+  const cursorParam = params.get("cursor");
+  // Flag filters are bitmask work on the index, so they compose with the text
+  // query in one pass rather than post-filtering results.
+  const flagsAll = filters.hasAttachments ? FLAG.hasAttachments : 0;
+  const flagsNone = (filters.hideBulk ? FLAG.bulk : 0) | (filters.hideAuto ? FLAG.autoSubmitted : 0);
+  const page = q
+    ? await stub.searchText({
+        q,
+        cursor: cursorParam ? Number(cursorParam) : null,
+        limit: SEARCH_PAGE_SIZE,
+        unreadOnly: filters.unreadOnly,
+        sender: filters.sender || undefined,
+        label: filters.label || undefined,
+        flagsAll: flagsAll || undefined,
+        flagsNone: flagsNone || undefined,
+      })
+    : { results: [], nextCursor: null, examined: 0, exhausted: true };
+  return {
+    q,
+    filters,
+    results: page.results as IndexedMessage[],
+    nextCursor: page.nextCursor as number | null,
+    examined: page.examined as number,
+    exhausted: page.exhausted as boolean,
+  };
+}
+
+// --- compose / drafts -----------------------------------------------------
+
+export function composeLimits(env: Env) {
+  return {
+    inlineBytes: inlineThreshold(env),
+    inline: formatSize(inlineThreshold(env)),
+    total: formatSize(attachmentBudget(env)),
+    linkDays: Math.round(linkLifetimeMs(env) / 86_400_000),
+  };
+}
+
+/** Prefill for forwarding `messageId`, as the old compose page built it. */
+export async function forwardPrefill(env: Env, stub: MailboxStub, address: string, messageId: string) {
+  const row = (await stub.lookup(messageId)) as IndexedMessage | null;
+  if (!row) return null;
+  const found = await threadStub(env, address, row.thread_id).get(messageId);
+  if (!found) return null;
+  const m = found.message as ThreadMessage;
+  return {
+    subject: /^fwd:/i.test(m.subject) ? m.subject : `Fwd: ${m.subject}`,
+    body: [
+      "",
+      "---------- Forwarded message ----------",
+      `From: ${m.sender}`,
+      `Date: ${new Date(m.received_at).toUTCString()}`,
+      `Subject: ${m.subject}`,
+      `To: ${m.recipient}`,
+      "",
+      m.body_text ?? "(no plain-text body)",
+    ].join("\n"),
+    attachments: found.attachments as ThreadAttachment[],
+  };
 }

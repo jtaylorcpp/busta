@@ -3,6 +3,7 @@ import Icon from "./Icon.astro";
 import IconButton from "./IconButton.astro";
 import Tag from "./Tag.astro";
 import Status, { type StatusTone } from "./Status.astro";
+import Highlight from "./Highlight.astro";
 
 /**
  * One message in a list. Unread rows sit on the full surface in bold with a
@@ -31,10 +32,12 @@ interface Props {
   purgeAction?: string;
   /** Joined its thread via an unsigned In-Reply-To. */
   unverified?: boolean;
+  /** Search terms to mark in the subject and snippet. */
+  highlight?: string[];
 }
 const {
   href, from, subject, snippet, date, unread = false, starred = false, outbound = false,
-  tags = [], status, attachments = 0, starAction, trashAction, restoreAction, purgeAction, unverified = false,
+  tags = [], status, attachments = 0, starAction, trashAction, restoreAction, purgeAction, unverified = false, highlight = [],
 } = Astro.props;
 ---
 <li class:list={["row", { unread }]}>
@@ -54,8 +57,8 @@ const {
       {unverified && <Status tone="queued" label="Unverified" title="Joined this thread through an unsigned In-Reply-To header" />}
       {status && <Status tone={status.tone} label={status.label} />}
       {tags.map((t) => <Tag name={t} />)}
-      <span class="subj">{subject}</span>
-      {snippet && <span class="snip"> — {snippet}</span>}
+      <span class="subj"><Highlight text={subject} terms={highlight} /></span>
+      {snippet && <span class="snip"> — <Highlight text={snippet} terms={highlight} /></span>}
     </span>
     <span class="meta">
       {attachments > 0 && <span class="clip" title={`${attachments} attachment${attachments > 1 ? "s" : ""}`}><Icon name="clip" size={14} /></span>}

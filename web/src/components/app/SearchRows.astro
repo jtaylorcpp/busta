@@ -1,0 +1,30 @@
+---
+import { MailRow } from "../ui";
+import { deliveryStatus, formatListDate } from "../../lib/mail-data";
+import type { IndexedMessage } from "../../../../src/mailbox-do";
+
+/** Search hits as mail rows. Used by the search page and the load-more partial. */
+interface Props { base: string; results: IndexedMessage[]; q?: string }
+const { base, results, q = "" } = Astro.props;
+const terms = q.replace(/["()*:^]/g, " ").split(/\s+/).filter((t) => t && !/^(AND|OR|NOT|NEAR)$/.test(t));
+---
+{results.map((m) => {
+  const status = deliveryStatus(m);
+  return (
+    <MailRow
+      href={`${base}/${m.id}`}
+      from={m.direction === "out" ? m.recipient : m.from_name || m.sender}
+      subject={m.subject || "(no subject)"}
+      snippet={m.snippet}
+      date={formatListDate(m.received_at)}
+      unread={!m.read}
+      starred={!!m.starred}
+      outbound={m.direction === "out"}
+      tags={m.label ? [m.label] : []}
+      status={status && status.label !== "Sent" ? status : undefined}
+      attachments={m.attachment_count}
+      unverified={m.grafted === 1}
+      highlight={terms}
+    />
+  );
+})}

@@ -1,0 +1,55 @@
+---
+/** GET /mb/<address>/drafts — saved drafts, newest first. */
+import { env } from "cloudflare:workers";
+import AppShell from "../../../layouts/AppShell.astro";
+import { Banner, MailList } from "../../../components/ui";
+import MailboxNav from "../../../components/app/MailboxNav.astro";
+import Account from "../../../components/app/Account.astro";
+import DraftRow from "../../../components/app/DraftRow.astro";
+import { base, formatListDate, openMailbox } from "../../../lib/mail-data";
+import type { Draft } from "../../../../../src/mailbox-do";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+
+const [drafts, stats, labels] = await Promise.all([stub.listDrafts() as Promise<Draft[]>, stub.stats(), stub.labels()]);
+const b = base(address);
+const url = Astro.url;
+const ok = url.searchParams.get("ok");
+const error = url.searchParams.get("error");
+---
+<AppShell title={`Drafts — ${address}`} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
+  <Account slot="account" />
+  <MailboxNav slot="nav" base={b} view={"drafts"} activeLabel={null} stats={stats} labels={labels} />
+  {ok && <Banner tone="success">{ok}</Banner>}
+  {error && <Banner tone="error">{error}</Banner>}
+  <header class="head">
+    <h1>Drafts</h1>
+    <span class="muted">{drafts.length} saved</span>
+  </header>
+  <MailList label="Drafts" empty={drafts.length === 0}>
+    {drafts.map((d) => (
+      <DraftRow
+        href={`${b}/drafts/${d.id}`}
+        discardAction={`${b}/drafts/${d.id}/delete`}
+        to={d.to}
+        subject={d.subject}
+        snippet={d.body.replace(/\s+/g, " ").trim().slice(0, 120)}
+        files={d.attachments_json ? (JSON.parse(d.attachments_json) as unknown[]).length : 0}
+        saved={formatListDate(d.updated_at)}
+        reply={!!d.thread_id}
+      />
+    ))}
+    <Fragment slot="empty">No drafts.</Fragment>
+  </MailList>
+</AppShell>
+
+<style>
+  .head { display: flex; align-items: baseline; gap: var(--space-3); padding: 16px var(--space-4) 10px; border-bottom: 1px solid var(--border); }
+  h1 { font-size: var(--text-xl); font-weight: 600; }
+</style>

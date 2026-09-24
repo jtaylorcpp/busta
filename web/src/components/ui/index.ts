@@ -10,6 +10,7 @@ export { default as ChatMessage } from "./ChatMessage.astro";
 export { default as Count } from "./Count.astro";
 export { default as DayDivider } from "./DayDivider.astro";
 export { default as Field } from "./Field.astro";
+export { default as Highlight } from "./Highlight.astro";
 export { default as Icon } from "./Icon.astro";
 export { default as IconButton } from "./IconButton.astro";
 export { default as ListFooter } from "./ListFooter.astro";

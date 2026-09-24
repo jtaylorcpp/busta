@@ -1,0 +1,39 @@
+---
+/** Shell + heading + flash banners around ComposeForm. */
+import AppShell from "../../layouts/AppShell.astro";
+import { Banner } from "../ui";
+import MailboxNav from "./MailboxNav.astro";
+import Account from "./Account.astro";
+
+interface Props {
+  title: string;
+  address: string;
+  base: string;
+  stats: { unread: number; total: number; trashed: number; starred: number };
+  labels: { label: string; total: number; unread: number }[];
+  flash: { ok: string | null; warn: string | null; error: string | null };
+}
+const { title, address, base, stats, labels, flash } = Astro.props;
+---
+<AppShell title={title} mailbox={address} composeHref={`${base}/compose`} searchAction={`${base}/search`}>
+  <Account slot="account" />
+  <MailboxNav slot="nav" base={base} view={null} activeLabel={null} stats={stats} labels={labels} />
+  <header class="head">
+    <a class="back" href={base} aria-label="Back to inbox">←</a>
+    <h1>{title}</h1>
+    <span class="from">From <b>{address}</b></span>
+  </header>
+  {flash.ok && <Banner tone="success">{flash.ok}</Banner>}
+  {flash.warn && <Banner tone="warn" icon="alert">{flash.warn}</Banner>}
+  {flash.error && <Banner tone="error">{flash.error}</Banner>}
+  <slot />
+</AppShell>
+
+<style>
+  .head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: 14px var(--space-5) 12px var(--space-3); border-bottom: 1px solid var(--border); }
+  .back { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); text-decoration: none; font-size: 18px; }
+  .back:hover { background: var(--surface-2); color: var(--text); }
+  h1 { font-size: var(--text-xl); font-weight: 600; }
+  .from { margin-left: auto; font-size: var(--text-sm); color: var(--muted); }
+  .from b { color: var(--text); font-weight: 500; }
+</style>

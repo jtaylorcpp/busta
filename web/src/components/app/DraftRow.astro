@@ -1,0 +1,54 @@
+---
+import { Icon, IconButton } from "../ui";
+
+/** One saved draft in the drafts list. Discard posts to the original handler. */
+interface Props {
+  href: string;
+  discardAction: string;
+  to: string;
+  subject: string;
+  snippet: string;
+  files: number;
+  saved: string;
+  reply: boolean;
+}
+const { href, discardAction, to, subject, snippet, files, saved, reply } = Astro.props;
+---
+<li class="row">
+  <span class="lead" aria-hidden="true"><Icon name="file" size={17} /></span>
+  <a class="body" href={href}>
+    <span class:list={["to", { none: !to }]}>{to || "(no recipient)"}</span>
+    <span class="main">
+      {reply && <span class="reply">Reply</span>}
+      <span class:list={["subj", { none: !subject }]}>{subject || "(no subject)"}</span>
+      {snippet && <span class="snip"> — {snippet}</span>}
+    </span>
+    <span class="meta">
+      {files > 0 && <span class="clip" title={`${files} file${files > 1 ? "s" : ""}`}><Icon name="clip" size={14} />{files}</span>}
+      <time>{saved}</time>
+    </span>
+  </a>
+  <form class="hover-actions" method="post" action={discardAction}>
+    <IconButton icon="trash" label="Discard draft" tone="danger" type="submit" size={17} />
+  </form>
+</li>
+
+<style>
+  .row { position: relative; display: flex; align-items: center; background: var(--row-unread); border-bottom: 1px solid var(--border); font-size: var(--text-md); }
+  .row:hover { background: var(--row-hover); }
+  .lead { width: 52px; display: grid; place-items: center; color: var(--faint); flex-shrink: 0; }
+  .body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(120px, 28%) 1fr auto; gap: var(--space-3); align-items: center; padding: 10px 14px 10px 0; color: var(--text); text-decoration: none; }
+  .to, .main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .to { font-weight: 600; }
+  .none { color: var(--muted); font-weight: 400; font-style: italic; }
+  .reply { font-size: var(--text-xs); font-weight: 600; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--primary-soft); color: var(--primary); margin-right: 6px; vertical-align: 1px; }
+  .snip { color: var(--muted); }
+  .meta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--text-sm); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .clip { display: inline-flex; align-items: center; gap: 2px; }
+  .hover-actions { position: absolute; right: 8px; top: 50%; translate: 0 -50%; display: none; background: inherit; padding-left: 8px; }
+  .row:hover .hover-actions, .row:focus-within .hover-actions { display: flex; }
+  @media (max-width: 640px) {
+    .body { grid-template-columns: 1fr auto; grid-template-areas: "to meta" "main main"; row-gap: 2px; }
+    .to { grid-area: to; } .main { grid-area: main; } .meta { grid-area: meta; }
+  }
+</style>

@@ -1,0 +1,105 @@
+---
+/**
+ * GET /mb/<address>/search — full-text search with filters. The first slice
+ * is rendered here; the LoadMore island appends the rest. With ?cursor=N (the
+ * no-JS link) this renders that slice instead.
+ */
+import { env } from "cloudflare:workers";
+import AppShell from "../../../layouts/AppShell.astro";
+import { Button, Icon, MailList } from "../../../components/ui";
+import MailboxNav from "../../../components/app/MailboxNav.astro";
+import Account from "../../../components/app/Account.astro";
+import SearchRows from "../../../components/app/SearchRows.astro";
+import LoadMore from "../../../components/islands/LoadMore";
+import { base, openMailbox, runSearch, searchQuery } from "../../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+
+const [page, stats, labels] = await Promise.all([runSearch(stub, Astro.url.searchParams), stub.stats(), stub.labels()]);
+const b = base(address);
+const f = page.filters;
+---
+<AppShell title={page.q ? `“${page.q}” — Search` : "Search"} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`} query={page.q}>
+  <Account slot="account" />
+  <MailboxNav slot="nav" base={b} view={"search"} activeLabel={null} stats={stats} labels={labels} />
+
+  <form class="filters" method="get" action={`${b}/search`}>
+    <div class="qrow">
+      <label class="visually-hidden" for="sq">Search {address}</label>
+      <input id="sq" name="q" type="search" value={page.q} placeholder="settlement agreement" autofocus />
+      <Button variant="primary" type="submit"><Icon name="search" size={15} />Search</Button>
+    </div>
+    <div class="opts">
+      <label class="opt">From <input name="from" type="text" value={f.sender} placeholder="anyone@example.com" /></label>
+      <label class="opt">Folder
+        <select name="tag">
+          <option value="">Any</option>
+          {labels.map((l) => <option value={l.label} selected={f.label === l.label}>+{l.label} ({l.total})</option>)}
+        </select>
+      </label>
+      <label class="chk"><input type="checkbox" name="unread" value="1" checked={f.unreadOnly} /> Unread</label>
+      <label class="chk"><input type="checkbox" name="attach" value="1" checked={f.hasAttachments} /> Has files</label>
+      <label class="chk"><input type="checkbox" name="nobulk" value="1" checked={f.hideBulk} /> No newsletters</label>
+      <label class="chk"><input type="checkbox" name="noauto" value="1" checked={f.hideAuto} /> No auto-replies</label>
+    </div>
+  </form>
+
+  {!page.q ? (
+    <p class="empty">Search subjects, senders and message text. Results run newest to oldest.</p>
+  ) : page.results.length === 0 && page.nextCursor === null ? (
+    <p class="empty">No messages match “{page.q}”.</p>
+  ) : (
+    <Fragment>
+      <MailList label={`Results for ${page.q}`}>
+        <SearchRows base={b} results={page.results} q={page.q} />
+      </MailList>
+      <LoadMore
+        client:visible
+        endpoint={`${b}/search/more`}
+        pageUrl={`${b}/search`}
+        query={searchQuery(page.q, f)}
+        cursor={page.nextCursor}
+        examined={page.examined}
+        shown={page.results.length}
+      />
+    </Fragment>
+  )}
+</AppShell>
+
+<style>
+  .filters { display: grid; gap: var(--space-3); padding: var(--space-4); border-bottom: 1px solid var(--border); }
+  .qrow { display: flex; gap: var(--space-2); }
+  .qrow input {
+    flex: 1; min-width: 0; padding: 10px 14px; border-radius: var(--radius-pill);
+    border: 1.5px solid var(--border); background: var(--bg); color: var(--text); font-size: var(--text-md);
+  }
+  .qrow input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); background: var(--surface); }
+  .opts { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; font-size: var(--text-sm); color: var(--muted); }
+  .opt { display: inline-flex; gap: 6px; align-items: center; }
+  .opt input, .opt select {
+    padding: 5px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font-size: var(--text-sm);
+  }
+  .chk { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .chk input { accent-color: var(--primary); }
+  .empty { padding: 40px var(--space-4); text-align: center; color: var(--muted); }
+  :global(.load-more .more-rows) { list-style: none; margin: 0; padding: 0; }
+  :global(.load-more .status) { display: flex; gap: var(--space-3); align-items: center; justify-content: center; flex-wrap: wrap; padding: var(--space-4); font-size: var(--text-sm); color: var(--muted); }
+  :global(.load-more .status button), :global(.load-more .status a) {
+    font: 600 var(--text-sm) var(--font-sans); padding: 7px 16px; border-radius: var(--radius-pill);
+    border: 1px solid var(--border); background: var(--surface); color: var(--primary); cursor: pointer; text-decoration: none;
+  }
+  :global(.load-more .err) { color: var(--error); display: inline-flex; gap: var(--space-2); align-items: center; }
+  :global(.load-more .empty-window) { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
+  :global(.load-more .count) { flex-basis: 100%; text-align: center; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+  :global(.load-more .loading) { display: inline-flex; gap: var(--space-2); align-items: center; }
+  :global(.load-more .spin) { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--primary); animation: spin .8s linear infinite; }
+  :global(.load-more .more-rows) { border-top: 1px dashed var(--border); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>

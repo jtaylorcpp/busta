@@ -26,6 +26,10 @@ const ASTRO_ROUTES: RegExp[] = [/^\/sign-in\/?$/];
 const ASTRO_GET_ROUTES: RegExp[] = [
   /^\/mb\/[^/]+\/?$/, // mailbox list
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/?$/i, // thread
+  /^\/mb\/[^/]+\/search(\/more)?\/?$/, // search + load-more partial
+  /^\/mb\/[^/]+\/drafts(\/[0-9a-f-]{36})?\/?$/i, // drafts list + edit
+  /^\/mb\/[^/]+\/compose\/?$/, // new / forward
+  /^\/mb\/[^/]+\/recipients\/check\/?$/, // compose's bounce-list check
 ];
 
 /** Paths Astro owns only in local development: the styleguide and mocks. */

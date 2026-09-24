@@ -1,0 +1,42 @@
+---
+/**
+ * GET /mb/<address>/compose — new message, or ?forward=<id> to forward one.
+ * The form posts back to the original handler at the same path.
+ */
+import { env } from "cloudflare:workers";
+import ComposePage from "../../../components/app/ComposePage.astro";
+import ComposeForm from "../../../components/app/ComposeForm.astro";
+import { base, composeLimits, forwardPrefill, openMailbox } from "../../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+
+const url = Astro.url;
+const forwardId = url.searchParams.get("forward");
+const [stats, labels, fwd] = await Promise.all([
+  stub.stats(),
+  stub.labels(),
+  forwardId ? forwardPrefill(env, stub, address, forwardId) : Promise.resolve(null),
+]);
+const b = base(address);
+---
+<ComposePage
+  title={fwd ? "Forward" : "New message"}
+  address={address}
+  base={b}
+  stats={stats}
+  labels={labels}
+  flash={{ ok: url.searchParams.get("ok"), warn: url.searchParams.get("warn"), error: url.searchParams.get("error") }}
+>
+  <ComposeForm
+    base={b}
+    prefill={fwd ? { subject: fwd.subject, body: fwd.body } : undefined}
+    forward={fwd && forwardId ? { messageId: forwardId, attachments: fwd.attachments } : undefined}
+    limits={composeLimits(env)}
+  />
+</ComposePage>

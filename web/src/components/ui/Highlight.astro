@@ -1,0 +1,18 @@
+---
+/**
+ * Text with search terms marked. Case-insensitive, whole-term substrings;
+ * the text is split, never injected as HTML.
+ */
+interface Props { text: string; terms?: string[] }
+const { text, terms = [] } = Astro.props;
+const words = terms.map((t) => t.trim()).filter((t) => t.length >= 2);
+const parts = words.length
+  ? text.split(new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi"))
+  : [text];
+const lower = new Set(words.map((w) => w.toLowerCase()));
+---
+{parts.map((p) => (lower.has(p.toLowerCase()) ? <mark>{p}</mark> : p))}
+
+<style>
+  mark { background: var(--primary-soft); color: inherit; border-radius: 3px; padding: 0 1px; }
+</style>

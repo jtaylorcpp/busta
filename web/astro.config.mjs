@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 
 import cloudflare from '@astrojs/cloudflare';
 import clerk from '@clerk/astro';
+import preact from '@astrojs/preact';
 import { bustaAppearance } from './src/lib/clerk-appearance.ts';
 
 // https://astro.build/config
@@ -20,13 +21,16 @@ export default defineConfig({
     // No Cloudflare Images binding: images are served as-is.
     imageService: 'passthrough',
   }),
-  // Clerk's components and middleware. Reads PUBLIC_CLERK_PUBLISHABLE_KEY and
-  // CLERK_SECRET_KEY from the Worker env at request time.
   integrations: [
+    // Clerk's components and middleware. Reads PUBLIC_CLERK_PUBLISHABLE_KEY
+    // and CLERK_SECRET_KEY from the Worker env at request time.
     clerk({
       appearance: bustaAppearance,
       signInUrl: '/sign-in',
     }),
+    // Islands: small interactive pieces hydrated on the client (e.g. search's
+    // load-more). Everything else ships no JavaScript.
+    preact(),
   ],
   // No KV-backed Astro sessions: auth state lives in Clerk's cookies.
   session: false,
