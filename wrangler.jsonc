@@ -98,6 +98,11 @@
     "CF_ZONE_ID": "6085f77050d8cd8b8afd41b344a374a1",
     "WORKER_NAME": "cloudflare-email",
 
+    // AI Gateway that folder classification (typesafe/jev, a third-party
+    // model) runs through. Third-party models are billed via the gateway's
+    // Unified Billing credits. "default" is auto-created on first use.
+    "AI_GATEWAY_ID": "default",
+
     // Clerk user ids (comma separated) permitted to adopt system mailboxes.
     // Those addresses receive the domain's DMARC and TLS reports, which name
     // every source sending as this domain — so this is an allowlist, not a

@@ -353,6 +353,9 @@ export class ThreadDO extends DurableObject<Env> {
           criteria,
         },
       },
+    } as never, {
+      // Third-party models must run through an AI Gateway (Unified Billing).
+      gateway: { id: String(this.env.AI_GATEWAY_ID ?? "default") },
     } as never)) as {
       answers?: { folder?: { choice?: string; confidence?: number; probabilities?: Record<string, number> } };
     };
