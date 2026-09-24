@@ -43,4 +43,4 @@ meaning-based props (`tone="bounced"`), never colors.
 The sample data is in `src/mock/`. Clerk isn't wired in yet, so the sign-in card is a stand-in built from our own components.
 `AgentDraft` and the agent bar are marked **Future**: agents aren't shipping yet.
 
-The approved design these follow is saved at `../designs/2026-09-23-ui-pallet/index.html`.
+The approved designs these follow are catalogued in `../designs/README.md`.

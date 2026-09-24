@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- Busta Search, Drafts & Compose mockup, approved 2026-09-23. Published copy: https://claude.ai/artifact/BRR7hE4FJ3djCPJWkQetyM -->
+<!-- Busta Search, Drafts & Compose mockup (Version 2, adds the Account tab / sidebar account menu), approved 2026-09-23. Published copy: https://claude.ai/artifact/BRR7hE4FJ3djCPJWkQetyM -->
 </head>
 <body>
 <title>Busta Search, Drafts &amp; Compose</title>
@@ -231,6 +231,76 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 3px; padding
 .cerr svg { flex-shrink: 0; margin-top: 1px; }
 @container (max-width: 640px) { .cf { grid-template-columns: 1fr; gap: 0; padding-block: 8px; } }
 
+
+/* ---- Account selector (bottom-left of the nav) ---- */
+.nav { display: flex; flex-direction: column; gap: 2px; min-height: 100%; }
+.nav-foot { margin-top: auto; padding: 12px 6px 2px 8px; }
+.acct-sel { width: 100%; display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 12px; border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.acct-sel:hover, .acct-sel.open { background: var(--surface); border-color: var(--border); }
+.acct-sel:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.av { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.av.sm { width: 26px; height: 26px; font-size: 11px; }
+.av.sec { background: var(--secondary-soft); color: var(--secondary); }
+.who { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
+.who .addr { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who .org { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-sel .chev { color: var(--muted); }
+.top-av { display: none; }
+.app { position: relative; }
+.app.tall .app-main { min-height: 780px; }
+.pop { position: absolute; z-index: 5; left: 10px; bottom: 74px; width: 312px; max-height: calc(100% - 90px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 2px 6px rgb(28 33 41 / .08), 0 12px 32px rgb(28 33 41 / .16); padding: 6px; display: grid; }
+.cm-dark .pop { box-shadow: 0 2px 6px rgb(0 0 0 / .4), 0 12px 32px rgb(0 0 0 / .5); }
+.scrim { display: none; }
+.pop-sec { display: grid; gap: 1px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.pop-sec:last-child { border-bottom: 0; }
+.pop-lbl { display: flex; align-items: center; gap: 8px; padding: 6px 10px 4px; font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pop-lbl .admin { font: 600 10px/1 var(--sans); letter-spacing: 0; text-transform: none; padding: 2px 6px; border-radius: 999px; background: var(--secondary-soft); color: var(--secondary); }
+.person { display: flex; align-items: center; gap: 10px; padding: 8px 10px; }
+.person .nm { font-weight: 600; }
+.person .em { font-size: 12px; color: var(--muted); }
+.person a { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--primary); text-decoration: none; white-space: nowrap; }
+.opt-row { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 9px; color: var(--text); font-size: 13px; min-width: 0; }
+.opt-row:hover { background: var(--surface-2); }
+.opt-row .ck { width: 16px; color: var(--primary); display: grid; place-items: center; flex-shrink: 0; }
+.opt-row .lab { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-row .end { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.opt-row .cnt { font-size: 12px; font-weight: 700; color: var(--attention); font-variant-numeric: tabular-nums; }
+.opt-row .lbl-chip { font: 500 10.5px/1 var(--mono); padding: 3px 6px; border-radius: 5px; background: var(--secondary-soft); color: var(--secondary); }
+.opt-row.act { color: var(--primary); font-weight: 600; }
+.opt-row.act .ck { color: var(--primary); }
+.opt-row.adopt { color: var(--secondary); }
+.pl { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 8px; border-radius: 999px; }
+.pl.warn { background: var(--warn-soft); color: var(--warn); }
+.pl.warn i { width: 6px; height: 6px; border-radius: 50%; background: var(--warn-fill); }
+.pl.bad { background: var(--error-soft); color: var(--error); }
+.retry { font-size: 12px; font-weight: 600; color: var(--primary); text-decoration: none; }
+.theme-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; font-size: 13px; }
+.tseg { display: inline-flex; background: var(--surface-2); border-radius: 999px; padding: 3px; gap: 2px; }
+.tseg span { font: 600 11.5px var(--sans); color: var(--muted); padding: 4px 10px; border-radius: 999px; }
+.tseg span.on { background: var(--primary-soft); color: var(--primary); }
+.opt-row.out { color: var(--muted); }
+.dim { opacity: .55; }
+/* No-org card */
+.noorg { display: grid; place-items: center; padding: 48px 16px; }
+.org-card { width: min(100%, 440px); display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; box-shadow: var(--shadow); }
+.org-card h2 { font-size: 20px; font-weight: 600; }
+.org-card p { color: var(--muted); font-size: 13.5px; }
+.org-list { display: grid; gap: 6px; }
+.org-item { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.org-item:hover { border-color: var(--primary); }
+.org-item .t { display: grid; line-height: 1.3; }
+.org-item .t b { font-weight: 600; font-size: 13.5px; }
+.org-item .t span { font-size: 12px; color: var(--muted); }
+.org-item .go { margin-left: auto; color: var(--primary); font-weight: 600; font-size: 12.5px; }
+@container (max-width: 640px) {
+  .nav { display: none; }
+  .top-av { display: grid; margin-left: auto; }
+  .pop { left: 0; right: 0; bottom: 0; width: auto; max-height: 82%; border-radius: 18px 18px 0 0; border-bottom: 0; padding: 4px 8px 14px; }
+  .pop::before { content: ""; justify-self: center; width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 6px 0 4px; }
+  .scrim.show { display: block; position: absolute; inset: 0; z-index: 4; background: rgb(17 20 24 / .45); }
+}
+
 /* ---- Notes ---- */
 .notes { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: grid; gap: 6px; align-content: start; }
@@ -254,14 +324,17 @@ svg.i { flex-shrink: 0; vertical-align: middle; fill: none; }
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11 M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1 M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="i-reply" viewBox="0 0 24 24"><path d="M10 6L4 12l6 6 M4 12h10a6 6 0 016 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-updown" viewBox="0 0 24 24"><path d="M8 9.5l4-4 4 4 M8 14.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 5H6.5a1 1 0 00-1 1v12a1 1 0 001 1H14 M10.5 12H20 M16.5 8.5L20 12l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
 </defs></svg>
 
 <div class="wrap">
   <header class="intro">
     <span class="eyebrow">Busta · page mocks · for review before porting</span>
-    <h1>Search, Drafts and Compose</h1>
-    <p>These three pages go to Astro next. They use the approved palette and the same shell as Mailbox and Thread, and they only show what the backend already does: cursor-based search with filters, saved drafts, and one compose form for new mail, forwards and draft edits.</p>
+    <h1>Search, Drafts, Compose and Account</h1>
+    <p>The account selector at the bottom of the sidebar replaces the old Mailboxes and organization pages. These three pages go to Astro next. They use the approved palette and the same shell as Mailbox and Thread, and they only show what the backend already does: cursor-based search with filters, saved drafts, and one compose form for new mail, forwards and draft edits.</p>
   </header>
 
   <div class="switcher">
@@ -269,6 +342,7 @@ svg.i { flex-shrink: 0; vertical-align: middle; fill: none; }
       <button type="button" data-page="search" aria-pressed="true">Search</button>
       <button type="button" data-page="drafts" aria-pressed="false">Drafts</button>
       <button type="button" data-page="compose" aria-pressed="false">Compose</button>
+      <button type="button" data-page="account" aria-pressed="false">Account</button>
     </div>
     <div class="seg" role="group" aria-label="Theme">
       <button type="button" data-theme="light" aria-pressed="false">Light</button>
@@ -285,6 +359,7 @@ svg.i { flex-shrink: 0; vertical-align: middle; fill: none; }
     <div class="note-card"><h3>Matches are highlighted</h3><p>The query term is marked in amber in subjects and snippets. Amber here is a highlight, not a state; if that reads as "in flight", we can switch it to the primary tint.</p></div>
     <div class="note-card"><h3>One compose form</h3><p>New, Forward and Edit draft are the same page. Forward pre-checks the original's attachments; Edit draft shows files already saved with it. Send, Save draft and Discard are the only actions.</p></div>
     <div class="note-card"><h3>Large files become links</h3><p>Files over the inline limit are marked "link · 30 days" in amber before sending, so the sender knows the recipient gets a download link instead of an attachment.</p></div>
+    <div class="note-card"><h3>/ now opens your mailbox; switching lives in the account menu</h3><p>There is no separate Mailboxes page any more. The account button at the bottom of the sidebar switches mailbox and organization, adopts system mailboxes for admins, and holds the theme and Sign out. A user with no organization lands on a pick-or-create card instead of a separate page. On a phone it opens as a bottom sheet from the avatar in the top bar.</p></div>
     <div class="note-card"><h3>Errors name the recipient</h3><p>A refused send keeps the form, turns the offending address chip crimson, and says what to do: remove it and try again.</p></div>
   </section>
 </div>
@@ -294,7 +369,42 @@ const I = (id, s = 16, cls = "i") => `<svg class="${cls}" width="${s}" height="$
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 const hl = (s, q) => q ? esc(s).replace(new RegExp(`(${q})`, "ig"), "<mark>$1</mark>") : esc(s);
 
-function shell(mode, active, inner, title) {
+function selector(o = {}) {
+  const addr = o.noOrg ? "jtaylorcpp@gmail.com" : "jtaylorcpp@busta.app";
+  const org = o.noOrg ? "No organization" : "Jesse's email";
+  return `<div class="nav-foot"><button type="button" class="acct-sel ${o.open ? "open" : ""}" aria-haspopup="menu" aria-expanded="${!!o.open}">
+    <span class="av">J</span><span class="who"><span class="addr">${addr}</span><span class="org">${org}</span></span><span class="chev">${I("updown", 16)}</span></button></div>`;
+}
+
+function popover() {
+  const ck = (on) => `<span class="ck">${on ? I("check", 14) : ""}</span>`;
+  return `<div class="scrim show"></div><div class="pop" role="menu" aria-label="Account">
+    <div class="pop-sec"><div class="person"><span class="av">J</span><span><div class="nm">Jesse Taylor</div><div class="em">jtaylorcpp@gmail.com</div></span><a href="#">Manage account</a></div></div>
+    <div class="pop-sec">
+      <span class="pop-lbl">Mailboxes</span>
+      <span class="opt-row act">${ck(true)}<span class="lab">jtaylorcpp@busta.app</span><span class="end"><span class="cnt">8</span></span></span>
+      <span class="opt-row">${ck(false)}<span class="lab">dmarc@busta.app</span><span class="end"><span class="lbl-chip">Reports</span></span></span>
+      <span class="opt-row">${ck(false)}<span class="lab dim">support@busta.app</span><span class="end"><span class="pl warn"><i></i>Setting up…</span></span></span>
+      <span class="opt-row">${ck(false)}<span class="lab dim">sales@busta.app</span><span class="end"><span class="pl bad">${I("alert", 11)}Setup failed</span><a class="retry" href="#">Retry</a></span></span>
+    </div>
+    <div class="pop-sec">
+      <span class="pop-lbl">Organization</span>
+      <span class="opt-row act">${ck(true)}<span class="av sm">J</span><span class="lab">Jesse's email</span></span>
+      <span class="opt-row">${ck(false)}<span class="av sm sec">A</span><span class="lab">Acme Health</span></span>
+      <span class="opt-row">${ck(false)}<span class="ck">${I("plus", 15)}</span><span class="lab">Create organization</span></span>
+    </div>
+    <div class="pop-sec">
+      <span class="pop-lbl">System mailboxes <span class="admin">Admin</span></span>
+      <span class="opt-row adopt">${ck(false)}<span class="lab">Adopt tls-reports@busta.app</span></span>
+    </div>
+    <div class="pop-sec">
+      <div class="theme-row"><span>Theme</span><span class="tseg"><span class="on">System</span><span>Light</span><span>Dark</span></span></div>
+      <span class="opt-row out"><span class="ck">${I("logout", 15)}</span><span class="lab">Sign out</span></span>
+    </div>
+  </div>`;
+}
+
+function shell(mode, active, inner, title, o = {}) {
   const nav = [
     ["inbox", "Inbox", '<span class="n attn">3</span>'],
     ["star", "Starred", '<span class="n">2</span>'],
@@ -305,16 +415,17 @@ function shell(mode, active, inner, title) {
   const tags = [["+triage", '<span class="n attn">1</span>'], ["+orders", '<span class="n">4</span>'], ["+newsletter", '<span class="n">12</span>'], ["+q4.pipeline", ""]]
     .map(([t, n]) => `<a href="#"><span class="sq"></span>${t}${n}</a>`).join("");
   return `<div class="stage-item"><div class="stage-label"><h3>${title}</h3><span class="eyebrow">${mode}</span></div>
-  <div class="app cm-${mode}">
+  <div class="app cm-${mode} ${o.open ? "tall" : ""}">
     <div class="app-top">
       <span class="brand"><span class="brand-mark">b</span><span class="wordmark">Busta</span></span>
       <span class="search">${I("search", 15)}Search jtaylorcpp@busta.app</span>
-      <span class="acct"><span class="pill-btn">System</span><span class="avatar">JT</span><span class="signout">Sign out</span></span>
+      <span class="top-av av sm" title="Account">J</span>
     </div>
     <div class="app-main">
-      <nav class="nav"><span class="compose-btn">${I("pen", 16)}Compose</span>${nav}<span class="grp">Folders</span>${tags}</nav>
+      <nav class="nav"><span class="compose-btn">${I("pen", 16)}Compose</span>${o.noOrg ? "" : nav + `<span class="grp">Folders</span>` + tags}${selector(o)}</nav>
       <main class="pane">${inner}</main>
     </div>
+    ${o.open ? popover() : ""}
   </div></div>`;
 }
 
@@ -387,6 +498,21 @@ function draftsPage() {
     <div class="specimens"><div class="spec"><span class="spec-lbl">Empty</span><div class="empty"><span class="ic">${I("file", 20)}</span><span>No drafts.</span></div></div></div>`;
 }
 
+function accountInbox() {
+  return `<div class="head"><h2>Inbox</h2><span class="muted">3 unread · 12 threads</span></div>
+    <ul class="rows">${results1.map((r) => row(r, "")).join("")}${results2.map((r) => row(r, "")).join("")}</ul>`;
+}
+
+function noOrgPage() {
+  const item = (i, n, m, cls = "") => `<span class="org-item"><span class="av sm ${cls}">${i}</span><span class="t"><b>${n}</b><span>${m}</span></span><span class="go">Open →</span></span>`;
+  return `<div class="noorg"><div class="org-card">
+    <h2>Pick or create an organization</h2>
+    <p>Every mailbox belongs to an organization. Pick one to open its mail, or create a new one.</p>
+    <div class="org-list">${item("J", "Jesse's email", "2 mailboxes")}${item("A", "Acme Health", "1 mailbox", "sec")}</div>
+    <span class="btn p" style="justify-self:start">${I("plus", 14)}Create organization</span>
+  </div></div>`;
+}
+
 let composeVariant = "new";
 function composePage(mode) {
   const v = composeVariant;
@@ -429,14 +555,18 @@ function composePage(mode) {
     </div>`;
 }
 
-const PAGES = { search: ["Search", searchPage], drafts: ["Drafts", draftsPage], compose: ["Compose", composePage] };
+const PAGES = { search: ["Search", searchPage], drafts: ["Drafts", draftsPage], compose: ["Compose", composePage], account: ["Account", null] };
 let page = "search", theme = "both";
 function render() {
   const [label, fn] = PAGES[page];
   const modes = theme === "both" ? ["light", "dark"] : [theme];
   const stage = document.getElementById("stage");
   stage.className = "stage" + (theme === "both" ? " both" : "");
-  stage.innerHTML = modes.map((m) => shell(m, label === "Compose" ? "" : label, fn(m), `${label} · ${m === "light" ? "Light" : "Dark"}`)).join("");
+  const nm = (m) => (m === "light" ? "Light" : "Dark");
+  stage.innerHTML = page === "account"
+    ? [...modes.map((m) => shell(m, "Inbox", accountInbox(), `Account menu open · ${nm(m)}`, { open: true })),
+       ...modes.map((m) => shell(m, "", noOrgPage(), `No organization · ${nm(m)}`, { noOrg: true }))].join("")
+    : modes.map((m) => shell(m, label === "Compose" ? "" : label, fn(m), `${label} · ${nm(m)}`)).join("");
   stage.querySelectorAll("[data-variant]").forEach((b) => b.addEventListener("click", () => { composeVariant = b.dataset.variant; render(); }));
   stage.querySelectorAll("a").forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
 }
