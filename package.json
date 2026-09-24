@@ -1,0 +1,29 @@
+{
+  "name": "cloudflare-email",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
+    "dns:check": "bun scripts/dns.ts",
+    "dns:apply": "bun scripts/dns.ts --apply",
+    "dns:verify": "bun scripts/verify-dns.ts"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.18.1",
+    "postal-mime": "^2.4.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.135.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260918.1": true,
+    "@clerk/shared@3.48.0": true
+  }
+}

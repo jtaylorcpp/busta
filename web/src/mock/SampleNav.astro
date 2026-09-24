@@ -1,0 +1,18 @@
+---
+import { NavItem } from "../components/ui";
+interface Props { active?: "inbox" | "starred" | "drafts" | "sent" | "trash" }
+const { active = "inbox" } = Astro.props;
+---
+<NavItem href="/mock/mailbox" icon="inbox" label="Inbox" unread={3} active={active === "inbox"} />
+<NavItem href="#" icon="star" label="Starred" total={2} active={active === "starred"} />
+<NavItem href="#" icon="file" label="Drafts" total={1} active={active === "drafts"} />
+<NavItem href="#" icon="send" label="Sent" active={active === "sent"} />
+<NavItem href="#" icon="trash" label="Trash" total={3} active={active === "trash"} />
+<span class="grp">Folders</span>
+<NavItem href="#" tag label="+triage" unread={1} />
+<NavItem href="#" tag label="+orders" unread={1} />
+<NavItem href="#" tag label="+newsletter" total={12} />
+<NavItem href="#" tag label="+q4.pipeline" />
+<style>
+  .grp { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 16px 16px 6px; }
+</style>

@@ -1,0 +1,32 @@
+---
+import Base from "./Base.astro";
+import { Brand } from "../components/ui";
+
+/**
+ * Signed-out pages. Centers the default slot (Clerk's <SignIn /> or
+ * <SignUp />, themed by lib/clerk-appearance) under the Busta mark.
+ */
+interface Props {
+  title: string;
+  heading?: string;
+  subheading?: string;
+}
+const { title, heading, subheading } = Astro.props;
+---
+<Base title={title}>
+  <main class="auth">
+    <Brand size={40} />
+    {heading && <h1>{heading}</h1>}
+    {subheading && <p class="muted">{subheading}</p>}
+    <div class="slot"><slot /></div>
+  </main>
+</Base>
+
+<style>
+  .auth {
+    min-height: 100dvh; display: grid; justify-items: center; align-content: center; gap: var(--space-3);
+    padding: var(--space-6) var(--space-4); text-align: center;
+  }
+  h1 { font-size: var(--text-2xl); font-weight: 700; margin-top: var(--space-3); }
+  .slot { margin-top: var(--space-4); width: 100%; display: grid; justify-items: center; }
+</style>

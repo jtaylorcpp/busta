@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.dev.vars
+dist/
+preview/
+
+# Secrets for the DNS scripts. Never commit.
+.env
+.env.*
+!.env.example

@@ -1,0 +1,27 @@
+# Clerk — https://dashboard.clerk.com → API Keys
+# IMPORTANT: configure Clerk with OAuth (Google/GitHub) or username+password.
+# Disable email-code / email-link sign-in: this app IS the email, so email
+# login is a chicken-and-egg loop.
+CLERK_SECRET_KEY=sk_test_xxx
+CLERK_PUBLISHABLE_KEY=pk_test_xxx
+
+# Enables the /__dev/* endpoints. Local only — never set in production.
+ENVIRONMENT=development
+
+# HMAC key for signed reply sub-addresses (sales+<thread>.<sig>@domain).
+# Replies are pinned to a thread by this signature, never by In-Reply-To.
+# Production: npx wrangler secret put THREAD_SECRET
+THREAD_SECRET=dev-only-not-a-real-secret
+
+# Fractions of the 10 GB Durable Object limit. Lower these locally to make
+# storage relief fire on a small object (0.0016 / 0.0010 ~= 16 MB / 10 MB).
+# STORAGE_HIGH_WATERMARK=0.85
+# STORAGE_LOW_WATERMARK=0.7
+
+# Fault injection for rejection testing (development only).
+# FAULT_CODE=E_RATE_LIMIT_EXCEEDED
+
+# No Cloudflare API credential is needed. Inbound mail is delivered by the
+# zone's Email Routing catch-all rule, configured once for the domain — see
+# the note in wrangler.jsonc. Provisioning a mailbox is a Durable Object
+# write and nothing else.

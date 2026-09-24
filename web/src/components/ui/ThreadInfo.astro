@@ -1,0 +1,15 @@
+---
+/** Muted footer with where this thread lives: mailbox, id, size, copy source. */
+interface Props {
+  mailbox: string;
+  threadId: string;
+  size: string;
+  source: "local" | "archive";
+}
+const { mailbox, threadId, size, source } = Astro.props;
+---
+<p class="info">{mailbox} · thread {threadId} · {size} · {source === "archive" ? "Retrieved from R2 archive" : "Local copy"}</p>
+
+<style>
+  .info { padding: var(--space-2) var(--space-4) var(--space-4); font: var(--text-xs)/1.4 var(--font-mono); color: var(--muted); text-align: center; overflow-wrap: anywhere; }
+</style>

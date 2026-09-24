@@ -1,0 +1,141 @@
+---
+/**
+ * Styleguide: every Busta component, rendered in both themes from the same
+ * markup. Nothing here talks to the Worker; the rows are sample data.
+ */
+import Base from "../layouts/Base.astro";
+import {
+  Banner, Brand, Button, Count,
+  Field, Icon, IconButton, ListFooter, MailList, MailRow, NavItem, Status, Tabs, Tag, ThemeToggle, ThreadHeader,
+} from "../components/ui";
+import SampleThread from "../mock/SampleThread.astro";
+import { rows, people } from "../mock/data";
+
+const themes = ["light", "dark"] as const;
+---
+<Base title="Styleguide" description="Busta components in light and dark">
+  <div class="page">
+    <header class="head">
+      <Brand size={32} />
+      <div class="head-text">
+        <h1>Design system</h1>
+        <p class="muted">Full screens: <a href="/mock/sign-in">Sign in</a> · <a href="/mock/mailbox">Mailbox</a> · <a href="/mock/thread">Thread</a>. Tokens live in <code>src/styles/tokens.css</code>; components in <code>src/components/ui</code>. Each panel below is the same markup pinned to one theme.</p>
+      </div>
+      <ThemeToggle />
+    </header>
+
+    <div class="themes">
+      {themes.map((t) => (
+        <section class:list={["panel", `theme-${t}`]} aria-label={`${t} theme`}>
+          <h2 class="eyebrow">{t}</h2>
+
+          <div class="block">
+            <h3>Buttons</h3>
+            <div class="row">
+              <Button variant="primary">Send</Button>
+              <Button>Save draft</Button>
+              <Button variant="tertiary"><Icon name="spark" size={14} />Ask agent</Button>
+              <Button variant="danger">Delete forever</Button>
+              <Button variant="ghost"><Icon name="reply" size={16} />Reply</Button>
+              <Button variant="primary" disabled>Sending…</Button>
+            </div>
+            <div class="row">
+              <IconButton icon="star" tone="star" label="Star" pressed={true} />
+              <IconButton icon="star" tone="star" label="Star" pressed={false} />
+              <IconButton icon="archive" label="Archive" />
+              <IconButton icon="trash" tone="danger" label="Move to Trash" />
+            </div>
+          </div>
+
+          <div class="block">
+            <h3>Chips, status and counts</h3>
+            <div class="row">
+              <Tag name="triage" count={6} href="#" />
+              <Tag name="orders" />
+              <Tag name="q4.pipeline" />
+              <Status tone="delivered" label="Delivered" />
+              <Status tone="queued" label="Queued · retry 2" />
+              <Status tone="bounced" label="Bounced" />
+              <Status tone="agent" label="Held for review" />
+              <Count value={3} variant="pill" suffix="new" />
+              <Count value={12} />
+            </div>
+          </div>
+
+          <div class="block">
+            <h3>Banners</h3>
+            <div class="stack framed">
+              <Banner tone="agent"><b>Agent on</b> · acting on +triage · drafts held for review</Banner>
+              <Banner tone="error">1 message bounced: dave@old-domain.example has no mailbox.<a slot="action" href="#">View</a></Banner>
+              <Banner tone="warn">DKIM for busta.app isn't verified yet. Mail may land in spam.<a slot="action" href="#">Check DNS</a></Banner>
+              <Banner tone="success">Message sent to bob@example.net.</Banner>
+            </div>
+          </div>
+
+          <div class="block">
+            <h3>Fields</h3>
+            <div class="grid2">
+              <Field id={`to-${t}`} label="To" value="dave@old-domain" error="Add a domain ending, like .com" />
+              <Field id={`subj-${t}`} label="Subject" value="Contract draft" hint="Replies keep the thread tag." />
+            </div>
+          </div>
+
+          <div class="block">
+            <h3>Navigation</h3>
+            <nav class="nav framed-nav">
+              <NavItem href="#" icon="inbox" label="Inbox" unread={3} active />
+              <NavItem href="#" icon="star" label="Starred" total={2} />
+              <NavItem href="#" icon="file" label="Drafts" total={1} />
+              <NavItem href="#" icon="send" label="Sent" />
+              <NavItem href="#" icon="trash" label="Trash" total={3} />
+              <NavItem href="#" tag label="+triage" unread={1} />
+              <NavItem href="#" tag label="+newsletter" total={12} />
+            </nav>
+          </div>
+
+          <div class="block">
+            <h3>Mail list</h3>
+            <div class="framed">
+              <Tabs tabs={[{ label: "All", href: "#", active: true, unread: 3, icon: "inbox" }, { label: "+triage", href: "#" }, { label: "+orders", href: "#" }]} />
+              <MailList>
+                {rows.map((r, i) => <MailRow href="#" {...r} starAction={`#star-${i}`} trashAction={`#trash-${i}`} />)}
+              </MailList>
+              <ListFooter from={1} to={7} total={48} mailbox="sales@busta.app" size="3.1 MB" nextHref="#" />
+            </div>
+          </div>
+
+          <div class="block">
+            <h3>Thread</h3>
+            <div class="framed">
+              <ThreadHeader backHref="#" subject="Quote request — 50 widgets" tags={["q4.pipeline"]} people={people}
+                starAction="#star" unreadAction="#unread" trashAction="#trash" />
+              <SampleThread id={`reply-${t}`} />
+            </div>
+          </div>
+        </section>
+      ))}
+    </div>
+  </div>
+</Base>
+
+<style>
+  .page { max-width: 1480px; margin: 0 auto; padding: var(--space-6) var(--space-4) 80px; display: grid; gap: var(--space-6); }
+  .head { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+  .head-text { flex: 1; min-width: 240px; display: grid; gap: 4px; }
+  h1 { font-size: var(--text-2xl); }
+  code { font-family: var(--font-mono); font-size: .92em; }
+  .themes { display: grid; gap: var(--space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 620px), 1fr)); }
+  .panel {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: var(--space-5); display: grid; gap: var(--space-5); align-content: start; min-width: 0;
+  }
+  .eyebrow { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .block { display: grid; gap: var(--space-3); min-width: 0; }
+  h3 { font-size: var(--text-md); font-weight: 600; }
+  .row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  .stack { display: grid; }
+  .grid2 { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); background: var(--surface); padding: var(--space-4); border-radius: var(--radius-lg); }
+  .framed { background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; }
+  .pad { height: var(--space-4); }
+  .framed-nav { display: grid; max-width: 260px; }
+</style>

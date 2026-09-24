@@ -1,0 +1,29 @@
+---
+/** The Busta mark and wordmark. `size` is the mark's edge in px. */
+interface Props {
+  size?: number;
+  href?: string;
+  wordmark?: boolean;
+}
+const { size = 24, href, wordmark = true } = Astro.props;
+const Tag = href ? "a" : "span";
+---
+<Tag class="brand" href={href} style={`--mark: ${size}px`}>
+  <span class="mark" aria-hidden="true">b</span>
+  {wordmark ? <span class="word">Busta</span> : <span class="visually-hidden">Busta</span>}
+</Tag>
+
+<style>
+  .brand {
+    display: inline-flex; align-items: center; gap: calc(var(--mark) * .35);
+    color: var(--text); text-decoration: none; white-space: nowrap;
+  }
+  .mark {
+    width: var(--mark); height: var(--mark); border-radius: calc(var(--mark) * .27);
+    background: var(--primary); color: var(--on-primary);
+    display: grid; place-items: center;
+    font: 700 calc(var(--mark) * .66)/1 var(--font-sans);
+    padding-bottom: calc(var(--mark) * .06);
+  }
+  .word { font-weight: 700; font-size: calc(var(--mark) * .68); letter-spacing: -.01em; }
+</style>

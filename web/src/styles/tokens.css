@@ -1,0 +1,155 @@
+/*
+ * Busta design tokens — the single source of truth for color.
+ *
+ * Components never use a hex literal; they read these variables. The light
+ * palette lives on bare :root. Dark applies when the OS prefers it (unless the
+ * page is pinned light) or when the root carries data-theme="dark", so a user
+ * toggle can override the OS in either direction.
+ *
+ * Roles:
+ *   primary    one blue for actions — Compose, Send, links, focus, selected folder
+ *   secondary  slate — +tag chips, quiet buttons
+ *   tertiary   violet — the mail agent and nothing else
+ *   attention  red — unread dot, unread counts; small marks only, never a fill area
+ *   error      crimson — always tint + icon + words (bounces, failed sends, bad fields)
+ *   warn       amber — in flight: queued, retrying, held for review, setup steps
+ *   success    green — delivered, sent, checks passing
+ *   star       gold — star icon only, never text
+ */
+
+:root,
+.theme-light {
+  color-scheme: light;
+
+  --bg: #F5F7FB;
+  --surface: #FFFFFF;
+  --surface-2: #F2F5FA;
+  --border: #E1E6EE;
+  --text: #1C2129;
+  --muted: #5B6472;
+  --faint: #8A93A1;
+  --row-unread: #FFFFFF;
+  --row-read: #F2F5FA;
+  --row-hover: #EAF0FA;
+
+  --primary: #1A5FD0;
+  --on-primary: #FFFFFF;
+  --primary-soft: #DCE7FB;
+  --secondary: #4B5566;
+  --secondary-soft: #E9EDF3;
+  --tertiary: #6B42C8;
+  --tertiary-soft: #EEE8FB;
+  --attention: #D2301F;
+  --on-attention: #FFFFFF;
+  --attention-soft: #FDE9E6;
+  --error: #A8201A;
+  --error-soft: #FCE8E6;
+  --warn: #8A5300;
+  --warn-fill: #F2A900;
+  --warn-soft: #FEF3D6;
+  --success: #1B7F3B;
+  --success-soft: #E4F4E8;
+  --star: #F4B400;
+  --star-stroke: #B07A00;
+
+  --shadow-1: 0 1px 2px rgb(28 33 41 / .06), 0 1px 3px rgb(28 33 41 / .08);
+  --shadow-2: 0 2px 6px rgb(28 33 41 / .08), 0 8px 24px rgb(28 33 41 / .10);
+
+  --font-sans: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-md: 13.5px;
+  --text-lg: 15px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111418;
+    --surface: #1B1F26;
+    --surface-2: #232830;
+    --border: #2F353F;
+    --text: #E7EAF0;
+    --muted: #9BA4B2;
+    --faint: #6D7684;
+    --row-unread: #232830;
+    --row-read: #1B1F26;
+    --row-hover: #26324A;
+    --primary: #8AB2F7;
+    --on-primary: #0A1A38;
+    --primary-soft: #1E2F52;
+    --secondary: #B4BDCA;
+    --secondary-soft: #2A313B;
+    --tertiary: #BBA2F7;
+    --tertiary-soft: #2C2447;
+    --attention: #FF6F61;
+    --on-attention: #2A0906;
+    --attention-soft: #3D1B17;
+    --error: #FF9B8F;
+    --error-soft: #3B1A18;
+    --warn: #F2B544;
+    --warn-fill: #F2B544;
+    --warn-soft: #3A2C0E;
+    --success: #74D68F;
+    --success-soft: #16301E;
+    --star: #FDD663;
+    --star-stroke: #FDD663;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / .4), 0 1px 3px rgb(0 0 0 / .3);
+    --shadow-2: 0 2px 6px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .45);
+  }
+}
+
+/* Keep in sync with the media block above. `.theme-dark` scopes a subtree
+   (the styleguide renders both themes side by side; `.theme-light` above
+   pins a subtree to light the same way). */
+:root[data-theme="dark"],
+.theme-dark {
+  color-scheme: dark;
+  --bg: #111418;
+  --surface: #1B1F26;
+  --surface-2: #232830;
+  --border: #2F353F;
+  --text: #E7EAF0;
+  --muted: #9BA4B2;
+  --faint: #6D7684;
+  --row-unread: #232830;
+  --row-read: #1B1F26;
+  --row-hover: #26324A;
+  --primary: #8AB2F7;
+  --on-primary: #0A1A38;
+  --primary-soft: #1E2F52;
+  --secondary: #B4BDCA;
+  --secondary-soft: #2A313B;
+  --tertiary: #BBA2F7;
+  --tertiary-soft: #2C2447;
+  --attention: #FF6F61;
+  --on-attention: #2A0906;
+  --attention-soft: #3D1B17;
+  --error: #FF9B8F;
+  --error-soft: #3B1A18;
+  --warn: #F2B544;
+  --warn-fill: #F2B544;
+  --warn-soft: #3A2C0E;
+  --success: #74D68F;
+  --success-soft: #16301E;
+  --star: #FDD663;
+  --star-stroke: #FDD663;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / .4), 0 1px 3px rgb(0 0 0 / .3);
+  --shadow-2: 0 2px 6px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .45);
+}

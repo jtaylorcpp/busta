@@ -1,0 +1,46 @@
+---
+import Icon from "./Icon.astro";
+import IconButton from "./IconButton.astro";
+import Tag from "./Tag.astro";
+import AvatarStack from "./AvatarStack.astro";
+
+/**
+ * Top of a thread pane: back, subject, +tags, who's on the thread, and the
+ * thread actions. Actions are form POST targets, like the mail list's.
+ */
+interface Person { name: string; address: string; self?: boolean }
+interface Props {
+  backHref: string;
+  subject: string;
+  tags?: string[];
+  people: Person[];
+  starred?: boolean;
+  starAction?: string;
+  unreadAction?: string;
+  trashAction?: string;
+}
+const { backHref, subject, tags = [], people, starred = false, starAction, unreadAction, trashAction } = Astro.props;
+---
+<header class="th">
+  <a class="back" href={backHref} aria-label="Back to inbox" title="Back to inbox"><Icon name="back" size={18} /></a>
+  <div class="title">
+    <h1>{subject}</h1>
+    <div class="sub">{tags.map((t) => <Tag name={t} />)}<AvatarStack people={people} /></div>
+  </div>
+  <div class="acts">
+    {starAction && <form method="post" action={starAction}><IconButton icon="star" tone="star" label={starred ? "Unstar" : "Star"} pressed={starred} type="submit" /></form>}
+    {unreadAction && <form method="post" action={unreadAction}><IconButton icon="mail" label="Mark unread" type="submit" /></form>}
+    {trashAction && <form method="post" action={trashAction}><IconButton icon="trash" tone="danger" label="Move to Trash" type="submit" /></form>}
+  </div>
+</header>
+
+<style>
+  .th { display: flex; align-items: flex-start; gap: var(--space-2); padding: 12px var(--space-4) 12px var(--space-2); border-bottom: 1px solid var(--border); }
+  .back { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); flex-shrink: 0; }
+  .back:hover { background: var(--surface-2); color: var(--text); }
+  .title { flex: 1; min-width: 0; display: grid; gap: 6px; padding-top: 6px; }
+  h1 { font-size: var(--text-xl); font-weight: 600; overflow-wrap: anywhere; }
+  .sub { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .acts { display: flex; gap: 2px; flex-shrink: 0; }
+  .acts form { display: contents; }
+</style>

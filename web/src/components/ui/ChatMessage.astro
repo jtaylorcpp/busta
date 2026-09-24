@@ -1,0 +1,160 @@
+---
+import Icon from "./Icon.astro";
+import Status, { type StatusTone } from "./Status.astro";
+
+/**
+ * One email in the chat-style thread. Mail from others sits on the left in a
+ * shaded bubble; mail from our mailbox sits on the right in soft blue.
+ *
+ * Consecutive messages from the same sender form a run: set `first` on the
+ * first one to show the avatar and name. Quoted history goes in the `quoted`
+ * slot and stays folded, since in a chat view it only repeats earlier
+ * bubbles. Attachments go in the `attachments` slot, below the bubble on the
+ * same side.
+ *
+ * Trust and provenance states, all from the existing Worker:
+ *   remoteImages  the body has blocked remote images; value is the
+ *                 "Load images" URL. Neutral: protection working, not a fault.
+ *   unverified    joined the thread through an unsigned In-Reply-To the
+ *                 sender controls. Amber (caution), never crimson (failure).
+ *   fromArchive   body was read back from the R2 archive.
+ * `actions` adds Reply / Reply all / Forward, shown on hover and focus.
+ */
+interface Props {
+  from: string;
+  address?: string;
+  time: string;
+  outbound?: boolean;
+  first?: boolean;
+  /** Avatar tint, so different people in one thread are told apart at a glance. */
+  tint?: "primary" | "secondary";
+  status?: { tone: StatusTone; label: string };
+  remoteImages?: string;
+  unverified?: boolean;
+  fromArchive?: boolean;
+  /** `more` fills the ··· menu, e.g. View original, Mark unread from here. */
+  actions?: { reply: string; replyAll?: string; forward: string; more?: { label: string; href: string }[] };
+}
+const {
+  from, address, time, outbound = false, first = true, tint = "primary", status,
+  remoteImages, unverified = false, fromArchive = false, actions,
+} = Astro.props;
+const initial = from.trim().charAt(0).toUpperCase();
+// Render optional slots up front: a slot passed empty content (e.g. a falsy
+// conditional) still counts for Astro.slots.has, so check what it produced.
+const quoted = Astro.slots.has("quoted") ? (await Astro.slots.render("quoted")).trim() : "";
+const attachments = Astro.slots.has("attachments") ? (await Astro.slots.render("attachments")).trim() : "";
+---
+<article class:list={["chat", outbound ? "out" : "in", { first, unverified }]} aria-label={`${outbound ? "You" : from}, ${time}`}>
+  {!outbound && (
+    <span class="av-col" aria-hidden="true">{first && <span class:list={["av", tint]}>{initial}</span>}</span>
+  )}
+  <div class="stack">
+    {!outbound && first && (
+      <div class="who"><b>{from}</b>{address && address !== from && <span class="addr">{address}</span>}</div>
+    )}
+    <div class="bubble">
+      {unverified && (
+        <p class="strip caution" role="note"><Icon name="alert" size={15} />
+          <span>This message joined the conversation through an unsigned In-Reply-To header, which the sender controls. Treat its placement in this thread as unverified.</span></p>
+      )}
+      {remoteImages && (
+        <p class="strip images"><Icon name="shield" size={15} />
+          <span>Remote images are blocked. They tell the sender when and where you opened this.</span>
+          <a href={remoteImages}>Load images</a></p>
+      )}
+      <div class="text"><slot /></div>
+      {quoted && (
+        <details class="quoted">
+          <summary><Icon name="more" size={14} />Show quoted text</summary>
+          <blockquote set:html={quoted} />
+        </details>
+      )}
+    </div>
+    {attachments && <div class="atts" set:html={attachments} />}
+    {actions && (
+      <div class="actions">
+        <a href={actions.reply}><Icon name="reply" size={14} />Reply</a>
+        {actions.replyAll && <a href={actions.replyAll}><Icon name="replyAll" size={14} />Reply all</a>}
+        <a href={actions.forward}><Icon name="forward" size={14} />Forward</a>
+        {actions.more && actions.more.length > 0 && (
+          <details class="more">
+            <summary aria-label="More actions" title="More actions"><Icon name="more" size={16} /></summary>
+            <ul>{actions.more.map((m) => <li><a href={m.href}>{m.label}</a></li>)}</ul>
+          </details>
+        )}
+      </div>
+    )}
+    <div class="meta">
+      <time>{time}</time>
+      {fromArchive && <span class="arch"><Icon name="archive" size={12} />From archive</span>}
+      {status && <Status tone={status.tone} label={status.label} bare />}
+    </div>
+  </div>
+</article>
+
+<style>
+  .chat { display: flex; gap: var(--space-2); padding: 2px var(--space-4); }
+  .chat.first { margin-top: var(--space-3); }
+  .out { justify-content: flex-end; }
+  .stack { display: grid; gap: 4px; max-width: min(72%, 680px); min-width: 0; }
+  .out .stack { justify-items: end; }
+  .av-col { width: 28px; flex-shrink: 0; display: flex; align-items: flex-start; padding-top: 22px; }
+  .av { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: var(--text-sm); }
+  .av.primary { background: var(--primary-soft); color: var(--primary); }
+  .av.secondary { background: var(--secondary-soft); color: var(--secondary); }
+  .who { display: flex; gap: 6px; align-items: baseline; font-size: var(--text-sm); padding-left: 4px; min-width: 0; }
+  .addr { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .bubble { padding: 10px 14px; border-radius: 16px; line-height: 1.55; min-width: 0; overflow-wrap: anywhere; }
+  .in .bubble { background: var(--surface-2); color: var(--text); border-top-left-radius: 4px; }
+  .out .bubble { background: var(--primary-soft); color: var(--text); border-top-right-radius: 4px; }
+  .chat:not(.first).in .bubble { border-top-left-radius: 16px; }
+  .unverified .bubble { border: 1.5px dashed var(--warn); padding-top: 0; overflow: hidden; }
+  .strip { display: flex; gap: 8px; align-items: flex-start; font-size: var(--text-sm); line-height: 1.4; }
+  .strip :global(.icon) { margin-top: 1px; }
+  .caution { margin: 0 -14px 10px; padding: 8px 14px; background: var(--warn-soft); color: var(--warn); }
+  .images {
+    margin-bottom: 10px; padding: 7px 10px; border-radius: var(--radius-md);
+    background: var(--surface); border: 1px solid var(--border); color: var(--secondary); align-items: center;
+  }
+  .images span { flex: 1; }
+  .images a { font-weight: 600; white-space: nowrap; }
+  .text :global(p + p) { margin-top: .7em; }
+
+  .quoted { margin-top: 8px; }
+  .quoted summary {
+    display: inline-flex; align-items: center; gap: 4px; list-style: none; cursor: pointer;
+    font-size: var(--text-xs); font-weight: 600; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-pill); padding: 2px 9px;
+  }
+  .quoted summary::-webkit-details-marker { display: none; }
+  .quoted[open] summary { margin-bottom: 8px; }
+  blockquote { margin: 0; padding-left: 10px; border-left: 2px solid var(--border); color: var(--muted); font-size: var(--text-sm); }
+
+  .atts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .out .atts { justify-content: flex-end; }
+  .actions { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+  .chat:hover .actions, .chat:focus-within .actions { opacity: 1; }
+  .actions a {
+    display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: var(--radius-pill);
+    font-size: var(--text-xs); font-weight: 600; color: var(--muted); text-decoration: none;
+  }
+  .actions a:hover { background: var(--surface-2); color: var(--text); }
+  .more { position: relative; }
+  .more summary { list-style: none; cursor: pointer; display: grid; place-items: center; width: 28px; height: 24px; border-radius: var(--radius-pill); color: var(--muted); }
+  .more summary::-webkit-details-marker { display: none; }
+  .more summary:hover, .more[open] summary { background: var(--surface-2); color: var(--text); }
+  .more ul {
+    position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; min-width: 170px; margin: 0; padding: 4px; list-style: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-2);
+  }
+  .out .more ul { left: auto; right: 0; }
+  .more ul a { display: block; padding: 7px 10px; border-radius: var(--radius-sm); font-size: var(--text-sm); color: var(--text); }
+  .chat:has(.more[open]) .actions { opacity: 1; }
+  @media (hover: none) { .actions { opacity: 1; } }
+  .arch { display: inline-flex; align-items: center; gap: 4px; }
+  .meta { display: flex; gap: 8px; align-items: center; font-size: var(--text-xs); color: var(--muted); padding-inline: 4px; }
+
+  @media (max-width: 640px) { .stack { max-width: 88%; } }
+</style>

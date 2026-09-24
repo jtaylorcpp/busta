@@ -1,0 +1,47 @@
+---
+/**
+ * The sample conversation, rendered with the real chat components. Shows how
+ * a page composes a thread: day pills, audience dividers from
+ * audienceChanges(), runs of bubbles, the future agent draft, the composer
+ * and the details footer.
+ */
+import {
+  AgentDraft, Attachment, AudienceDivider, ChatComposer, ChatMessage, DayDivider, ThreadInfo,
+} from "../components/ui";
+import { audienceChanges } from "../lib/audience";
+import { names, original, self, thread } from "./data";
+
+interface Props { id?: string }
+const { id = "reply" } = Astro.props;
+const changes = audienceChanges(thread, self);
+---
+{thread.map((m, i) => {
+  const prev = thread[i - 1];
+  const first = !prev || prev.from !== m.from || !!m.day || changes[i].length > 0;
+  return (
+    <Fragment>
+      {m.day && <DayDivider label={m.day} />}
+      <AudienceDivider actor={m.outbound ? "You" : names[m.from] ?? m.from} changes={changes[i]} names={names} unverified={m.unverified} />
+      <ChatMessage from={names[m.from] ?? m.from} address={m.from} time={m.time} outbound={m.outbound} first={first} tint={m.tint} status={m.status}
+        unverified={m.unverified} fromArchive={m.archived} remoteImages={m.images ? "#load-images" : undefined}
+        actions={m.actions ? { reply: "#reply", replyAll: "#reply-all", forward: "#forward", more: [{ label: "View original", href: "#raw" }, { label: "Mark unread from here", href: "#unread" }] } : undefined}>
+        {m.body.map((p) => <p>{p}</p>)}
+        {m.quoted && <Fragment slot="quoted">{m.quoted}</Fragment>}
+        {m.files && (
+          <Fragment slot="attachments">
+            <Attachment name="pricing-tiers-q4.pdf" size="84 KB" href="#" />
+            <Attachment name="widget-spec-v3.zip" size="31 MB" href="#" link />
+          </Fragment>
+        )}
+      </ChatMessage>
+    </Fragment>
+  );
+})}
+<AgentDraft sendAction="#agent-send" editHref="#agent-edit" discardAction="#agent-discard">
+  <p>Hi Alice, Carol: confirming 50 units at the second-band price, net-30, shipping in two weeks. The countersigned contract will follow from legal.</p>
+</AgentDraft>
+<ChatComposer id={id} action="#send" mode="replyAll"
+  modeHrefs={{ reply: "#reply", replyAll: "#reply-all", forward: "#forward" }}
+  to={["alice@example.net"]} cc={["carol@example.org", "bob@example.net"]} names={names}
+  subject="Re: Quote request — 50 widgets" original={original} include={["a1"]} />
+<ThreadInfo mailbox={self} threadId="9f3c1a77b204de55" size="5 K" source="local" />

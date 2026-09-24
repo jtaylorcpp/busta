@@ -1,0 +1,38 @@
+---
+import Icon, { type IconName } from "./Icon.astro";
+import type { HTMLAttributes } from "astro/types";
+
+/**
+ * Round icon-only button for row and toolbar actions. `label` is required: it
+ * becomes the accessible name and the tooltip. `pressed` marks toggles such
+ * as the star.
+ */
+type Props = {
+  icon: IconName;
+  label: string;
+  pressed?: boolean;
+  tone?: "default" | "star" | "danger";
+  type?: "button" | "submit";
+  size?: number;
+} & Omit<HTMLAttributes<"button">, "type">;
+
+const { icon, label, pressed, tone = "default", type = "button", size = 18, ...rest } = Astro.props;
+---
+<button
+  class:list={["ibtn", tone, { on: pressed }]}
+  type={type}
+  title={label}
+  aria-label={label}
+  aria-pressed={pressed}
+  {...rest}
+><Icon name={icon} size={size} filled={pressed} /></button>
+
+<style>
+  .ibtn {
+    width: 32px; height: 32px; display: inline-grid; place-items: center;
+    border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .ibtn:hover { background: var(--surface-2); color: var(--text); }
+  .star.on { color: var(--star-stroke); --icon-fill: var(--star); }
+  .danger:hover { color: var(--error); }
+</style>

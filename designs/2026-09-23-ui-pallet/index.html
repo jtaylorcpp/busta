@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Busta UI palette and page mocks, 2026-09-23. Published copy: https://claude.ai/artifact/DiagW8GAodGs4Lbh7fPyee (Version 5). -->
+</head>
+<body>
+<title>Busta Theme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* ---------- Theme tokens: light (default) ---------- */
+:root, .cm-light {
+  color-scheme: light;
+  --bg: #F5F7FB;
+  --surface: #FFFFFF;
+  --surface-2: #F2F5FA;
+  --border: #E1E6EE;
+  --text: #1C2129;
+  --muted: #5B6472;
+  --faint: #8A93A1;
+  --row-unread: #FFFFFF;
+  --row-read: #F2F5FA;
+  --row-hover: #EAF0FA;
+
+  --primary: #1A5FD0;  --on-primary: #FFFFFF;  --primary-soft: #DCE7FB;
+  --secondary: #4B5566; --secondary-soft: #E9EDF3;
+  --tertiary: #6B42C8; --tertiary-soft: #EEE8FB;
+  --attention: #D2301F; --on-attention: #FFFFFF; --attention-soft: #FDE9E6;
+  --error: #A8201A; --error-soft: #FCE8E6;
+  --warn: #8A5300; --warn-fill: #F2A900; --warn-soft: #FEF3D6;
+  --success: #1B7F3B; --success-soft: #E4F4E8;
+  --star: #F4B400; --star-stroke: #B07A00;
+
+  --shadow: 0 1px 2px rgba(28, 33, 41, .06), 0 1px 3px rgba(28, 33, 41, .08);
+  --sans: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+/* ---------- Dark ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111418; --surface: #1B1F26; --surface-2: #232830; --border: #2F353F;
+    --text: #E7EAF0; --muted: #9BA4B2; --faint: #6D7684;
+    --row-unread: #232830; --row-read: #1B1F26; --row-hover: #26324A;
+    --primary: #8AB2F7; --on-primary: #0A1A38; --primary-soft: #1E2F52;
+    --secondary: #B4BDCA; --secondary-soft: #2A313B;
+    --tertiary: #BBA2F7; --tertiary-soft: #2C2447;
+    --attention: #FF6F61; --on-attention: #2A0906; --attention-soft: #3D1B17;
+    --error: #FF9B8F; --error-soft: #3B1A18;
+    --warn: #F2B544; --warn-fill: #F2B544; --warn-soft: #3A2C0E;
+    --success: #74D68F; --success-soft: #16301E;
+    --star: #FDD663; --star-stroke: #FDD663;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"], .cm-dark {
+  color-scheme: dark;
+  --bg: #111418; --surface: #1B1F26; --surface-2: #232830; --border: #2F353F;
+  --text: #E7EAF0; --muted: #9BA4B2; --faint: #6D7684;
+  --row-unread: #232830; --row-read: #1B1F26; --row-hover: #26324A;
+  --primary: #8AB2F7; --on-primary: #0A1A38; --primary-soft: #1E2F52;
+  --secondary: #B4BDCA; --secondary-soft: #2A313B;
+  --tertiary: #BBA2F7; --tertiary-soft: #2C2447;
+  --attention: #FF6F61; --on-attention: #2A0906; --attention-soft: #3D1B17;
+  --error: #FF9B8F; --error-soft: #3B1A18;
+  --warn: #F2B544; --warn-fill: #F2B544; --warn-soft: #3A2C0E;
+  --success: #74D68F; --success-soft: #16301E;
+  --star: #FDD663; --star-stroke: #FDD663;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+}
+
+/* ---------- Page ---------- */
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 15px/1.55 var(--sans);
+  padding-inline: 20px; padding-block: 40px 80px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: 34px; font-weight: 700; letter-spacing: -.01em; }
+h2 { font-size: 22px; font-weight: 600; }
+h3 { font-size: 15px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); font-size: 16px; }
+.mono { font-family: var(--mono); }
+section { display: grid; gap: 18px; }
+.sec-head { display: grid; gap: 6px; }
+
+header.top { display: grid; gap: 14px; }
+.decision {
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
+  background: var(--warn-soft); color: var(--text);
+  border-radius: 10px; padding: 14px 16px; max-width: 820px;
+}
+.decision svg { color: var(--warn); margin-top: 2px; }
+.decision b { color: var(--warn); }
+.decision.done { background: var(--success-soft); }
+.decision.done svg, .decision.done b { color: var(--success); }
+
+/* Palette table */
+.palette { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+.palette table { width: 100%; border-collapse: collapse; min-width: 720px; }
+.palette th { text-align: left; font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.palette td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.palette tr:last-child td { border-bottom: 0; }
+.role-name { font-weight: 600; }
+.role-use { color: var(--muted); font-size: 13px; margin-top: 2px; max-width: 34ch; }
+.sw { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 10px; }
+.sw.l { background: #FFFFFF; color: #1C2129; border: 1px solid #E1E6EE; }
+.sw.d { background: #1B1F26; color: #E7EAF0; border: 1px solid #2F353F; }
+.chip3 { display: flex; flex-shrink: 0; }
+.chip3 span { width: 30px; height: 30px; border-radius: 50%; border: 2px solid currentColor; margin-left: -8px; }
+.chip3 span:first-child { margin-left: 0; }
+.sw.l .chip3 span { border-color: #FFFFFF; }
+.sw.d .chip3 span { border-color: #1B1F26; }
+.sw-meta { display: grid; gap: 1px; font: 12px/1.35 var(--mono); font-variant-numeric: tabular-nums; }
+.sw-meta .hex { font-weight: 500; }
+.sw-meta .cr { opacity: .72; }
+.pass { font-weight: 500; }
+
+/* Specimens */
+.switcher { display: flex; flex-wrap: wrap; gap: 10px 16px; justify-content: space-between; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button { font: 600 13px var(--sans); color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); }
+.seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.stage { display: grid; gap: 24px; grid-template-columns: 1fr; }
+@media (min-width: 1400px) { .stage.both { grid-template-columns: 1fr 1fr; } }
+.stage-item { min-width: 0; }
+.hero-brand { margin-bottom: 4px; }
+.specimen-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+
+/* ---------- The mock client (everything via tokens) ---------- */
+.app {
+  container-type: inline-size;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  font: 13.5px/1.4 var(--sans);
+}
+.app-top { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+/* Busta brand: rounded-square mark with a lowercase b, plus the wordmark */
+.brand { --mark: 24px; display: inline-flex; align-items: center; gap: calc(var(--mark) * .36); white-space: nowrap; flex-shrink: 0; }
+.brand.lg { --mark: 40px; }
+.brand-mark { width: var(--mark); height: var(--mark); border-radius: 27%; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font: 700 calc(var(--mark) * .62)/1 var(--sans); padding-bottom: calc(var(--mark) * .04); }
+.wordmark { color: var(--text); font: 700 calc(var(--mark) * .7)/1 var(--sans); letter-spacing: -0.01em; }
+.search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--muted); border-radius: 999px; padding: 8px 14px; border: 1px solid transparent; }
+.app.cm-dark .search { background: var(--surface); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--tertiary-soft); color: var(--tertiary); display: grid; place-items: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+.app-main { display: grid; grid-template-columns: 172px 1fr; gap: 8px; padding: 0 12px 12px 6px; }
+@container (max-width: 560px) {
+  .app-main { grid-template-columns: 1fr; padding-left: 12px; }
+  .nav { display: none; }
+  .col-from { width: 38% !important; }
+}
+.nav { display: grid; align-content: start; gap: 2px; }
+.compose { display: inline-flex; align-items: center; gap: 8px; margin: 2px 0 10px 6px; justify-self: start; background: var(--primary); color: var(--on-primary); border: 0; border-radius: 14px; padding: 12px 18px; font: 600 13.5px var(--sans); box-shadow: var(--shadow); cursor: pointer; }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 14px; border-radius: 0 999px 999px 0; color: var(--text); text-decoration: none; }
+.nav a:hover { background: var(--surface-2); }
+.nav a.on { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.nav a .n { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.nav a .n.attn { color: var(--attention); font-weight: 700; }
+.nav .grp { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 14px 14px 6px; }
+.tagdot { width: 8px; height: 8px; border-radius: 2px; background: var(--secondary); opacity: .7; }
+
+.pane { background: var(--surface); border-radius: 12px; overflow: hidden; min-width: 0; }
+.agentbar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--tertiary-soft); color: var(--tertiary); font-size: 12.5px; }
+.agentbar b { font-weight: 600; }
+.banner { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: var(--error-soft); color: var(--error); font-size: 12.5px; border-bottom: 1px solid var(--border); }
+.banner a { margin-left: auto; color: var(--error); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); padding: 0 6px; overflow-x: auto; }
+.tab { display: flex; align-items: center; gap: 6px; padding: 10px 12px 9px; color: var(--muted); border-bottom: 3px solid transparent; font-weight: 500; white-space: nowrap; }
+.tab.on { color: var(--primary); border-bottom-color: var(--primary); }
+.pill-count { background: var(--attention); color: var(--on-attention); font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px; }
+
+table.mail { width: 100%; border-collapse: collapse; table-layout: fixed; }
+table.mail td { padding: 9px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+table.mail tr { background: var(--row-read); }
+table.mail tr.unread { background: var(--row-unread); }
+table.mail tr:hover { background: var(--row-hover); }
+table.mail tr.unread .from, table.mail tr.unread .subj { font-weight: 700; color: var(--text); }
+.col-mark { width: 50px; padding-left: 12px !important; }
+.col-from { width: 30%; }
+.col-date { width: 58px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-right: 14px !important; }
+tr.unread .col-date { color: var(--text); font-weight: 700; }
+.mark { display: flex; align-items: center; gap: 8px; }
+.udot { width: 8px; height: 8px; border-radius: 50%; background: transparent; flex-shrink: 0; }
+tr.unread .udot { background: var(--attention); }
+.star { color: var(--faint); }
+.star.on { color: var(--star-stroke); --ifill: var(--star); }
+.from { color: var(--text); }
+.from .out { color: var(--success); font-weight: 700; margin-right: 2px; }
+.subj { color: var(--text); }
+.snip { color: var(--muted); font-weight: 400; }
+.clip { color: var(--muted); vertical-align: -2px; margin-left: 4px; }
+.tag { display: inline-block; font: 500 11px/1 var(--mono); padding: 3px 6px; border-radius: 5px; background: var(--secondary-soft); color: var(--secondary); margin-right: 6px; vertical-align: 1px; }
+.st { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; }
+.st.ok { background: var(--success-soft); color: var(--success); }
+.st.q { background: var(--warn-soft); color: var(--warn); }
+.st.q i { width: 6px; height: 6px; border-radius: 50%; background: var(--warn-fill); }
+.st.bad { background: var(--error-soft); color: var(--error); }
+.st.agent { background: var(--tertiary-soft); color: var(--tertiary); }
+
+.listfoot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; font-size: 12px; color: var(--muted); }
+
+/* Sign in */
+.login { min-height: 600px; display: grid; place-content: center; justify-items: center; gap: 16px; padding: 48px 16px; }
+.login-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px 28px 20px; display: grid; gap: 16px; box-shadow: var(--shadow); }
+.login-head { display: grid; gap: 4px; }
+.login-head h3 { font-size: 20px; font-weight: 600; }
+.login-head p { color: var(--muted); font-size: 13.5px; }
+.btn.wide { width: 100%; display: inline-flex; justify-content: center; align-items: center; gap: 10px; padding: 10px 16px; }
+.btn.s.wide { color: var(--text); }
+.g { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--muted); display: grid; place-items: center; font: 700 10px/1 var(--sans); color: var(--muted); }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.field input.ok { border-color: var(--border); }
+.field input.ok:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px var(--primary-soft); }
+.login-alt { font-size: 13px; color: var(--muted); text-align: center; }
+.login-alt a, .notice a { color: var(--primary); font-weight: 600; text-decoration: none; }
+.login-foot { border-top: 1px solid var(--border); padding-top: 12px; text-align: center; font-size: 11.5px; color: var(--faint); }
+.login-legal { font-size: 12px; color: var(--muted); }
+
+/* Thread (chat style) */
+.t-bar { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.ib { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; color: var(--muted); background: transparent; border: 0; cursor: pointer; font: 18px/1 var(--sans); }
+.ib:hover { background: var(--surface-2); color: var(--text); }
+.ib:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.t-title { flex: 1 1 200px; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.t-title h2 { font-size: 17px; font-weight: 600; }
+.t-title .tag { margin: 0; }
+.people { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.stack { display: flex; }
+.stack .av { width: 26px; height: 26px; font-size: 11px; margin-left: -7px; box-shadow: 0 0 0 2px var(--surface); }
+.stack .av:first-child { margin-left: 0; }
+.t-actions { display: flex; gap: 2px; margin-left: auto; }
+.av { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 700 12px/1 var(--sans); background: var(--secondary-soft); color: var(--secondary); flex-shrink: 0; }
+.av.a { background: var(--primary-soft); color: var(--primary); }
+.av.c { background: var(--secondary-soft); color: var(--secondary); }
+.av.me { background: var(--primary-soft); color: var(--primary); }
+.addr { color: var(--muted); font-size: 12px; font-weight: 400; }
+.th { display: grid; gap: 6px; padding: 8px 20px 12px; }
+.day { justify-self: center; margin: 12px 0 4px; font-size: 11.5px; font-weight: 500; color: var(--muted); background: var(--surface-2); padding: 4px 11px; border-radius: 999px; }
+.bm { display: grid; max-width: 72%; gap: 4px; min-width: 0; }
+.bm.in { justify-self: start; grid-template-columns: 28px minmax(0, 1fr); column-gap: 8px; }
+.bm.in > :not(.av):not(.gap) { grid-column: 2; }
+.bm.in .av { grid-row: 2; align-self: start; }
+.bm.in .gap { grid-column: 1; }
+.bm.out { justify-self: end; justify-items: end; }
+.bm.run { margin-top: 6px; }
+.bm-name { font-size: 12.5px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.bubble { display: grid; gap: 8px; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.55; color: var(--text); overflow-wrap: anywhere; }
+.in .bubble { background: var(--surface-2); border-top-left-radius: 4px; justify-self: start; }
+.out .bubble { background: var(--primary-soft); border-top-right-radius: 4px; }
+.quoted { justify-self: start; font: 500 11.5px var(--sans); padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
+.quoted:hover { color: var(--text); }
+.bm-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.out .bm-meta { justify-content: flex-end; }
+.ds { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.ds.ok { color: var(--success); }
+.ds.q { color: var(--warn); }
+.ds.q i { width: 6px; height: 6px; border-radius: 50%; background: var(--warn-fill); }
+.ds.bad { color: var(--error); }
+.batts { display: flex; flex-wrap: wrap; gap: 8px; }
+.out .batts { justify-content: flex-end; }
+.att { display: flex; align-items: center; gap: 10px; width: 210px; max-width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; }
+.att:hover { background: var(--surface-2); }
+.ext { width: 34px; height: 34px; border-radius: 7px; display: grid; place-items: center; font: 600 9.5px/1 var(--mono); background: var(--secondary-soft); color: var(--secondary); flex-shrink: 0; }
+.att-meta { display: grid; min-width: 0; font-size: 12px; color: var(--muted); }
+.att-meta b { font-size: 13px; color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aud { display: grid; grid-template-columns: minmax(16px, 1fr) auto minmax(16px, 1fr); align-items: center; gap: 10px; margin: 14px 0 8px; }
+.aud::before, .aud::after { content: ""; height: 1px; background: var(--border); }
+.aud-c { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; min-width: 0; font-size: 12px; color: var(--muted); text-align: center; }
+.aud-c > svg { flex-shrink: 0; }
+.aud-who { font-weight: 600; color: var(--text); }
+.ach { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 500; padding: 3px 9px; border-radius: 999px; overflow-wrap: anywhere; }
+.ach.add { background: var(--success-soft); color: var(--success); }
+.ach.rm { background: var(--secondary-soft); color: var(--muted); }
+.ach.rm s { text-decoration-thickness: 1px; }
+.ach.mv { background: var(--secondary-soft); color: var(--secondary); }
+.aud-c.warn, .aud-c.warn .aud-who { color: var(--warn); }
+.aud-note { flex-basis: 100%; font-size: 11px; color: var(--faint); }
+.ach.warn { background: var(--warn-soft); color: var(--warn); }
+.ach[title] { cursor: help; }
+.imgstrip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 8px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--secondary); font-size: 12px; line-height: 1.4; }
+.imgstrip svg { margin-top: 1px; }
+.imgstrip button { grid-column: 2; justify-self: start; font: 600 12px var(--sans); color: var(--primary); background: transparent; border: 0; padding: 2px 6px; margin-left: -6px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.imgstrip button:hover { background: var(--primary-soft); }
+.imgstrip svg, .unv-strip svg { flex-shrink: 0; }
+.in .bubble.unv { background: var(--surface-2); border: 1.5px dashed var(--warn); padding: 0; overflow: hidden; gap: 0; }
+.unv-strip { display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; background: var(--warn-soft); color: var(--warn); font-size: 12px; line-height: 1.45; }
+.unv-body { padding: 10px 14px; }
+.bacts { display: flex; flex-wrap: nowrap; width: max-content; max-width: none; gap: 2px; padding: 3px; margin-top: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; box-shadow: var(--shadow); justify-self: start; }
+.bact { display: inline-flex; align-items: center; gap: 5px; font: 600 12px var(--sans); color: var(--secondary); background: transparent; border: 0; padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+.bact:hover { background: var(--surface-2); color: var(--text); }
+.bact.more { padding-inline: 8px; letter-spacing: .1em; }
+.seg { display: flex; gap: 2px; padding: 6px 8px 0; flex-wrap: wrap; }
+.seg button { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px var(--sans); color: var(--muted); background: transparent; border: 0; padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.seg button:hover { background: var(--surface-2); color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); }
+.c-orig { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 2px 14px 10px; }
+.c-orig .lbl { font-size: 12px; font-weight: 600; color: var(--muted); margin-right: 2px; }
+.pick { display: inline-flex; align-items: center; gap: 6px; font: 500 12px var(--sans); padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--secondary); cursor: pointer; }
+.pick .box { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid currentColor; display: grid; place-items: center; }
+.pick[aria-pressed="true"] { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.pick[aria-pressed="true"] .box { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.c-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 14px 10px; border-top: 1px solid var(--border); }
+.ghost { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px var(--sans); color: var(--secondary); background: transparent; border: 0; padding: 6px 10px; border-radius: 999px; cursor: pointer; }
+.ghost:hover { background: var(--surface-2); color: var(--text); }
+.c-foot .hint { flex: 1 1 200px; }
+.c-foot .btn { margin-left: auto; }
+.t-foot { padding: 0 20px 16px; font: 11px/1.5 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.future { justify-self: end; max-width: 72%; display: grid; justify-items: end; gap: 6px; margin-top: 10px; }
+.ftag { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); padding: 4px 7px; border-radius: 999px; }
+.bubble.draft { background: transparent; border: 1.5px dashed var(--tertiary); border-top-right-radius: 4px; }
+.draft-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--tertiary); }
+.draft-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.btn.sm { font-size: 12px; padding: 5px 12px; }
+.composer { margin: 4px 20px 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+.c-to { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; padding: 9px 14px; font-size: 12.5px; color: var(--muted); border-bottom: 1px solid var(--border); }
+.c-to b { color: var(--text); font-weight: 600; }
+.c-to a { margin-left: auto; color: var(--primary); font-weight: 600; text-decoration: none; }
+.c-row { display: flex; align-items: flex-end; gap: 6px; padding: 8px 8px 8px 14px; }
+.c-row textarea { flex: 1; min-width: 0; border: 0; resize: none; padding: 8px 0; font: 14px/1.5 var(--sans); background: transparent; color: var(--text); }
+.c-row textarea:focus { outline: none; }
+.c-row textarea::placeholder { color: var(--faint); }
+.hint { font-size: 12px; color: var(--muted); }
+@container (max-width: 560px) {
+  .bm, .future { max-width: 88%; }
+  .th { padding-inline: 12px; }
+  .composer { margin-inline: 12px; }
+  .t-foot { padding-inline: 12px; }
+  .bacts { flex-wrap: wrap; width: auto; }
+  .people .ptxt { display: none; }
+}
+
+/* component sheet inside each specimen */
+.sheet { display: grid; gap: 12px; padding: 14px; background: var(--surface); border-top: 1px solid var(--border); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { font: 600 13px var(--sans); padding: 8px 16px; border-radius: 999px; border: 1px solid transparent; cursor: pointer; }
+.btn:focus-visible, .compose:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.btn.p { background: var(--primary); color: var(--on-primary); }
+.btn.s { background: transparent; color: var(--secondary); border-color: var(--border); }
+.btn.t { background: var(--tertiary-soft); color: var(--tertiary); }
+.btn.e { background: transparent; color: var(--error); border-color: var(--error); }
+.inline-err { font-size: 12px; color: var(--error); display: flex; gap: 6px; align-items: center; }
+.field { display: grid; gap: 4px; flex: 1; min-width: 180px; }
+.field label { font-size: 11.5px; color: var(--muted); font-weight: 500; }
+.field input { font: 13px var(--sans); padding: 8px 10px; border-radius: 8px; background: var(--surface); color: var(--text); border: 1.5px solid var(--error); }
+
+/* Export */
+.export { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.export-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.export pre { margin: 0; padding: 16px; overflow-x: auto; font: 12.5px/1.6 var(--mono); color: var(--text); max-height: 420px; }
+.copy { font: 600 12.5px var(--sans); background: var(--primary); color: var(--on-primary); border: 0; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.copy:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.rules { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.rule { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.rule p { color: var(--muted); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z" style="fill:var(--ifill,none)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="M16.5 7.5l-7.8 7.8a2 2 0 102.8 2.8l8-8a4 4 0 10-5.7-5.7l-8 8a6 6 0 108.5 8.5l6.2-6.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13l2.5-7h11L20 13v5a1 1 0 01-1 1H5a1 1 0 01-1-1z M4 13h4.5l1 2.5h5l1-2.5H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z M11.5 13.5L20 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 01-.5.5h-10A.5.5 0 017 20z M14 3.5V8h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14 M9.5 7V4.5h5V7 M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4.5L16 4.5l3.5 3.5L8.5 19z M13.5 7l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" fill="currentColor"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-reply" viewBox="0 0 24 24"><path d="M10 6L4 12l6 6 M4 12h10a6 6 0 016 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M14 6l6 6-6 6 M20 12H10a6 6 0 00-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5l7 2.8v5.2c0 4.4-3 7.7-7 9-4-1.3-7-4.6-7-9V6.3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><path d="M9 11.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z M3 19.5c.6-3.2 3-5 6-5s5.4 1.8 6 5 M16 4.8a3.3 3.3 0 010 6.4 M17.5 14.6c2 .6 3.1 2.2 3.5 4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><path d="M4 5h16v4H4z M5.5 9v10h13V9 M10 13h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><path d="M4 7l8 6 8-6 M4 6.5h16v11H4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">busta.app · theme v1 · approved</span>
+    <div class="hero-brand"><span class="brand lg"><span class="brand-mark">b</span><span class="wordmark">Busta</span></span></div>
+    <h1>Busta theme</h1>
+    <p class="lede">Busta's mail client drops the Windows 95 look for a quiet, Gmail-style layout: white reading surfaces on a cool grey ground, one blue for actions, and red reserved for what needs you. Every role has a light and a dark value, and every text color below passes WCAG AA against the surfaces it sits on.</p>
+    <div class="decision done">
+      <svg width="20" height="20"><use href="#i-alert"/></svg>
+      <p><b>Decided: red stays on unread.</b> Attention and error are kept apart by hue and by form. <b>Attention</b> is a brighter vermilion used only as small marks (the unread dot, counts, bold dates). <b>Error</b> is a deeper crimson that always comes as a tinted banner or chip with an icon and words.</p>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">01 · Palette</span>
+      <h2>Color roles</h2>
+      <p class="lede">Each swatch shows the role color, its soft tint (backgrounds for chips and banners), and the color used for text on a filled version. Ratios are measured against the main surface.</p>
+    </div>
+    <div class="palette"><table id="palette"><thead><tr><th>Role</th><th>Light</th><th>Dark</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">02 · Pages</span>
+      <h2>Sign in, mailbox and thread</h2>
+      <p class="lede">Full-page mocks of the three core screens, built only from the tokens above. They use the states Busta already has: unread, starred, +tags, delivery status, and a chat-style thread that marks every change to who is on it. The agent appears only as a labelled future idea.</p>
+    </div>
+    <div class="switcher">
+      <div class="seg" role="group" aria-label="Page">
+        <button type="button" data-page="login">Sign in</button>
+        <button type="button" data-page="mailbox">Mailbox</button>
+        <button type="button" data-page="thread">Thread</button>
+      </div>
+      <div class="seg" role="group" aria-label="Theme">
+        <button type="button" data-theme-pick="light">Light</button>
+        <button type="button" data-theme-pick="dark">Dark</button>
+        <button type="button" data-theme-pick="both">Both</button>
+      </div>
+    </div>
+    <div class="stage" id="stage"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">03 · Rules</span>
+      <h2>How the roles are used</h2>
+    </div>
+    <div class="rules">
+      <div class="rule"><h3>Red means "look at this"</h3><p>Attention red only marks unread mail and unread counts. It never fills a large area, so a glance down the list finds new mail instantly.</p></div>
+      <div class="rule"><h3>Errors always carry words</h3><p>Bounces, failed sends and invalid fields use crimson with a tint, an icon and a sentence saying what went wrong. Color alone never carries the message.</p></div>
+      <div class="rule"><h3>Violet is the agent</h3><p>Tertiary is reserved for the mail agent: the agent bar, agent-drafted replies, "Ask agent". You can always tell what the agent touched.</p></div>
+      <div class="rule"><h3>Unread rows are brighter</h3><p>Unread rows sit on the full surface in bold; read rows drop onto the shaded surface. Dark mode keeps the same logic with lifted surfaces.</p></div>
+      <div class="rule"><h3>Amber is in-flight</h3><p>Warn covers anything waiting: queued delivery, retry, drafts held for review, setup steps. Nothing has failed yet.</p></div>
+      <div class="rule"><h3>One blue for actions</h3><p>Compose, Send, links, the focus ring and the selected folder. Secondary slate handles +tags and quiet buttons so blue stays meaningful.</p></div>
+      <div class="rule"><h3>Caution is amber, failure is crimson</h3><p>A message whose place in the thread can't be verified gets a dashed amber border and a plain explanation. Nothing has failed yet, so it isn't an error; crimson stays for bounces and failed sends.</p></div>
+      <div class="rule"><h3>Audience changes get a divider</h3><p>When To, Cc or Bcc changes mid-thread, a line spans the conversation right before the message that changed it, naming who did it and each address added, removed or moved. Bcc changes show only to the sender.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <span class="eyebrow">04 · Tokens</span>
+      <h2>CSS to drop into the layout</h2>
+      <p class="lede">Generated from the same values as the swatches above. It follows the OS setting and also honours an explicit <span class="mono">data-theme</span> on the root element, so a user toggle can be added later.</p>
+    </div>
+    <div class="export">
+      <div class="export-bar"><span class="mono" style="font-size:12.5px;color:var(--muted)">tokens.css · theme block</span><button class="copy" id="copy" type="button">Copy CSS</button></div>
+      <pre id="css"></pre>
+    </div>
+  </section>
+</div>
+
+<script>
+const ROLES = [
+  { key: "primary", name: "Primary", use: "Compose, Send, links, focus ring, selected folder",
+    light: { c: "#1A5FD0", soft: "#DCE7FB", on: "#FFFFFF" }, dark: { c: "#8AB2F7", soft: "#1E2F52", on: "#0A1A38" } },
+  { key: "secondary", name: "Secondary", use: "+tag chips, quiet buttons, secondary icons",
+    light: { c: "#4B5566", soft: "#E9EDF3" }, dark: { c: "#B4BDCA", soft: "#2A313B" } },
+  { key: "tertiary", name: "Tertiary", use: "The mail agent: agent bar, agent drafts, Ask agent",
+    light: { c: "#6B42C8", soft: "#EEE8FB" }, dark: { c: "#BBA2F7", soft: "#2C2447" } },
+  { key: "attention", name: "Attention", use: "Unread dot, unread counts, NEW badge",
+    light: { c: "#D2301F", soft: "#FDE9E6", on: "#FFFFFF" }, dark: { c: "#FF6F61", soft: "#3D1B17", on: "#2A0906" } },
+  { key: "error", name: "Error", use: "Bounces, failed sends, invalid fields, destructive actions",
+    light: { c: "#A8201A", soft: "#FCE8E6" }, dark: { c: "#FF9B8F", soft: "#3B1A18" } },
+  { key: "warn", name: "Warn", use: "Queued delivery, retries, drafts held for review, setup steps",
+    light: { c: "#8A5300", soft: "#FEF3D6", fill: "#F2A900" }, dark: { c: "#F2B544", soft: "#3A2C0E", fill: "#F2B544" } },
+  { key: "success", name: "Success", use: "Delivered, sent, outbound arrow, DNS checks passing",
+    light: { c: "#1B7F3B", soft: "#E4F4E8" }, dark: { c: "#74D68F", soft: "#16301E" } },
+  { key: "star", name: "Star", use: "Starred messages (icon only, never text)",
+    light: { c: "#F4B400", stroke: "#B07A00", icon: true }, dark: { c: "#FDD663", stroke: "#FDD663", icon: true } },
+];
+const NEUTRALS = {
+  light: { bg: "#F5F7FB", surface: "#FFFFFF", "surface-2": "#F2F5FA", border: "#E1E6EE", text: "#1C2129", muted: "#5B6472", faint: "#8A93A1", "row-unread": "#FFFFFF", "row-read": "#F2F5FA", "row-hover": "#EAF0FA" },
+  dark:  { bg: "#111418", surface: "#1B1F26", "surface-2": "#232830", border: "#2F353F", text: "#E7EAF0", muted: "#9BA4B2", faint: "#6D7684", "row-unread": "#232830", "row-read": "#1B1F26", "row-hover": "#26324A" },
+};
+
+function lum(h) {
+  const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map(v => v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+  return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+}
+function ratio(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+function grade(r, icon) {
+  if (icon) return r >= 3 ? "icon ✓" : "icon, uses stroke";
+  return r >= 7 ? "AAA" : r >= 4.5 ? "AA" : r >= 3 ? "AA large" : "fail";
+}
+
+function swatch(mode, v) {
+  const surf = NEUTRALS[mode].surface;
+  const dots = [v.c, v.soft || v.stroke, v.on || v.fill].filter(Boolean)
+    .map(h => `<span style="background:${h}"></span>`).join("");
+  const r = ratio(v.c, surf);
+  const extra = v.on ? `<span class="cr">on-fill ${v.on} · ${ratio(v.on, v.c).toFixed(1)}:1</span>`
+    : v.soft ? `<span class="cr">tint ${v.soft} · text ${ratio(v.c, v.soft).toFixed(1)}:1</span>`
+    : v.stroke && v.stroke !== v.c ? `<span class="cr">stroke ${v.stroke} · ${ratio(v.stroke, surf).toFixed(1)}:1</span>` : "";
+  return `<div class="sw ${mode[0]}"><div class="chip3">${dots}</div><div class="sw-meta">
+    <span class="hex" style="color:${v.c === "#F4B400" ? "#8A5300" : v.c}">${v.c}</span>
+    <span class="cr">${r.toFixed(1)}:1 <span class="pass">${grade(r, v.icon)}</span></span>${extra}</div></div>`;
+}
+
+const tb = document.querySelector("#palette tbody");
+tb.innerHTML = ROLES.map(r => `<tr><td><div class="role-name">${r.name}</div><div class="role-use">${r.use}</div></td>
+  <td>${swatch("light", r.light)}</td><td>${swatch("dark", r.dark)}</td></tr>`).join("") +
+  `<tr><td><div class="role-name">Neutrals</div><div class="role-use">Ground, surfaces, borders, text. Cool blue bias so greys sit with the primary.</div></td>` +
+  ["light", "dark"].map(m => `<td><div class="sw ${m[0]}" style="flex-wrap:wrap;gap:6px">${
+    ["bg", "surface", "surface-2", "border", "muted", "text"].map(k =>
+      `<span title="--${k} ${NEUTRALS[m][k]}" style="display:grid;gap:3px;justify-items:center;font:10px/1 var(--mono)"><span style="width:28px;height:28px;border-radius:6px;background:${NEUTRALS[m][k]};border:1px solid ${m === "light" ? "#D5DBE5" : "#3A414C"}"></span>${k.replace("surface", "srf")}</span>`).join("")
+  }</div></td>`).join("") + `</tr>`;
+
+/* Page mocks: sign in, mailbox, thread — each rendered in .cm-light or .cm-dark */
+const rows = [
+  { u: 1, from: "alice@example.net", subj: "Quote request — 50 widgets", snip: "Hi there, we're evaluating vendors for Q4 and wanted pricing on a bulk order.", clip: 1, date: "13:42" },
+  { u: 1, from: "no-reply@shipping.example.net", tag: "+orders", subj: "Your order has shipped", snip: "Tracking number 1Z999AA10123456784. Estimated delivery Thursday.", date: "11:57" },
+  { u: 1, from: "lead@inbound.example", tag: "+triage", st: ["agent", "Agent draft ready"], subj: "Demo request from website", snip: "40-seat team, evaluating this quarter.", date: "08:57" },
+  { star: 1, from: "news@vendor.example", tag: "+newsletter", subj: "Weekly industry digest", snip: "The five stories that moved the market this week.", date: "Sep 22" },
+  { out: 1, from: "bob@example.net", st: ["ok", "Delivered"], subj: "Re: Partnership follow-up", snip: "Thanks Bob, attaching the deck we discussed.", clip: 1, date: "Sep 22" },
+  { out: 1, from: "carol@example.org", st: ["q", "Queued · retry 2"], subj: "Pricing sheet", snip: "Here's the updated sheet with volume tiers.", date: "Sep 21" },
+  { out: 1, from: "dave@old-domain.example", st: ["bad", "Bounced"], subj: "Contract draft", snip: "Redlines attached, let me know on section 4.", date: "Sep 20" },
+  { from: "billing@supplier.example", tag: "+orders", subj: "Invoice INV-20931 is available", snip: "Your September invoice is ready. Payment is due in 30 days.", clip: 1, date: "Sep 19" },
+  { from: "maria@partner.example", tag: "+q4.pipeline", subj: "Intro call recap", snip: "Great speaking today. Notes and next steps below.", date: "Sep 18" },
+];
+const icon = (id, s = 16, cls = "") => `<svg class="${cls}" width="${s}" height="${s}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const brand = (size = 24) => `<span class="brand${size > 24 ? " lg" : ""}"><span class="brand-mark">b</span><span class="wordmark">Busta</span></span>`;
+const rowHtml = r => `<tr class="${r.u ? "unread" : ""}">
+  <td class="col-mark"><span class="mark"><span class="udot"></span>${icon("star", 16, "star" + (r.star ? " on" : ""))}</span></td>
+  <td class="col-from"><span class="from">${r.out ? '<span class="out">→</span> To: ' : ""}${r.from}</span></td>
+  <td>${r.st ? `<span class="st ${r.st[0]}">${r.st[0] === "q" ? "<i></i>" : r.st[0] === "agent" ? icon("spark", 11) : r.st[0] === "bad" ? icon("alert", 11) : ""}${r.st[1]}</span>` : ""}${r.tag ? `<span class="tag">${r.tag}</span>` : ""}<span class="subj">${r.subj}</span><span class="snip"> — ${r.snip}</span></td>
+  <td class="col-date">${r.clip ? icon("clip", 13, "clip") : ""} ${r.date}</td></tr>`;
+
+const topbar = () => `<div class="app-top">${brand()}
+  <span class="search">${icon("search", 15)}<span>Search sales@busta.app</span></span>
+  <span class="avatar">JT</span></div>`;
+const nav = (on) => `<nav class="nav">
+  <button class="compose" type="button">${icon("pen", 16)}Compose</button>
+  <a class="on" href="#">${icon("inbox")}Inbox<span class="n attn">3</span></a>
+  <a href="#">${icon("star")}Starred<span class="n">2</span></a>
+  <a href="#">${icon("file")}Drafts<span class="n">1</span></a>
+  <a href="#">${icon("send")}Sent</a>
+  <a href="#">${icon("trash")}Trash<span class="n">3</span></a>
+  <span class="grp">Folders</span>
+  <a href="#"><span class="tagdot"></span>+triage<span class="n attn">1</span></a>
+  <a href="#"><span class="tagdot"></span>+orders<span class="n attn">1</span></a>
+  <a href="#"><span class="tagdot"></span>+newsletter</a>
+  <a href="#"><span class="tagdot"></span>+q4.pipeline</a>
+</nav>`;
+
+function loginPage(mode) {
+  return `<div class="app page-login cm-${mode}"><div class="login">
+    <div class="login-card">
+      ${brand(40)}
+      <div class="login-head"><h3>Sign in to your mailbox</h3><p>Use the account your team set up on busta.app.</p></div>
+      <button class="btn s wide" type="button"><span class="g">G</span>Continue with Google</button>
+      <div class="or"><span>or</span></div>
+      <div class="field"><label for="email-${mode}">Email address</label><input class="ok" id="email-${mode}" type="email" value="jesse@busta.app"></div>
+      <button class="btn p wide" type="button">Continue</button>
+      <p class="login-alt">No account yet? <a href="#">Sign up</a></p>
+      <div class="login-foot">Secured by Clerk</div>
+    </div>
+    <p class="login-legal">busta.app · Privacy · Terms</p>
+  </div></div>`;
+}
+
+function mailboxPage(mode) {
+  return `<div class="app cm-${mode}">${topbar()}
+    <div class="app-main">${nav()}
+      <div class="pane">
+        <div class="agentbar">${icon("spark", 14)}<span><b>Agent on</b> for sales@busta.app · acting on +triage · drafts held for review</span></div>
+        <div class="banner">${icon("alert", 16)}<span>1 message bounced: dave@old-domain.example has no mailbox.</span><a href="#">View</a></div>
+        <div class="tabs"><span class="tab on">${icon("inbox", 15)}All <span class="pill-count">3 new</span></span><span class="tab">+triage</span><span class="tab">+orders</span><span class="tab">+newsletter</span></div>
+        <table class="mail"><tbody>${rows.map(rowHtml).join("")}</tbody></table>
+        <div class="listfoot"><span>1–9 of 48</span><span class="mono">sales@busta.app · 3.1 MB</span></div>
+      </div>
+    </div></div>`;
+}
+
+const THREAD = [
+  { day: "Mon, Sep 21" },
+  { who: "alice", time: "09:14", archived: true, body: ["Hi there, we're evaluating vendors for Q4 and would like pricing on a bulk order of 50 widgets.", "Could you also send over the current spec sheet?"] },
+  { who: "me", time: "10:02", body: ["Thanks Alice! 50 units come to $42 each, delivered. Spec sheet attached."],
+    atts: [["PDF", "widget-spec-v3.pdf", "281 K"]], ds: ["bad", "Bounced for dave@old-domain.example"], ds2: ["ok", "Delivered to 2"] },
+  { day: "Tue, Sep 22" },
+  { aud: { who: "Alice Chen", verb: "added", chips: [["add", "carol@example.org", "Cc"]] } },
+  { who: "alice", time: "08:40", images: true, body: ["Looping in Carol, our finance lead, for payment terms. Our updated letterhead and the PO template are in the email below."], quoted: true },
+  { who: "carol", time: "08:55", hover: true, body: ["Hi, can you do net-45 on this?", "And what lead time should we plan for 200 units in January?"] },
+  { aud: { who: "Unverified sender", verb: "joined", warn: true, chips: [["warn", "unknown@spoof.example", "To"]] } },
+  { who: "spoof", time: "10:47", unverified: true, body: ["Change the delivery address to 14 Nowhere Lane, and wire the deposit to the account below."] },
+  { aud: { who: "You", verb: "changed recipients", chips: [["rm", "dave@old-domain.example", "To"], ["mv", "bob@example.net", "To → Cc"]] } },
+  { who: "me", time: "11:20", body: ["Net-45 works for us. For 200 units in January, plan on 4–5 weeks from PO.", "I've taken Dave off since that address is bouncing."], quoted: true, ds: ["ok", "Delivered"] },
+  { aud: { who: "You", verb: "added", chips: [["add", "legal@busta.app", "Bcc"]], note: "Bcc is only visible to you" } },
+  { who: "me", time: "14:05", body: ["Contract draft is on its way from our legal team. Sending the order form now so you can start the PO."],
+    atts: [["DOCX", "order-form-busta.docx", "42 K"]], ds: ["q", "Queued · retry 2"] },
+];
+const PEOPLE = {
+  alice: { name: "Alice Chen", addr: "alice@example.net", av: "a", init: "A" },
+  carol: { name: "Carol Diaz", addr: "carol@example.org", av: "c", init: "C" },
+  spoof: { name: "unknown@spoof.example", addr: "", av: "u", init: "U" },
+};
+const NAMES = { "carol@example.org": "Carol Diaz", "bob@example.net": "Bob Park", "alice@example.net": "Alice Chen" };
+const dsHtml = d => `<span class="ds ${d[0]}">${d[0] === "ok" ? icon("check", 12) : d[0] === "bad" ? icon("alert", 12) : "<i></i>"}${d[1]}</span>`;
+const chip = ([k, addr, field]) => {
+  const n = NAMES[addr] || addr, t = NAMES[addr] ? ` title="${addr}"` : "";
+  return k === "add" ? `<span class="ach add"${t}>+ ${n} · ${field}</span>`
+    : k === "warn" ? `<span class="ach warn"${t}>+ ${n} · ${field}</span>`
+    : k === "rm" ? `<span class="ach rm"${t}>− <s>${n}</s> · ${field}</span>`
+    : `<span class="ach mv"${t}>${n} ${field}</span>`;
+};
+
+function threadBody() {
+  let prev = null;
+  return THREAD.map(m => {
+    if (m.day) { prev = null; return `<div class="day">${m.day}</div>`; }
+    if (m.aud) { prev = null; return `<div class="aud" role="note"><div class="aud-c${m.aud.warn ? " warn" : ""}">${icon(m.aud.warn ? "alert" : "people", 14)}<span><span class="aud-who">${m.aud.who}</span> ${m.aud.verb}</span>${m.aud.chips.map(chip).join("")}${m.aud.note ? `<span class="aud-note">${m.aud.note}</span>` : ""}</div></div>`; }
+    const first = m.who !== prev; prev = m.who;
+    const paras = m.body.map(t => `<p>${t}</p>`).join("");
+    const quoted = m.quoted ? `<button class="quoted" type="button">··· Show quoted text</button>` : "";
+    const imgs = m.images ? `<div class="imgstrip">${icon("shield", 15)}<span>Remote images are blocked. They tell the sender when and where you opened this.</span><button type="button">Load images</button></div>` : "";
+    const body = m.unverified
+      ? `<div class="bubble unv"><div class="unv-strip">${icon("alert", 15)}<span>This message joined the conversation through an unsigned In-Reply-To header, which the sender controls. Treat its placement in this thread as unverified.</span></div><div class="unv-body">${paras}</div></div>`
+      : `<div class="bubble">${imgs}${paras}${quoted}</div>`;
+    const acts = m.hover ? `<div class="bacts" role="toolbar" aria-label="Message actions"><button class="bact" type="button">${icon("reply", 14)}Reply</button><button class="bact" type="button">${icon("reply", 14)}Reply all</button><button class="bact" type="button">${icon("fwd", 14)}Forward</button><button class="bact more" type="button" title="More actions" aria-label="More actions">···</button></div>` : "";
+    const atts = m.atts ? `<div class="batts">${m.atts.map(([e, n, z]) => `<div class="att"><span class="ext">${e}</span><span class="att-meta"><b>${n}</b><span>${z}</span></span></div>`).join("")}</div>` : "";
+    if (m.who === "me") {
+      const meta = `<div class="bm-meta">${m.ds2 ? dsHtml(m.ds2) : ""}${m.ds ? dsHtml(m.ds) : ""}<span>${m.time}</span></div>`;
+      return `<div class="bm out${first ? " run" : ""}">${body}${atts}${meta}</div>`;
+    }
+    const p = PEOPLE[m.who];
+    const head = first ? `<div class="bm-name">${p.name}${p.addr ? ` <span class="addr">${p.addr}</span>` : ""}</div><span class="av ${p.av}">${p.init}</span>` : `<span class="gap"></span>`;
+    const meta = `<div class="bm-meta"><span>${m.time}</span>${m.archived ? `<span aria-hidden="true">·</span><span class="ds" style="font-weight:500">${icon("archive", 12)}From archive</span>` : ""}</div>`;
+    return `<div class="bm in${first ? " run" : ""}">${head}${body}${atts}${acts}${meta}</div>`;
+  }).join("");
+}
+
+function threadPage(mode) {
+  return `<div class="app cm-${mode}">${topbar()}
+    <div class="app-main">${nav()}
+      <div class="pane">
+        <div class="t-bar">
+          <button class="ib" type="button" title="Back to inbox">←</button>
+          <div class="t-title"><h2>Quote request — 50 widgets</h2><span class="tag">+q4.pipeline</span></div>
+          <span class="people"><span class="stack"><span class="av a">A</span><span class="av c">C</span><span class="av">B</span><span class="av me">S</span></span><span class="ptxt">4 people</span></span>
+          <span class="t-actions">
+            <button class="ib" type="button" title="Star">${icon("star", 18, "star on")}</button>
+            <button class="ib" type="button" title="Mark unread">${icon("mail", 18)}</button>
+            <button class="ib" type="button" title="Move to Trash">${icon("trash", 18)}</button>
+          </span>
+        </div>
+        <div class="th">
+          ${threadBody()}
+          <div class="future">
+            <span class="ftag">Future</span>
+            <div class="bubble draft">
+              <span class="draft-label">${icon("spark", 13)}Agent draft · held for review</span>
+              <p>Hi Carol, confirming net-45 and a 4–5 week lead time for 200 units. The signed order form is all we need to reserve January capacity.</p>
+            </div>
+            <div class="draft-actions"><button class="btn p sm" type="button">Send</button><button class="btn s sm" type="button">Edit</button><button class="btn e sm" type="button">Discard</button></div>
+          </div>
+        </div>
+        <div class="composer">
+          <div class="seg" role="group" aria-label="Reply mode">
+            <button type="button" aria-pressed="false">${icon("reply", 14)}Reply</button>
+            <button type="button" aria-pressed="true">${icon("reply", 14)}Reply all</button>
+            <button type="button" aria-pressed="false">${icon("fwd", 14)}Forward</button>
+          </div>
+          <div class="c-to"><span>To <b>Alice Chen</b> · Cc <b>Carol</b>, <b>Bob</b></span><a href="#">Edit</a></div>
+          <div class="c-row">
+            <textarea id="reply-${mode}" rows="2" aria-label="Reply to all" placeholder="Reply to all…"></textarea>
+          </div>
+          <div class="c-orig">
+            <span class="lbl">Include from the original</span>
+            <button class="pick" type="button" aria-pressed="true"><span class="box">${icon("check", 10)}</span>spec-sheet.pdf · 277 K</button>
+            <button class="pick" type="button" aria-pressed="false"><span class="box"></span>PO-2025-1187.xlsx · 18 K</button>
+          </div>
+          <div class="c-foot">
+            <button class="ghost" type="button">${icon("clip", 15)}Attach files</button>
+            <span class="hint">Large files become expiring download links instead of attachments.</span>
+            <button class="btn p" type="button">Send</button>
+          </div>
+        </div>
+        <div class="t-foot">sales@busta.app · thread 9f3c1a77b204de55 · 5 K · Local copy</div>
+      </div>
+    </div></div>`;
+}
+
+const PAGES = { login: loginPage, mailbox: mailboxPage, thread: threadPage };
+const state = { page: "mailbox", theme: "light" };
+try { const s = JSON.parse(localStorage.getItem("busta-mock") || "{}"); if (PAGES[s.page]) state.page = s.page; if (["light", "dark", "both"].includes(s.theme)) state.theme = s.theme; } catch (e) {}
+function renderStage() {
+  const f = PAGES[state.page];
+  const modes = state.theme === "both" ? ["light", "dark"] : [state.theme];
+  const stage = document.getElementById("stage");
+  stage.className = "stage" + (modes.length > 1 ? " both" : "");
+  stage.innerHTML = modes.map(m => `<div class="stage-item"><div class="specimen-label"><h3>${m === "light" ? "Light" : "Dark"}</h3><span class="eyebrow">.cm-${m}</span></div>${f(m)}</div>`).join("");
+  stage.querySelectorAll("a").forEach(a => a.addEventListener("click", e => e.preventDefault()));
+  document.querySelectorAll("[data-page]").forEach(b => b.setAttribute("aria-pressed", b.dataset.page === state.page));
+  document.querySelectorAll("[data-theme-pick]").forEach(b => b.setAttribute("aria-pressed", b.dataset.themePick === state.theme));
+  try { localStorage.setItem("busta-mock", JSON.stringify(state)); } catch (e) {}
+}
+document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => { state.page = b.dataset.page; renderStage(); }));
+document.querySelectorAll("[data-theme-pick]").forEach(b => b.addEventListener("click", () => { state.theme = b.dataset.themePick; renderStage(); }));
+renderStage();
+
+/* CSS export */
+function tokens(mode) {
+  const out = Object.entries(NEUTRALS[mode]).map(([k, v]) => `  --${k}: ${v};`);
+  for (const r of ROLES) {
+    const v = r[mode];
+    out.push(`  --${r.key}: ${v.c};`);
+    if (v.on) out.push(`  --on-${r.key}: ${v.on};`);
+    if (v.soft) out.push(`  --${r.key}-soft: ${v.soft};`);
+    if (v.fill) out.push(`  --${r.key}-fill: ${v.fill};`);
+    if (v.stroke) out.push(`  --${r.key}-stroke: ${v.stroke};`);
+  }
+  return out;
+}
+const dark = tokens("dark");
+const css = `:root {\n  color-scheme: light;\n${tokens("light").join("\n")}\n}\n\n` +
+  `@media (prefers-color-scheme: dark) {\n  :root:not([data-theme="light"]) {\n    color-scheme: dark;\n${dark.map(l => "  " + l).join("\n")}\n  }\n}\n\n` +
+  `:root[data-theme="dark"] {\n  color-scheme: dark;\n${dark.join("\n")}\n}`;
+document.getElementById("css").textContent = css;
+const btn = document.getElementById("copy");
+btn.addEventListener("click", () => {
+  navigator.clipboard.writeText(css).then(() => { btn.textContent = "Copied"; setTimeout(() => btn.textContent = "Copy CSS", 1600); })
+    .catch(() => { const s = getSelection(), rg = document.createRange(); rg.selectNodeContents(document.getElementById("css")); s.removeAllRanges(); s.addRange(rg); btn.textContent = "Selected, press Ctrl+C"; });
+});
+</script>
+
+</body>
+</html>

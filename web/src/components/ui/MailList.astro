@@ -1,0 +1,18 @@
+---
+/** Wraps a run of MailRow items. The empty slot renders when `empty` is set. */
+interface Props {
+  label?: string;
+  empty?: boolean;
+}
+const { label = "Messages", empty = false } = Astro.props;
+---
+{empty ? (
+  <div class="empty"><slot name="empty">Nothing here yet.</slot></div>
+) : (
+  <ul class="mail-list" aria-label={label}><slot /></ul>
+)}
+
+<style>
+  .mail-list { list-style: none; margin: 0; padding: 0; }
+  .empty { padding: 48px var(--space-4); text-align: center; color: var(--muted); }
+</style>

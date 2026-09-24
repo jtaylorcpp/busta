@@ -1,0 +1,11 @@
+---
+/** Centered date pill between days in the chat thread. */
+interface Props { label: string }
+const { label } = Astro.props;
+---
+<div class="day"><span>{label}</span></div>
+
+<style>
+  .day { display: flex; justify-content: center; padding: var(--space-4) 0 var(--space-1); }
+  span { font-size: var(--text-xs); font-weight: 600; color: var(--muted); background: var(--surface-2); padding: 4px 10px; border-radius: var(--radius-pill); }
+</style>

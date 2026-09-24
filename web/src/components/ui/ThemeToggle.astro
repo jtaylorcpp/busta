@@ -1,0 +1,42 @@
+---
+/**
+ * Cycles System → Light → Dark. Writes data-theme on <html> and remembers the
+ * choice in localStorage; ThemeScript in the Base layout applies it before
+ * first paint so there is no flash.
+ */
+---
+<button class="theme-toggle" type="button" data-theme-toggle aria-label="Theme: System">
+  <span data-theme-label>System</span>
+</button>
+
+<script>
+  const order = ["system", "light", "dark"] as const;
+  type Mode = (typeof order)[number];
+  const read = (): Mode => {
+    try { return (localStorage.getItem("theme") as Mode) || "system"; } catch { return "system"; }
+  };
+  const apply = (mode: Mode) => {
+    const root = document.documentElement;
+    if (mode === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", mode);
+    try { localStorage.setItem("theme", mode); } catch {}
+    const text = mode[0].toUpperCase() + mode.slice(1);
+    document.querySelectorAll<HTMLElement>("[data-theme-toggle]").forEach((b) => {
+      b.setAttribute("aria-label", `Theme: ${text}`);
+      b.querySelector("[data-theme-label]")!.textContent = text;
+    });
+  };
+  apply(read());
+  document.querySelectorAll("[data-theme-toggle]").forEach((b) =>
+    b.addEventListener("click", () => apply(order[(order.indexOf(read()) + 1) % order.length])),
+  );
+</script>
+
+<style>
+  .theme-toggle {
+    font-size: var(--text-sm); font-weight: 500; padding: 6px 12px;
+    border-radius: var(--radius-pill); border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); cursor: pointer;
+  }
+  .theme-toggle:hover { color: var(--text); }
+</style>

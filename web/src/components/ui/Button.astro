@@ -1,0 +1,54 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+/**
+ * primary   the one main action on a view (Send, Compose, Continue)
+ * secondary quiet actions (Save draft, Cancel)
+ * tertiary  agent actions (Ask agent, Approve draft)
+ * danger    destructive, irreversible actions (Delete forever)
+ * ghost     toolbar actions that sit on a surface (Reply, Archive)
+ *
+ * Renders an <a> when `href` is set, otherwise a <button>.
+ */
+type Variant = "primary" | "secondary" | "tertiary" | "danger" | "ghost";
+
+type Props = {
+  variant?: Variant;
+  size?: "sm" | "md" | "lg";
+  href?: string;
+  type?: "button" | "submit" | "reset";
+  class?: string;
+} & Omit<HTMLAttributes<"button">, "type" | "class"> & Omit<HTMLAttributes<"a">, "type" | "class">;
+
+const { variant = "secondary", size = "md", href, type = "button", class: className, ...rest } = Astro.props;
+---
+{href ? (
+  <a class:list={["btn", variant, size, className]} href={href} {...rest}><slot /></a>
+) : (
+  <button class:list={["btn", variant, size, className]} type={type} {...rest}><slot /></button>
+)}
+
+<style>
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+    border: 1px solid transparent; border-radius: var(--radius-pill);
+    font-weight: 600; line-height: 1; text-decoration: none; white-space: nowrap; cursor: pointer;
+    transition: background-color .12s, box-shadow .12s, filter .12s;
+  }
+  .sm { font-size: var(--text-sm); padding: 6px 12px; }
+  .md { font-size: var(--text-md); padding: 9px 16px; }
+  .lg { font-size: var(--text-lg); padding: 13px 20px; border-radius: var(--radius-lg); }
+
+  .primary { background: var(--primary); color: var(--on-primary); }
+  .primary:hover { box-shadow: var(--shadow-1); filter: brightness(1.06); }
+  .secondary { background: transparent; color: var(--secondary); border-color: var(--border); }
+  .secondary:hover { background: var(--surface-2); }
+  .tertiary { background: var(--tertiary-soft); color: var(--tertiary); }
+  .tertiary:hover { filter: brightness(.97); }
+  .danger { background: transparent; color: var(--error); border-color: var(--error); }
+  .danger:hover { background: var(--error-soft); }
+  .ghost { background: transparent; color: var(--muted); }
+  .ghost:hover { background: var(--surface-2); color: var(--text); }
+
+  .btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; filter: none; box-shadow: none; }
+</style>

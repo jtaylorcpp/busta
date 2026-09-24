@@ -1,0 +1,39 @@
+---
+import Icon from "./Icon.astro";
+import Button from "./Button.astro";
+
+/**
+ * FUTURE: agents are not shipping yet. This is the reserved look for a reply
+ * the mail agent drafted and is holding for review: right side, dashed
+ * violet, never sent without a person pressing Send. `future` shows the tag
+ * so mocks can't be mistaken for a live feature.
+ */
+interface Props { sendAction: string; editHref: string; discardAction: string; future?: boolean }
+const { sendAction, editHref, discardAction, future = true } = Astro.props;
+---
+<div class="wrap">
+  {future && <span class="ftag">Future</span>}
+  <div class="draft">
+    <span class="label"><Icon name="spark" size={13} />Agent draft · held for review</span>
+    <div class="text"><slot /></div>
+  </div>
+  <div class="acts">
+    <form method="post" action={sendAction}><Button variant="primary" size="sm" type="submit">Send</Button></form>
+    <Button size="sm" href={editHref}>Edit</Button>
+    <form method="post" action={discardAction}><Button variant="danger" size="sm" type="submit">Discard</Button></form>
+  </div>
+</div>
+
+<style>
+  .wrap { display: grid; justify-items: end; gap: 6px; padding: var(--space-3) var(--space-4) 2px; }
+  .ftag { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 3px 6px; }
+  .draft {
+    max-width: min(72%, 680px); padding: 10px 14px; border-radius: 16px; border-top-right-radius: 4px;
+    border: 1.5px dashed var(--tertiary); background: transparent; display: grid; gap: 6px; line-height: 1.55;
+  }
+  .label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; color: var(--tertiary); }
+  .text :global(p + p) { margin-top: .7em; }
+  .acts { display: flex; gap: 6px; }
+  .acts form { display: contents; }
+  @media (max-width: 640px) { .draft { max-width: 88%; } }
+</style>

@@ -1,0 +1,71 @@
+---
+import Icon from "./Icon.astro";
+import type { AudienceChange } from "../../lib/audience";
+
+/**
+ * Signal-style line across the thread where the recipients change. Place it
+ * just before the message that made the change; `actor` is that message's
+ * sender ("You" for our own mail). Feed it one entry from audienceChanges().
+ *
+ * Additions are green; removals and moves are neutral. Red is reserved for
+ * unread and a removal is not an error.
+ */
+interface Props {
+  actor: string;
+  changes: AudienceChange[];
+  /** Display names by address; unknown addresses show as-is. */
+  names?: Record<string, string>;
+  /** The change came from a message whose thread placement is unverified. */
+  unverified?: boolean;
+}
+const { actor, changes, names = {}, unverified = false } = Astro.props;
+const label = (a: string) => names[a] ?? a;
+const F = { to: "To", cc: "Cc", bcc: "Bcc" } as const;
+const lead = unverified ? "Unverified sender joined"
+  : changes.every((c) => c.kind === "added") ? "added"
+  : changes.every((c) => c.kind === "removed") ? "removed"
+  : "changed recipients";
+const touchesBcc = changes.some((c) => c.kind === "moved" ? c.from === "bcc" || c.to === "bcc" : c.field === "bcc");
+---
+{changes.length > 0 && (
+  <div class="divider" role="note">
+    <div class="content">
+      <span class:list={["lead", { caution: unverified }]}><Icon name={unverified ? "alert" : "users"} size={14} />{unverified ? lead : `${actor} ${lead}`}</span>
+      <span class="chips">
+        {changes.map((c) =>
+          c.kind === "added" ? (
+            <span class:list={["chip", unverified ? "caution" : "add"]} title={c.address}><span aria-hidden="true">+</span><span class="visually-hidden">Added</span>{label(c.address)}<span class="f">· {F[c.field]}</span></span>
+          ) : c.kind === "removed" ? (
+            <span class="chip rem" title={c.address}><span aria-hidden="true">−</span><span class="visually-hidden">Removed</span><s>{label(c.address)}</s><span class="f">· {F[c.field]}</span></span>
+          ) : (
+            <span class="chip mov" title={c.address}><span class="visually-hidden">Moved</span>{label(c.address)}<span class="f">{F[c.from]} → {F[c.to]}</span></span>
+          ),
+        )}
+      </span>
+      {touchesBcc && <span class="note">Bcc is only visible to you</span>}
+    </div>
+  </div>
+)}
+
+<style>
+  .divider { position: relative; display: grid; justify-items: center; padding: var(--space-4) var(--space-4) var(--space-2); }
+  .divider::before { content: ""; position: absolute; left: var(--space-4); right: var(--space-4); top: calc(var(--space-4) + 11px); height: 1px; background: var(--border); }
+  .content {
+    position: relative; display: grid; justify-items: center; gap: 6px; max-width: 92%;
+    padding: 0 var(--space-3); background: var(--surface); text-align: center;
+  }
+  .lead { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; color: var(--muted); line-height: 22px; }
+  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+    font-size: var(--text-xs); font-weight: 500; line-height: 1; padding: 4px 9px; border-radius: var(--radius-pill);
+    overflow-wrap: anywhere;
+  }
+  .f { font-family: var(--font-mono); opacity: .8; }
+  .add { background: var(--success-soft); color: var(--success); }
+  .chip.caution { background: var(--warn-soft); color: var(--warn); }
+  .lead.caution { color: var(--warn); }
+  .rem { background: var(--secondary-soft); color: var(--muted); }
+  .mov { background: var(--secondary-soft); color: var(--secondary); }
+  .note { font-size: var(--text-xs); color: var(--muted); font-style: italic; }
+</style>

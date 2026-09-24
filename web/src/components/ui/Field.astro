@@ -1,0 +1,49 @@
+---
+import Icon from "./Icon.astro";
+import type { HTMLAttributes } from "astro/types";
+
+/**
+ * Labelled text input. `error` switches the border to crimson, sets
+ * aria-invalid and renders the message under the field, wired up with
+ * aria-describedby. Say what went wrong and how to fix it.
+ */
+type Props = {
+  id: string;
+  label: string;
+  error?: string;
+  hint?: string;
+  multiline?: boolean;
+} & HTMLAttributes<"input">;
+
+const { id, label, error, hint, multiline = false, ...rest } = Astro.props;
+const noteId = error || hint ? `${id}-note` : undefined;
+---
+<div class:list={["field", { invalid: !!error }]}>
+  <label for={id}>{label}</label>
+  {multiline ? (
+    <textarea id={id} name={rest.name} aria-invalid={error ? "true" : undefined} aria-describedby={noteId} placeholder={rest.placeholder}>{rest.value}</textarea>
+  ) : (
+    <input id={id} aria-invalid={error ? "true" : undefined} aria-describedby={noteId} {...rest} />
+  )}
+  {error ? (
+    <p class="note err" id={noteId}><Icon name="alert" size={13} />{error}</p>
+  ) : hint ? (
+    <p class="note" id={noteId}>{hint}</p>
+  ) : null}
+</div>
+
+<style>
+  .field { display: grid; gap: 5px; min-width: 0; }
+  label { font-size: var(--text-sm); font-weight: 500; color: var(--muted); }
+  input, textarea {
+    width: 100%; padding: 9px 11px; border-radius: var(--radius-md);
+    background: var(--surface); color: var(--text);
+    border: 1.5px solid var(--border); font-size: var(--text-md);
+  }
+  textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+  input:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .invalid input, .invalid textarea { border-color: var(--error); }
+  .invalid input:focus, .invalid textarea:focus { box-shadow: 0 0 0 3px var(--error-soft); }
+  .note { font-size: var(--text-sm); color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .err { color: var(--error); }
+</style>

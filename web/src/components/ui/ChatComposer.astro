@@ -1,0 +1,134 @@
+---
+import Icon from "./Icon.astro";
+import Button from "./Button.astro";
+import Field from "./Field.astro";
+
+/**
+ * Reply box at the foot of a chat thread. Works without JavaScript: the mode
+ * switch is three links (the page renders the chosen mode), "Edit" opens the
+ * To/Cc/Subject fields in a <details>, and everything posts as one form.
+ *
+ * `original` lists the attachments of the message being answered. Checked
+ * ones are re-attached (field name `include`, one value per file). Forward
+ * checks them all by default and starts with an empty To.
+ */
+type Mode = "reply" | "replyAll" | "forward";
+interface Original { id: string; name: string; size: string }
+interface Props {
+  action: string;
+  mode: Mode;
+  modeHrefs: Record<Mode, string>;
+  to: string[];
+  cc?: string[];
+  subject: string;
+  original?: Original[];
+  /** Ids to pre-check. Defaults to all for Forward, none otherwise. */
+  include?: string[];
+  names?: Record<string, string>;
+  /** Prefix for field ids; set it when a page renders more than one composer. */
+  id?: string;
+}
+const { action, mode, modeHrefs, to, cc = [], subject, original = [], names = {} } = Astro.props;
+const include = new Set(Astro.props.include ?? (mode === "forward" ? original.map((o) => o.id) : []));
+const show = (list: string[]) => list.map((a) => names[a] ?? a).join(", ");
+const modes: [Mode, string][] = [["reply", "Reply"], ["replyAll", "Reply all"], ["forward", "Forward"]];
+const uid = Astro.props.id ?? "reply";
+---
+<form class="composer" method="post" action={action} enctype="multipart/form-data">
+  <input type="hidden" name="mode" value={mode} />
+  <nav class="modes" aria-label="Response type">
+    {modes.map(([m, label]) => (
+      <a href={modeHrefs[m]} class:list={{ on: m === mode }} aria-current={m === mode ? "true" : undefined}>{label}</a>
+    ))}
+  </nav>
+
+  <details class="recips">
+    <summary>
+      {to.length ? <span><span class="k">To</span> {show(to)}</span> : <span class="need">Add recipients</span>}
+      {cc.length > 0 && <span><span class="k">Cc</span> {show(cc)}</span>}
+      <span class="edit">Edit</span>
+    </summary>
+    <div class="fields">
+      <Field id={`${uid}-to`} name="to" label="To" value={to.join(", ")} />
+      <Field id={`${uid}-cc`} name="cc" label="Cc" value={cc.join(", ")} />
+      <Field id={`${uid}-bcc`} name="bcc" label="Bcc" hint="Only you see who is on Bcc." />
+      <Field id={`${uid}-subject`} name="subject" label="Subject" value={subject} />
+    </div>
+  </details>
+
+  <label class="visually-hidden" for={`${uid}-body`}>Message</label>
+  <textarea id={`${uid}-body`} name="body" rows="3" placeholder={mode === "forward" ? "Add a note…" : mode === "replyAll" ? "Reply to all…" : "Reply…"}></textarea>
+
+  {original.length > 0 && (
+    <fieldset class="orig">
+      <legend>Include from the original</legend>
+      {original.map((o) => (
+        <label class="pick">
+          <input type="checkbox" name="include" value={o.id} checked={include.has(o.id)} />
+          <Icon name="check" size={13} class="tick" />
+          <span>{o.name}</span><span class="sz">· {o.size}</span>
+        </label>
+      ))}
+    </fieldset>
+  )}
+
+  <div class="bar">
+    <label class="attach">
+      <input type="file" name="files" multiple class="visually-hidden" />
+      <Icon name="clip" size={16} />Attach files
+    </label>
+    <span class="hint">Large files become expiring download links instead of attachments.</span>
+    <Button variant="primary" type="submit"><Icon name="send" size={15} />Send</Button>
+  </div>
+</form>
+
+<style>
+  .composer {
+    display: grid; gap: var(--space-3); margin: var(--space-4); padding: var(--space-3) var(--space-4) var(--space-4);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-1);
+  }
+  .modes { display: inline-flex; justify-self: start; background: var(--surface-2); border-radius: var(--radius-pill); padding: 3px; gap: 2px; }
+  .modes a { padding: 5px 12px; border-radius: var(--radius-pill); font-size: var(--text-sm); font-weight: 600; color: var(--muted); text-decoration: none; }
+  .modes a:hover { color: var(--text); }
+  .modes a.on { background: var(--primary-soft); color: var(--primary); }
+
+  .recips summary {
+    list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline;
+    font-size: var(--text-sm); color: var(--text);
+  }
+  .recips summary::-webkit-details-marker { display: none; }
+  .k { color: var(--muted); font-weight: 600; margin-right: 2px; }
+  .need { color: var(--primary); font-weight: 600; }
+  .edit { margin-left: auto; color: var(--primary); font-weight: 600; }
+  .recips[open] .edit { visibility: hidden; }
+  .fields { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: var(--space-3); }
+
+  textarea {
+    width: 100%; min-height: 84px; resize: vertical; padding: 10px 12px; border-radius: var(--radius-md);
+    border: 1.5px solid var(--border); background: var(--bg); color: var(--text); line-height: 1.5;
+  }
+  textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); background: var(--surface); }
+
+  .orig { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  legend { float: left; font-size: var(--text-sm); color: var(--muted); font-weight: 500; margin-right: var(--space-2); padding: 0; }
+  .pick {
+    position: relative; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 5px 11px 5px 9px; border-radius: var(--radius-pill); font-size: var(--text-sm);
+    background: var(--surface); border: 1px solid var(--border); color: var(--secondary);
+  }
+  .pick input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .pick :global(.tick) { display: none; }
+  .pick:has(input:checked) { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+  .pick:has(input:checked) :global(.tick) { display: inline; }
+  .pick:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .sz { opacity: .75; font-variant-numeric: tabular-nums; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+  .attach {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 7px 12px; border-radius: var(--radius-pill);
+    font-size: var(--text-sm); font-weight: 600; color: var(--muted);
+  }
+  .attach:hover { background: var(--surface-2); color: var(--text); }
+  .attach:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .hint { flex: 1; min-width: 180px; font-size: var(--text-xs); color: var(--muted); }
+</style>

@@ -1,0 +1,44 @@
+---
+import Icon, { type IconName } from "./Icon.astro";
+
+/**
+ * Full-width strip at the top of a pane. Put the message in the default slot
+ * and an optional link or button in the `action` slot.
+ *   error   something failed and needs you (a bounce, a failed send)
+ *   warn    in flight or needs setup (DNS not verified, drafts held)
+ *   success confirmation (Sent, Restored)
+ *   agent   the mail agent's status bar
+ *   info    neutral notice
+ */
+type Tone = "error" | "warn" | "success" | "agent" | "info";
+interface Props {
+  tone?: Tone;
+  icon?: IconName;
+}
+const { tone = "info" } = Astro.props;
+const defaults: Record<Tone, IconName> = {
+  error: "alert", warn: "clock", success: "check", agent: "spark", info: "mail",
+};
+const icon = Astro.props.icon ?? defaults[tone];
+---
+<div class:list={["banner", tone]} role={tone === "error" ? "alert" : "status"}>
+  <Icon name={icon} size={16} />
+  <div class="msg"><slot /></div>
+  {Astro.slots.has("action") && <div class="action"><slot name="action" /></div>}
+</div>
+
+<style>
+  .banner {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: 9px var(--space-4); font-size: var(--text-sm);
+  }
+  .msg { flex: 1; min-width: 0; }
+  .msg :global(b) { font-weight: 600; }
+  .action { flex-shrink: 0; font-weight: 600; }
+  .action :global(a) { color: inherit; }
+  .error { background: var(--error-soft); color: var(--error); }
+  .warn { background: var(--warn-soft); color: var(--warn); }
+  .success { background: var(--success-soft); color: var(--success); }
+  .agent { background: var(--tertiary-soft); color: var(--tertiary); }
+  .info { background: var(--primary-soft); color: var(--primary); }
+</style>

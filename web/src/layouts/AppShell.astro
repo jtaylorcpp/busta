@@ -1,0 +1,63 @@
+---
+import Base from "./Base.astro";
+import { Brand, Button, Icon, ThemeToggle } from "../components/ui";
+
+/**
+ * Signed-in chrome: top bar (brand, search, account), sidebar (Compose + the
+ * `nav` slot) and the main pane (default slot). The `account` slot is where
+ * Clerk's <UserButton /> goes.
+ */
+interface Props {
+  title: string;
+  mailbox: string;
+  composeHref: string;
+  searchAction?: string;
+  query?: string;
+}
+const { title, mailbox, composeHref, searchAction, query } = Astro.props;
+---
+<Base title={title}>
+  <div class="shell">
+    <header class="top">
+      <Brand href="/" />
+      <form class="search" role="search" method="get" action={searchAction}>
+        <Icon name="search" size={17} />
+        <label class="visually-hidden" for="q">Search {mailbox}</label>
+        <input id="q" name="q" type="search" placeholder={`Search ${mailbox}`} value={query} />
+      </form>
+      <div class="account">
+        <ThemeToggle />
+        <slot name="account" />
+      </div>
+    </header>
+    <div class="body">
+      <nav class="side" aria-label="Folders">
+        <Button variant="primary" size="lg" href={composeHref} class="compose"><Icon name="pen" size={18} />Compose</Button>
+        <slot name="nav" />
+      </nav>
+      <main class="pane"><slot /></main>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .shell { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; }
+  .top { display: flex; align-items: center; gap: var(--space-4); padding: 10px var(--space-4); }
+  .search {
+    flex: 1; max-width: 720px; display: flex; align-items: center; gap: var(--space-2);
+    background: var(--surface-2); color: var(--muted); border-radius: var(--radius-pill); padding: 0 16px;
+    border: 1px solid transparent;
+  }
+  :global([data-theme="dark"]) .search, :global(.theme-dark) .search { background: var(--surface); }
+  .search:focus-within { background: var(--surface); border-color: var(--border); box-shadow: var(--shadow-1); }
+  .search input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 11px 0; outline: none; color: var(--text); }
+  .account { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
+  .body { display: grid; grid-template-columns: 232px 1fr; gap: var(--space-2); padding: 0 var(--space-4) var(--space-4) 0; min-height: 0; }
+  .side { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; }
+  .side :global(.compose) { align-self: flex-start; margin: 0 0 var(--space-3) var(--space-3); box-shadow: var(--shadow-1); }
+  .pane { background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; min-width: 0; }
+  @media (max-width: 800px) {
+    .body { grid-template-columns: 1fr; padding-left: var(--space-4); }
+    .side { display: none; }
+  }
+</style>

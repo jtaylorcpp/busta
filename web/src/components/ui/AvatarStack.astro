@@ -1,0 +1,33 @@
+---
+/**
+ * Overlapping initials for everyone on a thread, then "N people". Tints are
+ * primary or secondary only: violet belongs to the agent and green means
+ * delivered. `self` marks our own mailbox. Shows up to `max` faces.
+ */
+interface Person { name: string; address: string; self?: boolean }
+interface Props { people: Person[]; max?: number }
+const { people, max = 4 } = Astro.props;
+const shown = people.slice(0, max);
+const extra = people.length - shown.length;
+---
+<span class="people" title={people.map((p) => p.address).join(", ")}>
+  <span class="stack" aria-hidden="true">
+    {shown.map((p, i) => <span class:list={["av", p.self ? "me" : i % 2 ? "sec" : "pri"]}>{p.name.trim().charAt(0).toUpperCase()}</span>)}
+    {extra > 0 && <span class="av sec">+{extra}</span>}
+  </span>
+  <span class="txt">{people.length} {people.length === 1 ? "person" : "people"}</span>
+</span>
+
+<style>
+  .people { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .stack { display: inline-flex; }
+  .av {
+    width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 10.5px; font-weight: 700; border: 2px solid var(--surface); margin-left: -7px;
+  }
+  .av:first-child { margin-left: 0; }
+  .pri { background: var(--primary-soft); color: var(--primary); }
+  .sec { background: var(--secondary-soft); color: var(--secondary); }
+  .me { background: var(--primary); color: var(--on-primary); }
+  .txt { font-size: var(--text-sm); color: var(--muted); }
+</style>

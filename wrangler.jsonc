@@ -1,0 +1,138 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cloudflare-email",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // Two hostnames, two jobs. The app itself lives on mail.ragedb.io; the
+  // mta-sts hostname exists only to serve /.well-known/mta-sts.txt, which
+  // RFC 8461 requires to be at exactly that name.
+  //
+  // custom_domain rather than a plain route: a route only attaches to a name
+  // that already exists in DNS, whereas a custom domain has Cloudflare create
+  // and manage the record itself. No DNS token needed, and nothing to drift.
+  // The apex serves the app as well as carrying MX for mail — A/AAAA and MX
+  // are independent record types on the same name, so they do not conflict.
+  // home.busta.app stays as a stable alias.
+  "routes": [
+    { "pattern": "busta.app", "custom_domain": true },
+    { "pattern": "home.busta.app", "custom_domain": true },
+    { "pattern": "mta-sts.busta.app", "custom_domain": true }
+  ],
+
+  "vars": {
+    // The domain mail is received on and sent from. Onboard it with:
+    //   npx wrangler email sending enable <domain>
+    //   npx wrangler email routing enable <domain>
+    "MAIL_DOMAIN": "busta.app",
+    // Safe default: anything deployed is production, so the /__dev/* endpoints
+    // stay off. Local dev opts in via ENVIRONMENT=development in .dev.vars,
+    // which takes precedence over this during `wrangler dev`.
+    "ENVIRONMENT": "production",
+    // Characters of each body fed to the full-text index. The dominant factor
+    // in mailbox capacity: FTS5 costs ~2.4x the indexed text per message.
+    // 0 indexes subject/sender/snippet only. See README "Capacity".
+    "SEARCH_BODY_CHARS": "2000",
+
+    // Tiering is driven by storage pressure, not age. Bodies stay hot in the
+    // Durable Object until it crosses STORAGE_HIGH_WATERMARK of the 10 GB
+    // limit, then the oldest are shed to R2 until back under the low mark.
+    "STORAGE_HIGH_WATERMARK": "0.85",
+    "STORAGE_LOW_WATERMARK": "0.7",
+
+    // Optional retention policy, independent of capacity. 0 disables it, and
+    // with it the periodic alarm — the common case schedules nothing at all.
+    "ARCHIVE_AFTER_DAYS": "0",
+
+    // Raw bytes of attachments allowed on one outbound message. Cloudflare
+    // caps a message at 5 MiB *after* MIME encoding, and base64 adds about a
+    // third, so the raw budget has to sit well under it.
+    "MAX_ATTACHMENT_BYTES": "3500000",
+
+    // Inbound messages above this are rejected at the envelope, before the
+    // body is buffered. Gmail tops out around 25 MB, so this matches.
+    "MAX_INBOUND_BYTES": "26214400",
+
+    // MTA-STS policy served at /.well-known/mta-sts.txt. Keep this in step
+    // with dns.config.jsonc — the DNS record only advertises that a policy
+    // exists; this is the policy. "off" stops serving it entirely.
+    "MTA_STS_MODE": "testing",
+    "MTA_STS_MX": "*.mx.cloudflare.net",
+    "MTA_STS_MAX_AGE": "86400",
+
+    // Fault injection, development only — ignored unless ENVIRONMENT is
+    // "development". Set FAULT_CODE to an E_* code to force send failures.
+    // Empty means off; there is no second switch to get out of sync with it.
+    "FAULT_CODE": "",
+
+    // Any single file larger than this is never attached — it goes to R2 and
+    // the mail carries a signed, expiring link instead. Receiving servers cap
+    // well below Cloudflare's 5 MiB anyway (Gmail 25 MB, Outlook 20 MB, many
+    // corporate gateways 10 MB), so large files over SMTP are unreliable even
+    // where they are permitted.
+    "INLINE_ATTACHMENT_BYTES": "2000000",
+    "DOWNLOAD_LINK_DAYS": "30",
+
+    // Origin used to build download links. Must be publicly reachable — the
+    // recipient is an external mail user who cannot authenticate to us.
+    "PUBLIC_BASE_URL": "https://busta.app",
+
+    // Inbound mail arrives via this zone's Email Routing CATCH-ALL rule,
+    // pointed at this Worker. It is set once per domain and needs no
+    // per-mailbox configuration, so provisioning holds no Cloudflare
+    // credential at all. To re-apply it (wrangler's CLI wrongly rejects
+    // `worker` for catch-all; the API accepts it):
+    //   PUT /zones/<zone>/email/routing/rules/catch_all
+    //   {"enabled":true,"matchers":[{"type":"all"}],
+    //    "actions":[{"type":"worker","value":["cloudflare-email"]}]}
+    "CF_ZONE_ID": "6085f77050d8cd8b8afd41b344a374a1",
+    "WORKER_NAME": "cloudflare-email",
+
+    // Clerk user ids (comma separated) permitted to adopt system mailboxes.
+    // Those addresses receive the domain's DMARC and TLS reports, which name
+    // every source sending as this domain — so this is an allowlist, not a
+    // race. Empty means nobody, which is the correct default.
+    "ADMIN_USER_IDS": "user_3JkKu2PUY014lpSGMtUASlecP6X"
+  },
+
+  // Outbound. No restriction attributes => may send to any recipient
+  // once MAIL_DOMAIN is onboarded to Email Sending.
+  "send_email": [{ "name": "EMAIL" }],
+
+  "workflows": [
+    {
+      "name": "mailbox-provision",
+      "binding": "PROVISION",
+      "class_name": "MailboxProvisionWorkflow"
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      { "name": "MAILBOX", "class_name": "MailboxDO" },
+      { "name": "THREAD", "class_name": "ThreadDO" },
+      { "name": "TENANT", "class_name": "TenantDO" }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MailboxDO", "TenantDO"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["ThreadDO"]
+    }
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "MAIL_ARCHIVE",
+      "bucket_name": "cloudflare-email-archive",
+      "preview_bucket_name": "cloudflare-email-archive-preview"
+    }
+  ]
+}

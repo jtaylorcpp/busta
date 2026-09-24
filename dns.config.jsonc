@@ -1,0 +1,72 @@
+{
+  // Desired DNS state for email security, version-controlled beside
+  // wrangler.jsonc. Wrangler itself cannot create DNS records — it configures
+  // the Worker, not the zone — so `npm run dns:apply` reconciles this file
+  // against the zone through the Cloudflare API, and `npm run dns:check`
+  // reports what is actually published without changing anything.
+  //
+  // DKIM is deliberately absent: Cloudflare generates and manages those keys
+  // and publishes the record itself. Nothing here should ever contain a key.
+
+  "domain": "busta.app",
+
+  "dmarc": {
+    // Cloudflare publishes `v=DMARC1; p=reject;` itself when Email Sending is
+    // enabled, so the domain lands on reject without us. Staging down to
+    // p=none would weaken it; the usual "start at none" advice is for a domain
+    // with existing senders to measure, and this one has none. What
+    // Cloudflare's record lacks is everything below: no subdomain policy, no
+    // alignment, and no reporting address at all.
+    "policy": "reject",
+
+    // Subdomain policy. Kept at reject from day one — no legitimate mail
+    // should originate from subdomains of a mail domain, so there is nothing
+    // to break and it closes an easy spoofing route immediately.
+    "subdomainPolicy": "reject",
+
+    // Alignment. "relaxed" allows an organisational-domain match; "strict"
+    // demands an exact one. Cloudflare's own domain runs relaxed. Strict is
+    // only safe once you are certain nothing sends from a subdomain.
+    "dkimAlignment": "relaxed",
+    "spfAlignment": "relaxed",
+
+    "percentage": 100,
+    // fo=1 requests a failure report when *any* mechanism fails, rather than
+    // only when everything does.
+    "failureOptions": "1",
+
+    "aggregateReports": "dmarc@busta.app",
+    // Forensic reports contain message content, so many providers never send
+    // them and some jurisdictions make receiving them awkward. Null to omit.
+    "forensicReports": null
+  },
+
+  "mtaSts": {
+    // Tells sending servers to require verified TLS to your MX. The policy
+    // file itself must be served over HTTPS — that part is this Worker's job,
+    // see /.well-known/mta-sts.txt.
+    "enabled": true,
+
+    // "testing" reports violations without rejecting; "enforce" refuses mail
+    // that cannot be delivered over verified TLS. Cloudflare does not document
+    // MTA-STS support for Email Routing, so enforce is unverified here: run
+    // testing, read the TLS-RPT reports, and only then decide.
+    "mode": "testing",
+
+    // Email Routing's MX hosts are <name>.mx.cloudflare.net.
+    "mx": ["*.mx.cloudflare.net"],
+    "maxAgeSeconds": 86400
+  },
+
+  // Worker hostnames are deliberately absent. They are declared in
+  // wrangler.jsonc as custom domains, which makes Cloudflare create and own
+  // those DNS records — managing them here too would mean two systems writing
+  // the same names.
+
+  "tlsRpt": {
+    // Where TLS negotiation failure reports go. This is what makes "testing"
+    // mode useful rather than decorative.
+    "enabled": true,
+    "reports": "tls-reports@busta.app"
+  }
+}

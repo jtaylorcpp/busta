@@ -1,0 +1,29 @@
+---
+import Icon from "./Icon.astro";
+
+/** Attachment card. `link` marks large files delivered as a download link. */
+interface Props {
+  name: string;
+  size: string;
+  href?: string;
+  link?: boolean;
+}
+const { name, size, href, link = false } = Astro.props;
+---
+<a class="att" href={href} download={href && !link ? name : undefined}>
+  <span class="ic"><Icon name={link ? "send" : "file"} size={18} /></span>
+  <span class="t"><span class="n">{name}</span><span class="s">{size}{link ? " · link" : ""}</span></span>
+</a>
+
+<style>
+  .att {
+    display: inline-flex; align-items: center; gap: 10px; max-width: 260px;
+    padding: 8px 12px 8px 8px; border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: var(--surface); color: var(--text); text-decoration: none;
+  }
+  .att:hover { background: var(--surface-2); }
+  .ic { width: 34px; height: 34px; border-radius: var(--radius-sm); display: grid; place-items: center; background: var(--secondary-soft); color: var(--secondary); flex-shrink: 0; }
+  .t { display: grid; min-width: 0; }
+  .n { font-weight: 600; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .s { color: var(--muted); font-size: var(--text-xs); }
+</style>

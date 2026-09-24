@@ -1,0 +1,23 @@
+---
+/** Full mailbox screen from the design, on sample data. Not wired to the Worker. */
+import AppShell from "../../layouts/AppShell.astro";
+import { Banner, ListFooter, MailList, MailRow, Tabs } from "../../components/ui";
+import SampleNav from "../../mock/SampleNav.astro";
+import { rows, self } from "../../mock/data";
+---
+<AppShell title="Inbox" mailbox={self} composeHref="#compose" searchAction="#search">
+  <span slot="account" class="avatar" aria-label="Account">JT</span>
+  <SampleNav slot="nav" active="inbox" />
+  <Banner tone="agent"><b>Agent on</b> · acting on +triage · drafts held for review <span class="future">Future</span></Banner>
+  <Banner tone="error">1 message bounced: dave@old-domain.example has no mailbox.<a slot="action" href="#">View</a></Banner>
+  <Tabs tabs={[{ label: "All", href: "#", active: true, unread: 3, icon: "inbox" }, { label: "+triage", href: "#" }, { label: "+orders", href: "#" }]} />
+  <MailList>
+    {rows.map((r, i) => <MailRow href="/mock/thread" {...r} starAction={`#star-${i}`} trashAction={`#trash-${i}`} />)}
+  </MailList>
+  <ListFooter from={1} to={rows.length} total={48} mailbox={self} size="3.1 MB" nextHref="#" />
+</AppShell>
+
+<style>
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: var(--text-sm); }
+  .future { font: 500 10px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; border: 1px solid currentColor; border-radius: 4px; padding: 2px 4px; margin-left: 6px; opacity: .8; }
+</style>

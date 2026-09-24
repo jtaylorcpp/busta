@@ -1,0 +1,105 @@
+---
+import Icon from "./Icon.astro";
+import IconButton from "./IconButton.astro";
+import Tag from "./Tag.astro";
+import Status, { type StatusTone } from "./Status.astro";
+
+/**
+ * One message in a list. Unread rows sit on the full surface in bold with a
+ * red dot; read rows drop onto the shaded surface. Outbound rows show
+ * "→ To:" and usually a delivery `status`.
+ *
+ * `starAction` / `trashAction` are form POST targets (the Worker's existing
+ * no-JS pattern); omit them to render the row read-only.
+ */
+interface Props {
+  href: string;
+  from: string;
+  subject: string;
+  snippet?: string;
+  date: string;
+  unread?: boolean;
+  starred?: boolean;
+  outbound?: boolean;
+  tags?: string[];
+  status?: { tone: StatusTone; label: string };
+  attachments?: number;
+  starAction?: string;
+  trashAction?: string;
+}
+const {
+  href, from, subject, snippet, date, unread = false, starred = false, outbound = false,
+  tags = [], status, attachments = 0, starAction, trashAction,
+} = Astro.props;
+---
+<li class:list={["row", { unread }]}>
+  <span class="lead">
+    <span class="udot" aria-hidden="true"></span>
+    {starAction ? (
+      <form method="post" action={starAction}>
+        <IconButton icon="star" tone="star" label={starred ? "Unstar" : "Star"} pressed={starred} type="submit" size={17} />
+      </form>
+    ) : (
+      <span class:list={["star", { on: starred }]}><Icon name="star" size={17} filled={starred} label={starred ? "Starred" : undefined} /></span>
+    )}
+  </span>
+  <a class="body" href={href}>
+    <span class="from">{outbound && <span class="out">→</span>}{outbound ? `To: ${from}` : from}</span>
+    <span class="main">
+      {status && <Status tone={status.tone} label={status.label} />}
+      {tags.map((t) => <Tag name={t} />)}
+      <span class="subj">{subject}</span>
+      {snippet && <span class="snip"> — {snippet}</span>}
+    </span>
+    <span class="meta">
+      {attachments > 0 && <span class="clip" title={`${attachments} attachment${attachments > 1 ? "s" : ""}`}><Icon name="clip" size={14} /></span>}
+      <time>{date}</time>
+    </span>
+  </a>
+  {trashAction && (
+    <form class="hover-actions" method="post" action={trashAction}>
+      <IconButton icon="trash" label="Move to Trash" tone="danger" type="submit" size={17} />
+    </form>
+  )}
+  {unread && <span class="visually-hidden">Unread</span>}
+</li>
+
+<style>
+  .row {
+    position: relative; display: flex; align-items: center;
+    background: var(--row-read); border-bottom: 1px solid var(--border);
+    font-size: var(--text-md);
+  }
+  .row.unread { background: var(--row-unread); }
+  .row:hover { background: var(--row-hover); }
+  .lead { display: flex; align-items: center; gap: 4px; padding-left: 12px; flex-shrink: 0; }
+  .lead form { display: contents; }
+  .udot { width: 8px; height: 8px; border-radius: 50%; }
+  .unread .udot { background: var(--attention); }
+  .star { width: 32px; display: inline-grid; place-items: center; color: var(--faint); }
+  .star.on { color: var(--star-stroke); --icon-fill: var(--star); }
+
+  .body {
+    flex: 1; min-width: 0; display: grid; align-items: center; gap: var(--space-3);
+    grid-template-columns: minmax(120px, 28%) 1fr auto;
+    padding: 10px 14px 10px 6px; color: var(--text); text-decoration: none;
+  }
+  .from, .main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .main { display: block; }
+  .main :global(.tag), .main :global(.status) { margin-right: 6px; }
+  .unread .from, .unread .subj { font-weight: 700; }
+  .out { color: var(--success); font-weight: 700; margin-right: 4px; }
+  .snip { color: var(--muted); }
+  .meta { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .unread .meta time { color: var(--text); font-weight: 700; }
+
+  .hover-actions { position: absolute; right: 8px; top: 50%; translate: 0 -50%; display: none; background: inherit; padding-left: 8px; }
+  .row:hover .hover-actions, .row:focus-within .hover-actions { display: flex; }
+
+  @media (max-width: 640px) {
+    .body { grid-template-columns: 1fr auto; grid-template-areas: "from meta" "main main"; row-gap: 2px; }
+    .from { grid-area: from; }
+    .main { grid-area: main; }
+    .meta { grid-area: meta; }
+  }
+</style>

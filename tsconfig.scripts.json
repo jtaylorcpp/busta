@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "./worker-configuration.d.ts"],
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  },
+  "include": ["scripts/**/*.ts", "src/**/*.ts", "worker-configuration.d.ts"]
+}

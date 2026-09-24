@@ -1,0 +1,27 @@
+---
+/**
+ * A +tag (sub-address folder) chip. Links to the filtered view when `href`
+ * is set. `count` is the unread count and renders in attention red.
+ */
+interface Props {
+  name: string;
+  href?: string;
+  count?: number;
+}
+const { name, href, count } = Astro.props;
+const label = name.startsWith("+") ? name : `+${name}`;
+const El = href ? "a" : "span";
+---
+<El class="tag" href={href}>{label}{count ? <b>{count}</b> : null}</El>
+
+<style>
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font: 500 var(--text-xs)/1 var(--font-mono);
+    padding: 4px 7px; border-radius: var(--radius-sm);
+    background: var(--secondary-soft); color: var(--secondary);
+    text-decoration: none; white-space: nowrap; vertical-align: 1px;
+  }
+  a.tag:hover { filter: brightness(.96); }
+  b { color: var(--attention); font-weight: 700; }
+</style>

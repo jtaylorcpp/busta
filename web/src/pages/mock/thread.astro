@@ -1,0 +1,19 @@
+---
+/** Full thread screen from the design, on sample data. Not wired to the Worker. */
+import AppShell from "../../layouts/AppShell.astro";
+import { ThreadHeader } from "../../components/ui";
+import SampleNav from "../../mock/SampleNav.astro";
+import SampleThread from "../../mock/SampleThread.astro";
+import { people, self } from "../../mock/data";
+---
+<AppShell title="Quote request — 50 widgets" mailbox={self} composeHref="#compose" searchAction="#search">
+  <span slot="account" class="avatar" aria-label="Account">JT</span>
+  <SampleNav slot="nav" active="inbox" />
+  <ThreadHeader backHref="/mock/mailbox" subject="Quote request — 50 widgets" tags={["q4.pipeline"]} people={people}
+    starAction="#star" unreadAction="#unread" trashAction="#trash" />
+  <SampleThread />
+</AppShell>
+
+<style>
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); font-weight: 700; font-size: var(--text-sm); }
+</style>
