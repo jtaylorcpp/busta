@@ -1,0 +1,20 @@
+---
+/**
+ * Signed-out landing. Clerk renders the sign-in form, themed by
+ * lib/clerk-appearance.ts. Anyone already signed in goes straight to their
+ * mailboxes and never sees this page.
+ *
+ * Hash routing keeps every Clerk step (second factor, SSO callback) on this
+ * one URL, so the Worker only has to route /sign-in to Astro.
+ */
+import { SignIn } from "@clerk/astro/components";
+import AuthLayout from "../layouts/AuthLayout.astro";
+
+const { userId } = Astro.locals.auth();
+if (userId) return Astro.redirect("/");
+Astro.response.headers.set("cache-control", "no-store");
+---
+<AuthLayout title="Sign in" heading="Sign in to Busta" subheading="Your team's mail, on your own domain.">
+  <SignIn routing="hash" forceRedirectUrl="/" signUpForceRedirectUrl="/" />
+  <noscript><p class="muted">Sign-in needs JavaScript. Turn it on and reload.</p></noscript>
+</AuthLayout>

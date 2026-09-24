@@ -4,6 +4,10 @@
 # login is a chicken-and-egg loop.
 CLERK_SECRET_KEY=sk_test_xxx
 CLERK_PUBLISHABLE_KEY=pk_test_xxx
+# The same publishable key again, under the name @clerk/astro reads. The
+# Astro pages (web/) use this one; the original pages use the line above.
+# Production: npx wrangler secret put PUBLIC_CLERK_PUBLISHABLE_KEY
+PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxx
 
 # Enables the /__dev/* endpoints. Local only — never set in production.
 ENVIRONMENT=development

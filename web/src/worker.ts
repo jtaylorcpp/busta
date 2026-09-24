@@ -17,7 +17,7 @@ import legacy from "../../src/index";
 export { MailboxDO, MailboxProvisionWorkflow, TenantDO, ThreadDO } from "../../src/index";
 
 /** Paths Astro owns in every environment. */
-const ASTRO_ROUTES: RegExp[] = [];
+const ASTRO_ROUTES: RegExp[] = [/^\/sign-in\/?$/];
 
 /** Paths Astro owns only in local development: the styleguide and mocks. */
 const DEV_ONLY_ROUTES: RegExp[] = [/^\/design(\/|$)/];
