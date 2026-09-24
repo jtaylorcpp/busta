@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Busta Why Not This Folder mockup (Version 2: explain, add keywords, tidy up), approved 2026-09-24. Published copy: https://claude.ai/artifact/HtgcPCbWw8U4efEXSjSiZg -->
+</head>
+<body>
+<title>Busta Why Not This Folder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root, .cm-light {
+  color-scheme: light;
+  --bg: #F5F7FB; --surface: #FFFFFF; --surface-2: #F2F5FA; --border: #E1E6EE;
+  --text: #1C2129; --muted: #5B6472; --faint: #8A93A1;
+  --row-unread: #FFFFFF; --row-read: #F2F5FA; --row-hover: #EAF0FA;
+  --primary: #1A5FD0; --on-primary: #FFFFFF; --primary-soft: #DCE7FB;
+  --secondary: #4B5566; --secondary-soft: #E9EDF3;
+  --tertiary: #6B42C8; --tertiary-soft: #EEE8FB;
+  --attention: #D2301F; --on-attention: #FFFFFF; --attention-soft: #FDE9E6;
+  --error: #A8201A; --error-soft: #FCE8E6;
+  --warn: #8A5300; --warn-fill: #F2A900; --warn-soft: #FEF3D6;
+  --success: #1B7F3B; --success-soft: #E4F4E8;
+  --star: #F4B400; --star-stroke: #B07A00;
+  --shadow: 0 1px 2px rgba(28,33,41,.06), 0 1px 3px rgba(28,33,41,.08);
+  --shadow-2: 0 2px 6px rgba(28,33,41,.08), 0 8px 24px rgba(28,33,41,.10);
+  --sans: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111418; --surface: #1B1F26; --surface-2: #232830; --border: #2F353F;
+    --text: #E7EAF0; --muted: #9BA4B2; --faint: #6D7684;
+    --row-unread: #232830; --row-read: #1B1F26; --row-hover: #26324A;
+    --primary: #8AB2F7; --on-primary: #0A1A38; --primary-soft: #1E2F52;
+    --secondary: #B4BDCA; --secondary-soft: #2A313B;
+    --tertiary: #BBA2F7; --tertiary-soft: #2C2447;
+    --attention: #FF6F61; --on-attention: #2A0906; --attention-soft: #3D1B17;
+    --error: #FF9B8F; --error-soft: #3B1A18;
+    --warn: #F2B544; --warn-fill: #F2B544; --warn-soft: #3A2C0E;
+    --success: #74D68F; --success-soft: #16301E;
+    --star: #FDD663; --star-stroke: #FDD663;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+    --shadow-2: 0 2px 6px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"], .cm-dark {
+  color-scheme: dark;
+  --bg: #111418; --surface: #1B1F26; --surface-2: #232830; --border: #2F353F;
+  --text: #E7EAF0; --muted: #9BA4B2; --faint: #6D7684;
+  --row-unread: #232830; --row-read: #1B1F26; --row-hover: #26324A;
+  --primary: #8AB2F7; --on-primary: #0A1A38; --primary-soft: #1E2F52;
+  --secondary: #B4BDCA; --secondary-soft: #2A313B;
+  --tertiary: #BBA2F7; --tertiary-soft: #2C2447;
+  --attention: #FF6F61; --on-attention: #2A0906; --attention-soft: #3D1B17;
+  --error: #FF9B8F; --error-soft: #3B1A18;
+  --warn: #F2B544; --warn-fill: #F2B544; --warn-soft: #3A2C0E;
+  --success: #74D68F; --success-soft: #16301E;
+  --star: #FDD663; --star-stroke: #FDD663;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+  --shadow-2: 0 2px 6px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.45);
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); padding-inline: 16px; padding-block: 32px 72px; }
+.wrap { max-width: 1480px; margin: 0 auto; display: grid; gap: 22px; }
+h1, h2, h3 { margin: 0; line-height: 1.2; text-wrap: balance; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+.eyebrow { font: 500 11.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.intro { display: grid; gap: 10px; max-width: 780px; }
+.intro h1 { font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+.intro p { color: var(--muted); }
+.switcher { display: flex; flex-wrap: wrap; gap: 10px 16px; justify-content: space-between; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button { font: 600 13px var(--sans); color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); }
+.seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.stage { display: grid; gap: 24px; grid-template-columns: 1fr; }
+@media (min-width: 1400px) { .stage.both { grid-template-columns: 1fr 1fr; } }
+.stage-item { min-width: 0; display: grid; gap: 8px; }
+.stage-label { display: flex; justify-content: space-between; align-items: baseline; }
+.stage-label h3 { font-size: 14px; font-weight: 600; }
+
+/* ---- chrome ---- */
+.app { container-type: inline-size; position: relative; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; font: 13.5px/1.45 var(--sans); }
+.app-top { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.brand { --mark: 24px; display: inline-flex; align-items: center; gap: calc(var(--mark) * .36); white-space: nowrap; flex-shrink: 0; }
+.brand-mark { width: var(--mark); height: var(--mark); border-radius: 27%; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font: 700 calc(var(--mark) * .62)/1 var(--sans); }
+.wordmark { color: var(--text); font: 700 calc(var(--mark) * .7)/1 var(--sans); letter-spacing: -.01em; }
+.search { flex: 1; min-width: 0; max-width: 620px; display: flex; align-items: center; gap: 8px; background: var(--surface-2); color: var(--muted); border-radius: 999px; padding: 8px 14px; white-space: nowrap; overflow: hidden; }
+.cm-dark .search { background: var(--surface); }
+.top-av { display: none; margin-left: auto; width: 30px; height: 30px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); place-items: center; font-weight: 700; }
+.app-main { display: grid; grid-template-columns: 206px 1fr; gap: 8px; padding: 0 12px 12px 0; min-height: 560px; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.compose-btn { display: inline-flex; align-items: center; gap: 8px; margin: 2px 0 10px 10px; align-self: flex-start; background: var(--primary); color: var(--on-primary); border: 0; border-radius: 14px; padding: 12px 18px; font: 600 13.5px var(--sans); box-shadow: var(--shadow); }
+.nav a { display: flex; align-items: center; gap: 11px; padding: 6px 12px 6px 16px; border-radius: 0 999px 999px 0; color: var(--text); text-decoration: none; }
+.nav a:hover { background: var(--surface-2); }
+.nav a.on { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.nav a.sub { padding-left: 38px; font-size: 13px; }
+.nav a.sub .fd { width: 14px; height: 14px; color: var(--secondary); opacity: .8; }
+.nav a.on .fd { color: var(--primary); opacity: 1; }
+.nav a.newf { padding-left: 38px; font-size: 12.5px; color: var(--primary); font-weight: 600; }
+.nav .mrow { display: flex; align-items: center; position: relative; }
+.nav .mrow > a { flex: 1; min-width: 0; }
+.nav .gear { position: absolute; right: 36px; top: 50%; translate: 0 -50%; width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--surface); color: var(--muted); cursor: pointer; opacity: 0; transition: opacity .12s; }
+.nav .mrow:hover .gear, .nav .gear:focus-visible { opacity: 1; }
+.nav .gear:hover { color: var(--text); background: var(--surface-2); }
+.nav .srow { display: flex; align-items: center; position: relative; }
+.nav .srow > a { flex: 1; min-width: 0; }
+.nav .fedit { position: absolute; right: 32px; top: 50%; translate: 0 -50%; width: 22px; height: 22px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; }
+.nav .srow:hover .fedit, .nav .fedit:focus-visible { opacity: 1; }
+.nav .fedit:hover { color: var(--text); background: var(--surface); }
+.nav .flinks { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 12px 2px 38px; font-size: 12px; }
+.nav .flinks a { display: inline-flex; gap: 4px; white-space: nowrap; align-items: center; padding: 0; border-radius: 0; color: var(--muted); font-weight: 500; background: none; }
+.nav .flinks a:hover { color: var(--primary); background: none; text-decoration: underline; text-underline-offset: 2px; }
+.backlink { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); text-decoration: none; flex-basis: 100%; }
+.backlink:hover { color: var(--primary); }
+.row .unsure .mini { opacity: 0; transition: opacity .12s; }
+.row:hover .unsure .mini, .row:focus-within .unsure .mini { opacity: 1; }
+@media (hover: none) { .row .unsure .mini, .nav .gear, .nav .fedit { opacity: 1; } }
+@container (max-width: 640px) { .row .unsure .mini { opacity: 1; } }
+.nav .sep { height: 1px; background: var(--border); margin: 8px 12px 8px 16px; }
+.nav .n { margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.nav .n.attn { color: var(--attention); font-weight: 700; }
+.nav .caret { width: 12px; margin-left: -4px; margin-right: -6px; color: var(--muted); }
+.acct { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-left: 8px; border-radius: 10px; }
+.acct .av { position: relative; width: 32px; height: 32px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-weight: 700; flex-shrink: 0; }
+.acct .who { display: grid; min-width: 0; }
+.acct .addr { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct .sub { font-size: 11px; color: var(--muted); }
+.pane { background: var(--surface); border-radius: 14px; overflow: hidden; min-width: 0; position: relative; }
+@container (max-width: 640px) {
+  .app-main { grid-template-columns: 1fr; padding-left: 12px; }
+  .nav { display: none; }
+  .top-av { display: grid; }
+}
+.head { display: flex; align-items: center; gap: 12px; padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.head h2 { font-size: 20px; font-weight: 600; }
+.head .grow { flex: 1; }
+.muted { color: var(--muted); }
+.icon { flex-shrink: 0; vertical-align: middle; }
+
+/* filter chips */
+.filters { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.fchip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); }
+.fchip.on { background: var(--primary-soft); border-color: transparent; color: var(--primary); }
+.fchip .cnt { color: var(--attention); font-weight: 700; }
+
+/* rows */
+.rows { list-style: none; margin: 0; padding: 0; }
+.row { position: relative; display: flex; align-items: center; background: var(--row-read); border-bottom: 1px solid var(--border); }
+.row.unread { background: var(--row-unread); }
+.lead { display: flex; align-items: center; gap: 4px; padding-left: 12px; flex-shrink: 0; }
+.udot { width: 8px; height: 8px; border-radius: 50%; }
+.unread .udot { background: var(--attention); }
+.star { width: 30px; display: inline-grid; place-items: center; color: var(--faint); }
+.star.on { color: var(--star-stroke); }
+.star.on svg path { fill: var(--star); }
+.body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(110px, 20%) 1fr auto; gap: 12px; align-items: center; padding: 10px 14px 10px 6px; }
+.from, .main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unread .from, .unread .subj { font-weight: 700; }
+.out { color: var(--success); font-weight: 700; margin-right: 4px; }
+.snip { color: var(--muted); }
+.meta { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.unread .meta time { color: var(--text); font-weight: 700; }
+@container (max-width: 640px) {
+  .body { grid-template-columns: 1fr auto; grid-template-areas: "from meta" "main main"; row-gap: 2px; }
+  .from { grid-area: from; } .main { grid-area: main; } .meta { grid-area: meta; }
+}
+
+/* folder chips */
+.fc { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 7px; border-radius: 6px; margin-right: 6px; vertical-align: 1px; background: var(--secondary-soft); color: var(--secondary); white-space: nowrap; }
+.fc .auto { font: 500 9.5px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; padding: 2px 4px; border-radius: 3px; background: var(--surface); color: var(--muted); }
+.fc.manual { background: transparent; box-shadow: inset 0 0 0 1px var(--border); color: var(--text); }
+.fc.plus { font-family: var(--mono); font-weight: 500; }
+.st { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 8px; border-radius: 999px; margin-right: 6px; vertical-align: 1px; white-space: nowrap; }
+.st.sorting { background: var(--warn-soft); color: var(--warn); }
+.st.sorting i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--warn-fill); border-top-color: transparent; animation: spin .9s linear infinite; }
+.st.nosort { background: transparent; color: var(--muted); padding-inline: 0; font-weight: 500; }
+.st.nosort a { color: var(--primary); font-weight: 600; text-decoration: none; margin-left: 4px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .st.sorting i, .spin { animation: none; } }
+
+/* editor */
+.editor-wrap { display: grid; grid-template-columns: 1fr; }
+.scrim { position: absolute; inset: 0; background: rgba(17,20,24,.38); display: grid; place-items: center; padding: 16px; z-index: 5; }
+.modal { width: min(100%, 720px); max-height: 100%; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-2); display: grid; }
+.modal-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+.modal-head h2 { font-size: 18px; font-weight: 600; flex: 1; }
+.x { width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; }
+.modal-body { display: grid; gap: 16px; padding: 16px 20px; }
+.field { display: grid; gap: 6px; }
+.field label, .lbl { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.input { padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font: 14px var(--sans); }
+.rule { min-height: 118px; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); background: var(--surface); color: var(--text); font: 14px/1.55 var(--sans); }
+.hint { font-size: 12px; color: var(--muted); }
+.hint b { color: var(--text); font-weight: 600; }
+.toggle-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.toggle-row .t { display: grid; gap: 2px; min-width: 0; }
+.toggle-row .t b { font-weight: 600; }
+.toggle-row code { font: 12px var(--mono); overflow-wrap: anywhere; }
+.sw { width: 38px; height: 22px; border-radius: 999px; background: var(--primary); position: relative; flex-shrink: 0; }
+.sw::after { content: ""; position: absolute; top: 3px; right: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--on-primary); }
+.sw.off { background: var(--border); }
+.sw.off::after { right: auto; left: 3px; background: var(--surface); }
+.test { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.test-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); flex-wrap: wrap; }
+.test-head b { font-weight: 600; }
+.test-head .grow { flex: 1; }
+.tr { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--border); align-items: start; }
+.verdict { display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 11.5px; font-weight: 700; padding: 3px 0; border-radius: 999px; }
+.verdict.in { background: var(--success-soft); color: var(--success); }
+.verdict.out { background: var(--secondary-soft); color: var(--muted); }
+.tr .m { display: grid; gap: 2px; min-width: 0; }
+.tr .m .s { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr .m .f { font-size: 12px; color: var(--muted); }
+.tr.loading .bar { height: 10px; border-radius: 6px; background: var(--surface-2); }
+.tr.loading .bar.w1 { width: 64px; } .tr.loading .bar.w2 { width: 70%; } .tr.loading .bar.w3 { width: 45%; margin-top: 6px; }
+.spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--primary); animation: spin .8s linear infinite; }
+.apply { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.check { width: 18px; height: 18px; border-radius: 5px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; flex-shrink: 0; }
+.modal-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 20px 16px; border-top: 1px solid var(--border); }
+.modal-foot .grow { flex: 1; }
+.btn { display: inline-flex; align-items: center; gap: 7px; font: 600 13px var(--sans); padding: 8px 16px; border-radius: 999px; border: 1px solid transparent; }
+.btn.p { background: var(--primary); color: var(--on-primary); }
+.btn.s { background: transparent; color: var(--secondary); border-color: var(--border); }
+.btn.e { background: transparent; color: var(--error); border-color: var(--error); }
+.btn.g { background: transparent; color: var(--muted); }
+.btn.sm { padding: 5px 12px; font-size: 12px; }
+
+/* thread */
+.th { display: flex; gap: 8px; align-items: flex-start; padding: 12px 16px 12px 8px; border-bottom: 1px solid var(--border); position: relative; }
+.back { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex-shrink: 0; }
+.th .t { flex: 1; min-width: 0; display: grid; gap: 7px; padding-top: 5px; }
+.th h2 { font-size: 19px; font-weight: 600; }
+.th .sub { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filed { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px 4px 8px; border-radius: 999px; background: var(--secondary-soft); color: var(--secondary); border: 1px solid transparent; }
+.filed.open { border-color: var(--secondary); }
+.filed .dim { font-weight: 500; color: var(--muted); }
+.acts { display: flex; gap: 2px; color: var(--muted); }
+.acts span { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; }
+.pop { position: absolute; top: 100px; left: 50px; width: 320px; max-width: calc(100% - 24px); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-2); z-index: 4; display: grid; }
+.pop section { padding: 10px 12px; border-bottom: 1px solid var(--border); display: grid; gap: 6px; }
+.pop section:last-child { border-bottom: 0; }
+.pop h4 { margin: 0; font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pop .reason { font-size: 13px; }
+.pop .reason q { font-style: normal; }
+.pop .who { font-size: 11.5px; color: var(--muted); }
+.probs { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 8px; align-items: center; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.probs i { height: 5px; border-radius: 3px; background: linear-gradient(to right, var(--secondary) var(--w), var(--surface-2) var(--w)); opacity: .7; }
+.probs b { font-weight: 600; text-align: right; }
+.unsure { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; font-size: 11.5px; color: var(--muted); vertical-align: 1px; }
+.unsure .mini { font: 600 11px var(--sans); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--primary); }
+.pop .mv { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 13px; }
+.pop .mv.here { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.pop .mv .fd { color: var(--secondary); }
+.pop .mv.here .fd { color: var(--primary); }
+.pop .notthis { justify-self: start; }
+.chat { display: flex; gap: 8px; padding: 16px; }
+.cav { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; font-weight: 700; font-size: 12px; flex-shrink: 0; margin-top: 20px; }
+.cstack { display: grid; gap: 4px; max-width: min(72%, 620px); }
+.cwho { font-size: 12.5px; } .cwho b { font-weight: 600; } .cwho span { color: var(--muted); margin-left: 6px; }
+.bubble { background: var(--surface-2); border-radius: 16px; border-top-left-radius: 4px; padding: 10px 14px; line-height: 1.55; }
+.ctime { font-size: 11px; color: var(--muted); padding-left: 4px; }
+
+/* folders list */
+.flist { list-style: none; margin: 0; padding: 0; }
+.fitem { display: grid; grid-template-columns: 22px 1fr auto; gap: 12px; align-items: start; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.grip { color: var(--faint); padding-top: 2px; cursor: grab; }
+.fitem .fb { display: grid; gap: 5px; min-width: 0; }
+.fitem .fn { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-weight: 600; font-size: 14.5px; }
+.fitem .fn .fd { color: var(--secondary); }
+.fitem .ruletx { color: var(--muted); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 78ch; }
+.fitem .facts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fitem .facts code { font: 11.5px var(--mono); color: var(--secondary); }
+.note { margin: 12px 16px 16px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); color: var(--muted); font-size: 12.5px; }
+.note b { color: var(--text); font-weight: 600; }
+.lock { color: var(--muted); display: inline-grid; vertical-align: -2px; margin-left: 2px; }
+
+/* states specimen + notes */
+.specimen { display: grid; gap: 10px; }
+.state-label { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 12px 16px 0; }
+.tip { margin: 6px 16px 14px auto; width: max-content; max-width: calc(100% - 32px); font-size: 12px; padding: 7px 10px; border-radius: 8px; background: var(--text); color: var(--bg); }
+.notes { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.card h3 { font-size: 14.5px; font-weight: 600; }
+.card p, .card li { color: var(--muted); font-size: 13.5px; }
+.card ol { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.card code { font: 12px var(--mono); color: var(--text); }
+.flow { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; overflow-x: auto; }
+.flow pre { margin: 0; font: 12.5px/1.6 var(--mono); color: var(--text); }
+/* ---- why not ---- */
+.thread-wrap { position: relative; }
+.why-btn { display: flex; align-items: center; gap: 8px; width: 100%; font: 600 12.5px var(--sans); padding: 8px 10px; border-radius: 8px; border: 0; background: var(--primary-soft); color: var(--primary); cursor: pointer; text-align: left; }
+.why-btn .sel { margin-left: auto; display: inline-flex; gap: 4px; align-items: center; font-weight: 500; font-size: 11.5px; opacity: .85; }
+.summary-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px 4px 10px; border-radius: 999px; border: 1px solid var(--secondary); color: var(--secondary); }
+.summary-chip.filed { background: var(--secondary-soft); border-color: transparent; }
+
+.why { margin: 12px 16px 4px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); overflow: hidden; display: grid; }
+.cm-dark .why { background: var(--surface-2); }
+.why-head { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; padding: 14px 16px 12px; border-bottom: 1px solid var(--border); }
+.why-head h3 { font-size: 16px; font-weight: 600; flex: 1; min-width: 16ch; }
+.why-head h3 span { color: var(--muted); font-weight: 500; }
+.meter { display: grid; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.meter .line { position: relative; height: 10px; border-radius: 6px; background: var(--surface-2); }
+.cm-dark .meter .line { background: var(--surface); }
+.meter .fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--secondary); opacity: .75; }
+.meter .fill.after { background: var(--success); opacity: 1; }
+.meter .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text); left: 75%; border-radius: 1px; }
+.meter .labels { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.meter .labels b { color: var(--text); font-weight: 600; }
+.why-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.why-body > section { padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+.why-body > section + section { border-left: 1px solid var(--border); }
+@container (max-width: 860px) { .why-body { grid-template-columns: 1fr; } .why-body > section + section { border-left: 0; border-top: 1px solid var(--border); } }
+.h4 { margin: 0; font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.reasons { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.reason { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+.reason .v { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; margin-top: 1px; }
+.reason .v.near { background: var(--warn-soft); color: var(--warn); }
+.reason .v.no { background: var(--secondary-soft); color: var(--muted); }
+.reason .v.yes { background: var(--success-soft); color: var(--success); }
+.reason q { display: block; quotes: none; font-weight: 600; }
+.reason p { color: var(--muted); font-size: 13px; }
+.mail { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.mail .hdr { display: grid; gap: 2px; padding: 8px 12px; background: var(--surface-2); font-size: 12.5px; color: var(--muted); }
+.cm-dark .mail .hdr { background: var(--surface); }
+.mail .hdr b { color: var(--text); font-weight: 600; }
+.mail .txt { padding: 10px 12px; line-height: 1.6; }
+mark.kw { background: var(--primary-soft); color: var(--primary); border-radius: 4px; padding: 0 3px; font-weight: 600; }
+mark.me { background: var(--warn-soft); color: var(--warn); border-radius: 4px; padding: 0 3px; font-weight: 600; }
+.rule-full { font-size: 13px; color: var(--muted); line-height: 1.7; }
+.rule-full .s { border-radius: 3px; }
+.rule-full .s.near { color: var(--text); text-decoration: underline 2px dashed var(--warn-fill); text-underline-offset: 3px; }
+.why-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--border); }
+.why-foot .grow { flex: 1; }
+.fine { font-size: 11.5px; color: var(--muted); }
+
+/* fix it */
+.kws { display: flex; flex-wrap: wrap; gap: 6px; }
+.kwc { display: inline-flex; align-items: center; gap: 5px; font: 600 12px var(--sans); padding: 5px 11px; border-radius: 999px; border: 1px dashed var(--border); background: transparent; color: var(--secondary); cursor: pointer; }
+.kwc.on { border-style: solid; border-color: transparent; background: var(--primary-soft); color: var(--primary); }
+.kwc .src { font: 500 9.5px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; opacity: .7; }
+.addition { padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); background: var(--surface); line-height: 1.55; }
+.rule-preview { font-size: 13px; color: var(--muted); line-height: 1.7; }
+.rule-preview ins { text-decoration: none; background: var(--success-soft); color: var(--success); border-radius: 3px; padding: 0 2px; font-weight: 600; }
+.checks { display: grid; gap: 2px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.checks .ck { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--border); font-size: 13px; }
+.checks .ck:first-child { border-top: 0; }
+.checks .ck .m { display: grid; min-width: 0; }
+.checks .ck .m b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.checks .ck .m span { font-size: 12px; color: var(--muted); }
+.checks .ck.this { background: var(--primary-soft); }
+.cm-dark .checks .ck.this { background: var(--row-hover); }
+.move { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.move .from { color: var(--muted); font-weight: 500; text-decoration: line-through; }
+.move.in { color: var(--success); }
+.move.out { color: var(--muted); }
+.warnline { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); font-size: 12.5px; }
+.warnline b { font-weight: 600; }
+
+/* tidy up */
+.tidy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@container (max-width: 860px) { .tidy { grid-template-columns: 1fr; } }
+.ver { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: grid; align-content: start; }
+.ver .vh { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface-2); font-size: 12.5px; }
+.cm-dark .ver .vh { background: var(--surface); }
+.ver .vh b { font-weight: 600; }
+.ver .vh .grow { flex: 1; }
+.ver .vb { padding: 10px 12px; font-size: 13.5px; line-height: 1.6; }
+.ver.mine .vb { color: var(--muted); }
+.ver.new { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.ver.new .vb p { margin: 0 0 4px; font-weight: 600; }
+.ver.new .vb ul { margin: 0 0 10px; padding-left: 18px; display: grid; gap: 2px; }
+.ver.new .vb .out-list li { color: var(--muted); }
+.wc { font: 500 11px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.same { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border-radius: 10px; background: var(--success-soft); color: var(--success); font-size: 13px; }
+.same b { font-weight: 600; }
+.nudge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.nudge button { font: 600 12px var(--sans); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--primary); cursor: pointer; }
+
+/* done */
+.toast { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 16px 0; padding: 10px 12px 10px 14px; border-radius: 12px; background: var(--success-soft); color: var(--success); }
+.toast b { font-weight: 600; }
+.toast .soft { color: var(--text); opacity: .8; }
+.toast .grow { flex: 1; }
+.toast button { font: 600 12.5px var(--sans); background: none; border: 0; color: inherit; cursor: pointer; padding: 4px 8px; border-radius: 999px; }
+
+/* entry points */
+.gcard { margin: 12px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 14px 16px; display: grid; grid-template-columns: auto 1fr; gap: 12px; }
+.cm-dark .gcard { background: var(--surface-2); }
+.gcard .mk { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); }
+.gcard h3 { font-size: 15px; font-weight: 600; }
+.gcard p { color: var(--muted); }
+.gcard a { color: var(--primary); font-weight: 600; }
+.notes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 900px) { .notes { grid-template-columns: 1fr; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13l2.5-7h11L20 13v5a1 1 0 01-1 1H5a1 1 0 01-1-1z M4 13h4.5l1 2.5h5l1-2.5H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z M11.5 13.5L20 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 01-.5.5h-10A.5.5 0 017 20z M14 3.5V8h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14 M9.5 7V4.5h5V7 M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4.5L16 4.5l3.5 3.5L8.5 19z M13.5 7l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7a1.5 1.5 0 011.5-1.5h4.5l2 2.5H19a1.5 1.5 0 011.5 1.5V17a1.5 1.5 0 01-1.5 1.5H5A1.5 1.5 0 013.5 17z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5v2.2 M12 18.3v2.2 M3.5 12h2.2 M18.3 12h2.2 M6 6l1.6 1.6 M16.4 16.4L18 18 M6 18l1.6-1.6 M16.4 7.6L18 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20l1-4.5L16 4.5l3.5 3.5L8.5 19z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-updown" viewBox="0 0 24 24"><path d="M8 9l4-4 4 4 M8 15l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12 M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><path d="M6.5 11h11v8.5h-11z M9 11V8a3 3 0 016 0v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="M16.5 7.5l-7.8 7.8a2 2 0 102.8 2.8l8-8a4 4 0 10-5.7-5.7l-8 8a6 6 0 108.5 8.5l6.2-6.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="intro">
+    <span class="eyebrow">Busta · feature mockup · for review</span>
+    <h1>Why Not This Folder</h1>
+    <p>When a message doesn't land in the folder you expected, Busta shows why and helps you fix the rule. It points at the sentences in your rule that nearly matched and the words in the email that mattered. Then it suggests keywords to add, and before you save it shows the new score for this message and any other mail the change would pull in. A <b>Tidy up</b> button also rewrites a rule that has grown into word soup as a short, readable list, keeping what it means. The example is your real one: "Bergamo" scored 35% for Must read and stayed in Messages.</p>
+  </header>
+
+  <div class="switcher">
+    <div class="seg" role="group" aria-label="Screen" id="pageSeg">
+      <button type="button" data-page="popover" aria-pressed="true">1 · Scores</button>
+      <button type="button" data-page="why" aria-pressed="false">2 · Why</button>
+      <button type="button" data-page="fix" aria-pressed="false">3 · Add keywords</button>
+      <button type="button" data-page="done" aria-pressed="false">4 · Saved</button>
+      <button type="button" data-page="tidy" aria-pressed="false">5 · Tidy up</button>
+      <button type="button" data-page="entry" aria-pressed="false">Where it starts</button>
+    </div>
+    <div class="seg" role="group" aria-label="Theme" id="themeSeg">
+      <button type="button" data-theme-pick="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-pick="dark" aria-pressed="false">Dark</button>
+      <button type="button" data-theme-pick="both" aria-pressed="true">Both</button>
+    </div>
+  </div>
+
+  <div class="stage both" id="stage"></div>
+
+  <section class="notes" aria-label="Design notes">
+    <div class="card">
+      <h3>Scores and reasons come from different places</h3>
+      <p>The percentages are the real scores from the model that files your mail (<code>typesafe/jev</code>). It only gives numbers, so the reasons come from a second Workers AI model. That model reads the same email and your rule, split into sentences, and returns JSON: a verdict and a one-line reason for each sentence, the words it relied on, and suggested keywords. It never changes a score.</p>
+    </div>
+    <div class="card">
+      <h3>Only when you ask</h3>
+      <p>Nothing is explained until you press <b>Why not Must read?</b>, so there's no extra AI cost per message. The answer is saved on the message until the rule changes. It works for "No folder" and for "Unsure" messages, and you can ask about any folder, not just the top guess.</p>
+    </div>
+    <div class="card">
+      <h3>Check before you save</h3>
+      <p><b>Check it</b> re-scores this message with the new rule, and also your last 20 messages. That way you see what else would move into the folder. Broad phrases like "notes I send myself" can pull in more than you meant, and the check shows exactly which messages.</p>
+    </div>
+    <div class="card">
+      <h3>What saving does</h3>
+      <p>The sentence is added to the end of the folder's rule, never rewriting what you wrote. This message and your recent mail are re-sorted with the folder editor's default window (7 days, up to 100). Messages you filed yourself don't move. <b>Undo</b> restores the previous rule. <b>Just file this one</b> moves only this message and leaves the rule alone.</p>
+    </div>
+    <div class="card">
+      <h3>Tidy up keeps the meaning</h3>
+      <p>The same text model rewrites the rule as "Goes in" and "Leaves out" lists, fixing grammar and merging repeats. It's told to keep every condition and add none. Before you use it, both versions score your last 20 messages, and any message whose result would change is listed. Your version is kept for <b>Undo</b>.</p>
+    </div>
+    <div class="card">
+      <h3>Colors keep their meaning</h3>
+      <p>Amber dashes mark the sentences that nearly matched, and blue marks the words in the email that mattered. Your own address is amber because it's the catch. Green appears only for "would go in" and for the text being added.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+const I = (id, s = 16, cls = "icon") => `<svg class="${cls}" width="${s}" height="${s}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const ADDR = "jtaylorcpp@busta.app";
+const FOLDERS = [{ name: "Bank", unread: 1 }, { name: "Must read", unread: 0 }];
+
+function sidebar() {
+  const f = FOLDERS.map((x) => `<div class="srow"><a class="sub" href="#">${I("folder", 14, "icon fd")}${x.name}${x.unread ? `<span class="n attn">${x.unread}</span>` : ""}</a></div>`).join("");
+  return `<nav class="nav" aria-label="Bins">
+    <button class="compose-btn" type="button">${I("pen", 17)}Compose</button>
+    <div class="mrow"><a class="on" href="#">${I("inbox", 18)}Messages<span class="n attn">3</span></a></div>
+    ${f}
+    <div class="flinks"><a href="#">${I("plus", 12)}New folder</a><a href="#">Manage folders</a></div>
+    <div class="sep"></div>
+    <a href="#">${I("send", 18)}Sent<span class="n">2</span></a>
+    <a href="#">${I("file", 18)}Drafts</a>
+    <a href="#">${I("trash", 18)}Trash</a>
+    <div class="acct"><span class="av">J</span><span class="who"><span class="addr">${ADDR}</span><span class="sub">Mailboxes &amp; organization</span></span>${I("updown", 16, "icon muted")}</div>
+  </nav>`;
+}
+function shell(main) {
+  return `<div class="app">
+    <div class="app-top"><span class="brand"><span class="brand-mark">b</span><span class="wordmark">Busta</span></span>
+      <span class="search">${I("search", 15)}Search ${ADDR}</span><span class="top-av">J</span></div>
+    <div class="app-main">${sidebar()}<div class="pane">${main}</div></div>
+  </div>`;
+}
+
+const RULE = [
+  { t: "Anything from Liz Taylor, Tim Taylor, Cathy Taylor." },
+  { t: "Anything about financial accounts to include bills from cloud providers." },
+  { t: "Anything from a real person I know, not a company.", near: true },
+  { t: "Messages from my kids' school or daycare.", near: true },
+  { t: "Bills and anything with a due date." },
+  { t: "Mail that asks me a question or needs a reply.", near: true },
+  { t: "Anything from my doctor or pharmacy." },
+];
+const ADDITION = "Anything about my kids' schools, like Bergamo or the school calendar, including reminders I send myself.";
+
+function header(chip, open) {
+  const pop = open ? `<div class="pop" role="menu" style="top:92px;left:50px">
+      <section><h4>How the rule scored it</h4>
+        <div class="probs"><span>No folder</span><i style="--w:65%"></i><b>65%</b><span>Must read</span><i style="--w:35%"></i><b>35%</b><span>Bank</span><i style="--w:0%"></i><b>0%</b></div>
+        <button class="why-btn" type="button" data-go="why">${I("search", 14)}Why not Must read?<span class="sel">other folder ${I("down", 11)}</span></button>
+      </section>
+      <section><h4>Move to</h4><div class="mv">${I("folder", 14, "icon fd")}Bank</div><div class="mv">${I("folder", 14, "icon fd")}Must read</div></section>
+    </div>` : "";
+  return `<div class="th">
+      <span class="back">${I("back", 18)}</span>
+      <div class="t"><h2>Bergamo</h2><div class="sub">${chip}<span class="muted" style="font-size:12px">jesse taylor · 22:37</span></div></div>
+      <div class="acts"><span>${I("star", 17)}</span><span>${I("mail", 17)}</span><span>${I("trash", 17)}</span></div>
+      ${pop}
+    </div>`;
+}
+const chat = `<div class="chat"><span class="cav">J</span><div class="cstack"><span class="cwho"><b>jesse taylor</b><span>jtaylorcpp@gmail.com</span></span>
+  <div class="bubble">I need to get the bergamo school calendar downloaded</div><span class="ctime">22:37</span></div></div>`;
+const noFolder = `<span class="summary-chip">No folder ${I("down", 12)}</span>`;
+
+function meter(before, after) {
+  return `<div class="meter">
+    <div class="line">${after ? `<span class="fill after" style="width:${after}%"></span>` : ""}<span class="fill" style="width:${before}%"></span><span class="tick" title="Files at 75%"></span></div>
+    <div class="labels"><span>${after ? `Must read <b>${before}% → ${after}%</b>` : `Must read <b>${before}%</b> · No folder <b>65%</b>`}</span><span>Files at <b>75%</b></span></div>
+  </div>`;
+}
+
+function popover() {
+  return shell(`<div class="thread-wrap">${header(`<span class="summary-chip" style="border-color:var(--secondary)">No folder ${I("down", 12)}</span>`, true)}${chat}</div>`);
+}
+
+function why() {
+  const reasons = [
+    { v: "near", q: RULE[3].t, p: "It's about a school calendar, but it's from you, not from the school." },
+    { v: "near", q: RULE[2].t, p: "It's from your own Gmail address. Busta doesn't count you as someone you know." },
+    { v: "no", q: RULE[5].t, p: "It's a reminder to yourself. Nobody is asking you anything." },
+  ];
+  const panel = `<div class="why">
+    <div class="why-head"><h3>Why this isn't in Must read <span>· Busta's read of it</span></h3><button class="btn g sm" type="button" data-go="popover">${I("x", 13)}Close</button></div>
+    ${meter(35)}
+    <div class="why-body">
+      <section>
+        <p class="h4">Closest parts of your rule</p>
+        <ul class="reasons">${reasons.map((r) => `<li class="reason"><span class="v ${r.v}">${r.v === "near" ? "~" : I("x", 11)}</span><span><q>${r.q}</q><p>${r.p}</p></span></li>`).join("")}</ul>
+        <p class="fine">Nothing else in the rule came close: it isn't from Liz, Tim or Cathy, and it isn't a bill or from a doctor.</p>
+      </section>
+      <section>
+        <p class="h4">What it looked at</p>
+        <div class="mail"><div class="hdr"><span>From <b>jesse taylor</b> &lt;<mark class="me">jtaylorcpp@gmail.com</mark>&gt;</span><span>Subject <b>Bergamo</b></span></div>
+          <div class="txt">I need to get the <mark class="kw">bergamo</mark> <mark class="kw">school calendar</mark> downloaded</div></div>
+        <p class="h4">Your Must read rule</p>
+        <p class="rule-full">${RULE.map((s) => `<span class="s${s.near ? " near" : ""}">${s.t}</span>`).join(" ")}</p>
+      </section>
+    </div>
+    <div class="why-foot"><span class="fine">Scores are from the model that files your mail. The reasons are a second model's reading of the same email.</span><span class="grow"></span>
+      <button class="btn s sm" type="button">Just file this one</button><button class="btn p sm" type="button" data-go="fix">${I("plus", 13)}Add keywords to Must read</button></div>
+  </div>`;
+  return shell(`<div class="thread-wrap">${header(noFolder)}${panel}${chat}</div>`);
+}
+
+function fix() {
+  const kws = [["Bergamo", "email", true], ["school calendar", "email", true], ["my kids' schools", "rule", true], ["reminders I send myself", "from you", true], ["downloads", "email", false]];
+  const panel = `<div class="why">
+    <div class="why-head"><h3>Add to Must read</h3><button class="btn g sm" type="button" data-go="why">${I("back", 13)}Why</button></div>
+    ${meter(35, 93)}
+    <div class="why-body">
+      <section>
+        <p class="h4">Keywords</p>
+        <div class="kws">${kws.map(([k, src, on]) => `<button type="button" class="kwc${on ? " on" : ""}">${on ? I("check", 11) : I("plus", 11)}${k}<span class="src">${src}</span></button>`).join("")}</div>
+        <p class="h4">Sentence to add</p>
+        <div class="addition">${ADDITION}</div>
+        <p class="fine">Built from the keywords you pick. Edit it however you like.</p>
+        <p class="h4">Your rule after</p>
+        <p class="rule-preview">${RULE.map((s) => s.t).join(" ")} <ins>${ADDITION}</ins></p>
+        <div class="nudge">${I("edit", 13)}Your rule is 8 sentences now.<button type="button" data-go="tidy">Tidy it up</button></div>
+      </section>
+      <section>
+        <div class="test-head" style="border-radius:10px"><b>Check it</b><span class="muted">this message + your last 20</span><span class="grow"></span><button class="btn s sm" type="button">Check again</button></div>
+        <div class="checks">
+          <div class="ck this"><span class="m"><b>Bergamo</b><span>jesse taylor · this message</span></span><span class="move in"><span class="from">35%</span>${I("check", 12)}In · 93%</span></div>
+          <div class="ck"><span class="m"><b>HTML render test for the new Busta thread view</b><span>jesse taylor · Sep 24</span></span><span class="move in"><span class="from">4%</span>${I("check", 12)}In · 81%</span></div>
+          <div class="ck"><span class="m"><b>[Test] Jesse, you're pre-approved for the Golden 1 Platinum…</b><span>jesse taylor · Sep 24</span></span><span class="move out">Out · 6%</span></div>
+          <div class="ck"><span class="m"><b>Re: Attachment test — one inline, one link</b><span>jesse taylor · Sep 24</span></span><span class="move out">Out · 22%</span></div>
+        </div>
+        <div class="warnline">${I("search", 14)}<span><b>1 other message would also go in.</b> "reminders I send myself" also catches your own test emails. Remove that keyword to leave them out.</span></div>
+      </section>
+    </div>
+    <div class="why-foot"><button class="btn g sm" type="button" data-go="popover">Cancel</button><span class="grow"></span>
+      <button class="btn s sm" type="button">Just file this one</button><button class="btn p sm" type="button" data-go="done">${I("check", 13)}Add to rule and re-sort</button></div>
+  </div>`;
+  return shell(`<div class="thread-wrap">${header(noFolder)}${panel}</div>`);
+}
+
+function done() {
+  const toast = `<div class="toast">${I("check", 16)}<span><b>Must read rule updated.</b> <span class="soft">This message and 1 other moved into Must read.</span></span><span class="grow"></span><button type="button" data-go="fix">Undo</button></div>`;
+  const chip = `<span class="filed">${I("folder", 13)}Filed by rule <span class="dim">·</span> Must read <span class="dim">· 93%</span>${I("down", 12)}</span>`;
+  return shell(`<div class="thread-wrap">${toast}${header(chip)}${chat}</div>`);
+}
+
+function tidy() {
+  const mine = RULE.map((s) => s.t).join(" ") + " " + ADDITION;
+  const overlay = `<div class="scrim"><div class="modal" role="dialog" aria-label="Tidy up Must read" style="width:min(100%,920px)">
+    <div class="modal-head"><h2>Tidy up Must read</h2><span class="x">${I("x", 16)}</span></div>
+    <div class="modal-body">
+      <p class="hint">Rewritten for reading. Same conditions, nothing added or dropped. <b>Check the result below before you use it.</b></p>
+      <div class="tidy">
+        <div class="ver mine"><div class="vh"><b>Yours</b><span class="grow"></span><span class="wc">8 sentences · 96 words</span></div><div class="vb">${mine}</div></div>
+        <div class="ver new"><div class="vh"><b>Tidied</b><span class="grow"></span><span class="wc">70 words</span><button class="btn g sm" type="button">${I("edit", 12)}Edit</button></div><div class="vb">
+          <p>Goes in:</p>
+          <ul>
+            <li>Anything from Liz, Tim or Cathy Taylor</li>
+            <li>Real people I know, not companies</li>
+            <li>My kids' schools or daycare, including Bergamo and the school calendar, and reminders I send myself about them</li>
+            <li>My financial accounts, and bills with a due date, including cloud providers</li>
+            <li>My doctor or pharmacy</li>
+            <li>Mail that asks me a question or needs a reply</li>
+          </ul>
+          <p>Leaves out:</p>
+          <ul class="out-list"><li>Newsletters, promotions and other mail from companies that isn't a bill</li></ul>
+        </div></div>
+      </div>
+      <div class="test">
+        <div class="test-head"><b>Does it still mean the same?</b><span class="muted">both versions on your last 20 messages</span><span class="grow"></span><button class="btn s sm" type="button">Check again</button></div>
+        <div class="tr" style="grid-template-columns:1fr"><span class="same">${I("check", 14)}<span><b>Same result on 19 of 20.</b> One changes:</span></span></div>
+        <div class="tr"><span class="verdict out">${I("x", 12)}Out · 31%</span><span class="m"><span class="s">[Test] Jesse, you're pre-approved for the Golden 1 Platinum Rewards Visa</span><span class="f">Yours: In · 78%. "Leaves out: … mail from companies" now excludes this offer. Remove that line to keep it.</span></span></div>
+      </div>
+    </div>
+    <div class="modal-foot"><span class="fine">Undo in the folder editor restores yours.</span><span class="grow"></span><button class="btn g" type="button">Keep mine</button><button class="btn s" type="button">Edit, then use</button><button class="btn p" type="button">Use tidied version</button></div>
+  </div></div>`;
+  const editor = `<div class="head"><h2>Must read</h2><span class="muted">Edit rule</span></div>
+    <div style="padding:16px;display:grid;gap:8px;max-width:760px"><span class="lbl">Rule</span><div class="rule">${mine}</div>
+    <div class="nudge"><button type="button">${I("edit", 12)}Tidy up</button>Rewrites it as a readable list. You review before anything changes.</div></div>`;
+  return shell(`${editor}${overlay}`);
+}
+
+function entry() {
+  const rows = `<ul class="rows">
+    <li class="row unread"><span class="lead"><span class="udot"></span><span class="star">${I("star", 17)}</span></span><span class="body"><span class="from">Golden 1 Credit Union</span><span class="main"><span class="unsure">Unsure: Bank 48%<button class="mini" type="button">File in Bank</button><button class="mini" type="button">Not Bank</button><button class="mini" type="button" data-go="why">Why?</button></span><span class="subj">Update your contact preferences</span><span class="snip"> — Choose how we reach you.</span></span><span class="meta"><time>08:14</time></span></span></li>
+    <li class="row unread"><span class="lead"><span class="udot"></span><span class="star">${I("star", 17)}</span></span><span class="body"><span class="from">jesse taylor</span><span class="main"><span class="subj">Bergamo</span><span class="snip"> — I need to get the bergamo school calendar downloaded</span></span><span class="meta"><time>22:37</time></span></span></li>
+  </ul>`;
+  const card = `<div class="gcard"><span class="mk">${I("search", 15)}</span><div style="display:grid;gap:4px"><h3>It arrived and stayed in Messages.</h3><p>Busta didn't think it matched Must read (35%). <a href="#" data-go="why">See why</a> · <a href="#">Edit your description</a></p></div></div>`;
+  return shell(`<p class="state-label">Getting started, step 3: "See why" opens the explanation</p>${card}
+    <p class="state-label">Unsure rows get a "Why?" next to their one-click choices. Rows with no folder stay clean; ask from the thread.</p>${rows}
+    <p class="state-label">In the thread: the folder menu's "Why not …?" (screen 1)</p>
+    <p class="state-label">In the folder editor, and after adding keywords: "Tidy up" (screen 5)</p>`);
+}
+
+const PAGES = { popover, why, fix, done, tidy, entry };
+let page = "popover", theme = "both";
+function render() {
+  const stage = document.getElementById("stage");
+  const themes = theme === "both" ? ["light", "dark"] : [theme];
+  stage.className = "stage" + (theme === "both" ? " both" : "");
+  stage.innerHTML = themes.map((t) => `<div class="stage-item"><div class="stage-label"><h3>${t === "light" ? "Light" : "Dark"}</h3><span class="eyebrow">${page}</span></div>${PAGES[page]().replace('class="app', `class="app cm-${t}`)}</div>`).join("");
+}
+function go(p) {
+  page = p;
+  document.querySelectorAll("[data-page]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.page === p)));
+  render();
+}
+for (const b of document.querySelectorAll("[data-page]")) b.addEventListener("click", () => go(b.dataset.page));
+document.getElementById("stage").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-go]");
+  if (!t) return;
+  e.preventDefault();
+  go(t.dataset.go);
+  document.querySelector(".switcher")?.scrollIntoView({ block: "nearest" });
+});
+for (const b of document.querySelectorAll("[data-theme-pick]")) b.addEventListener("click", () => {
+  theme = b.dataset.themePick;
+  document.querySelectorAll("[data-theme-pick]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  render();
+});
+render();
+</script>
+
+</body>
+</html>
