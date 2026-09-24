@@ -3,7 +3,7 @@
 import AppShell from "../../layouts/AppShell.astro";
 import { Banner } from "../ui";
 import MailboxNav from "./MailboxNav.astro";
-import Account from "./Account.astro";
+import AccountMenu from "./AccountMenu.astro";
 
 interface Props {
   title: string;
@@ -16,7 +16,7 @@ interface Props {
 const { title, address, base, stats, labels, flash } = Astro.props;
 ---
 <AppShell title={title} mailbox={address} composeHref={`${base}/compose`} searchAction={`${base}/search`}>
-  <Account slot="account" />
+  <AccountMenu slot="account" current={address} />
   <MailboxNav slot="nav" base={base} view={null} activeLabel={null} stats={stats} labels={labels} />
   <header class="head">
     <a class="back" href={base} aria-label="Back to inbox">←</a>

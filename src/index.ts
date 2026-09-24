@@ -33,7 +33,6 @@ import {
   errorPage,
   inboxPage,
   draftsPage,
-  mailboxesPage,
   messagePage,
   searchPage,
 } from "./ui/pages";
@@ -218,42 +217,8 @@ async function route(
   const path = url.pathname;
   const flash = flashFrom(url);
 
-  // GET / — mailbox list for the active org
-  if (path === "/" && request.method === "GET") {
-    const tenant = tenantStub(env, session.orgId!);
-
-    // A brand-new tenant gets their username as an address without asking.
-    // Signing up and landing on an empty list reads as a broken account: the
-    // username *is* the mailbox name here, so there is nothing to choose yet.
-    const auto = await autoProvisionFirstMailbox(env, session);
-
-    const [mailboxes, pending] = await Promise.all([tenant.listMailboxes(), tenant.hasPending()]);
-
-    // Offer only what is genuinely still system-held, so the panel never
-    // advertises a transfer that would be refused.
-    const admins = (env.ADMIN_USER_IDS ?? "").split(",").map((i) => i.trim()).filter(Boolean);
-    let adoptable: string[] = [];
-    if (admins.includes(session.userId)) {
-      const candidates = [...SYSTEM_LOCAL_PARTS].map((l) => `${l}@${env.MAIL_DOMAIN}`);
-      const owners = await Promise.all(candidates.map((a) => mailboxStub(env, a).ownerOrgId()));
-      adoptable = candidates.filter((_, i) => owners[i] === SYSTEM_ORG_ID);
-    }
-
-    return html(
-      mailboxesPage({
-        adoptable,
-        orgLabel: orgLabel(session),
-        userId: session.userId,
-        clerkKey: env.CLERK_PUBLISHABLE_KEY,
-        domain: env.MAIL_DOMAIN,
-        mailboxes,
-        pending,
-        // A flash from the user's own last action outranks anything this
-        // first-run path has to say about itself.
-        notice: flash ?? auto ?? undefined,
-      }),
-    );
-  }
+  // GET / is rendered by Astro (web/src/pages/index.astro): it sends you to
+  // your mailbox, or shows first-run setup.
 
   // POST /mailboxes — claim a new address
   if (path === "/mailboxes" && request.method === "POST") {
@@ -735,7 +700,7 @@ async function route(
  * not be derived. Every failure ends with the user on their mailbox list, told
  * what happened, with the claim form right there.
  */
-async function autoProvisionFirstMailbox(
+export async function autoProvisionFirstMailbox(
   env: Env,
   session: Session,
 ): Promise<{ kind: "ok" | "error"; text: string } | null> {

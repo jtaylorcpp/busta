@@ -14,7 +14,7 @@ import {
   Attachment, AudienceDivider, Banner, ChatComposer, ChatMessage, DayDivider, ThreadHeader, ThreadInfo,
 } from "../../../components/ui";
 import MailboxNav from "../../../components/app/MailboxNav.astro";
-import Account from "../../../components/app/Account.astro";
+import AccountMenu from "../../../components/app/AccountMenu.astro";
 import { audienceChanges } from "../../../lib/audience";
 import {
   base, deliveryStatus, formatDay, formatSize, formatTime, loadThread, openMailbox, splitQuoted,
@@ -78,7 +78,7 @@ const modeHref = (m: string, re = target.row.id) => `?mode=${m}&re=${re}#reply`;
 const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_status === "bounced" || e.row.delivery_status === "failed"));
 ---
 <AppShell title={subject} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
-  <Account slot="account" />
+  <AccountMenu slot="account" current={address} />
   <MailboxNav slot="nav" base={b} view={null} activeLabel={null} stats={stats} labels={labels} />
 
   <ThreadHeader

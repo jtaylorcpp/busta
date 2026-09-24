@@ -1,0 +1,185 @@
+---
+/**
+ * Bottom-left account menu: who you are, which mailbox you're in, the other
+ * mailboxes and orgs you can switch to, admin adoption, theme and sign-out.
+ * Replaces the old Mailboxes page and org chooser.
+ *
+ * A <details> popover, so it opens without JavaScript; a small script only
+ * adds close-on-outside-click and Escape. Account settings and org switching
+ * are Clerk's own components.
+ */
+import { env } from "cloudflare:workers";
+import { OrganizationSwitcher, UserButton } from "@clerk/astro/components";
+import { Count, Icon } from "../ui";
+import ThemeSwitch from "../ui/ThemeSwitch.astro";
+import { loadAccount } from "../../lib/mail-data";
+
+interface Props {
+  /** The mailbox being viewed, if any. */
+  current: string | null;
+}
+const { current } = Astro.props;
+const { userId, orgId } = Astro.locals.auth();
+const { mailboxes, adoptable } =
+  userId && orgId ? await loadAccount(env, { userId, orgId }) : { mailboxes: [], adoptable: [] as string[] };
+const active = mailboxes.find((m) => m.address === current) ?? null;
+const shown = active?.address ?? current ?? "Your mailbox";
+const initial = shown.charAt(0).toUpperCase();
+const unreadElsewhere = mailboxes.filter((m) => m.address !== current).reduce((n, m) => n + m.unread, 0);
+---
+<details class="acct" data-account-menu>
+  <summary aria-label={`Account and mailboxes. Current mailbox: ${shown}`}>
+    <span class="av" aria-hidden="true">
+      {initial}
+      {unreadElsewhere > 0 && <i class="dot" title="Unread mail in another mailbox"></i>}
+    </span>
+    <span class="who">
+      <span class="addr">{shown}</span>
+      <span class="sub">{active?.label ?? "Mailboxes & organization"}</span>
+    </span>
+    <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l4-4 4 4 M8 15l4 4 4-4" /></svg>
+  </summary>
+
+  <div class="panel">
+    <section class="me">
+      <UserButton showName />
+    </section>
+
+    <section>
+      <h3>Mailboxes</h3>
+      <ul class="list">
+        {mailboxes.map((m) => {
+          const here = m.address === current;
+          const ready = m.status === "ready";
+          const Row = ready && !here ? "a" : "span";
+          return (
+            <li>
+              <Row
+                class:list={["mb", { here, latched: !ready }]}
+                href={ready && !here ? `/mb/${encodeURIComponent(m.address)}` : undefined}
+                aria-current={here ? "page" : undefined}
+              >
+                <span class="check" aria-hidden="true">{here && <Icon name="check" size={14} />}</span>
+                <span class="mb-text">
+                  <span class="mb-addr">{m.address}</span>
+                  {m.label && <span class="mb-label">{m.label}</span>}
+                </span>
+                {m.status === "provisioning" && <span class="pill warn">Setting up…</span>}
+                {m.status === "failed" && <span class="pill bad" title={m.failure ?? undefined}>Setup failed</span>}
+                {ready && <Count value={m.unread} />}
+              </Row>
+              {m.status === "failed" && (
+                <form method="post" action={`/mailboxes/${encodeURIComponent(m.address)}/retry`} class="inline-action">
+                  {m.failure && <span class="why">{m.failure}</span>}
+                  <button type="submit">Retry setup</button>
+                </form>
+              )}
+            </li>
+          );
+        })}
+        {mailboxes.length === 0 && <li class="none">No mailboxes in this organization yet.</li>}
+      </ul>
+    </section>
+
+    <section>
+      <h3>Organization</h3>
+      <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/" afterCreateOrganizationUrl="/" afterLeaveOrganizationUrl="/" />
+    </section>
+
+    {adoptable.length > 0 && (
+      <section>
+        <h3>System mailboxes <span class="admin">Admin</span></h3>
+        {adoptable.map((a) => (
+          <form method="post" action={`/mailboxes/${encodeURIComponent(a)}/adopt`} class="inline-action adopt">
+            <span>{a}</span>
+            <button type="submit">Adopt</button>
+          </form>
+        ))}
+      </section>
+    )}
+
+    <section class="foot">
+      <ThemeSwitch />
+      <a class="out" href="/sign-out">Sign out</a>
+    </section>
+  </div>
+</details>
+
+<script>
+  // Close on outside click or Escape. Clerk's own popovers render outside
+  // the menu, so clicks inside them must not close it.
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>("[data-account-menu]")) {
+    document.addEventListener("click", (e) => {
+      const t = e.target as Element;
+      if (menu.open && !menu.contains(t) && !t.closest?.("[class*='cl-']")) menu.open = false;
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && menu.open) {
+        menu.open = false;
+        menu.querySelector("summary")?.focus();
+      }
+    });
+  }
+</script>
+
+<style>
+  .acct { position: relative; margin: var(--space-3) var(--space-2) 0; }
+  summary {
+    list-style: none; display: flex; align-items: center; gap: 10px; cursor: pointer;
+    padding: 8px 10px; border-radius: var(--radius-md); color: var(--text);
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover, .acct[open] summary { background: var(--surface-2); }
+  .av {
+    position: relative; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%;
+    display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); font-weight: 700;
+  }
+  .dot { position: absolute; top: -1px; right: -1px; width: 9px; height: 9px; border-radius: 50%; background: var(--attention); border: 2px solid var(--bg); }
+  .who { display: grid; min-width: 0; flex: 1; }
+  .addr { font-size: var(--text-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { font-size: var(--text-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chev { color: var(--muted); flex-shrink: 0; }
+
+  .panel {
+    position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 30; width: 300px; max-height: min(80vh, 640px); overflow: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-2);
+  }
+  section { padding: 10px 12px; border-bottom: 1px solid var(--border); display: grid; gap: 6px; }
+  section:last-child { border-bottom: 0; }
+  h3 {
+    font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+    padding: 4px 4px 2px; display: flex; gap: 6px; align-items: center;
+  }
+  .admin { font-family: var(--font-sans); letter-spacing: 0; text-transform: none; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-pill); background: var(--secondary-soft); color: var(--secondary); }
+  .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .mb { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--radius-sm); color: var(--text); text-decoration: none; }
+  a.mb:hover { background: var(--surface-2); }
+  .mb.here { background: var(--primary-soft); color: var(--primary); }
+  .mb.latched { color: var(--muted); }
+  .check { width: 14px; display: inline-grid; flex-shrink: 0; }
+  .mb-text { display: grid; flex: 1; min-width: 0; }
+  .mb-addr { font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mb-label { font-size: var(--text-xs); color: var(--muted); }
+  .pill { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: var(--radius-pill); white-space: nowrap; }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--error-soft); color: var(--error); }
+  .none { font-size: var(--text-sm); color: var(--muted); padding: 4px 8px; }
+  .inline-action { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 0 8px 4px 30px; font-size: var(--text-sm); }
+  .adopt { padding-left: 8px; }
+  .why { font-size: var(--text-xs); color: var(--error); }
+  .inline-action button {
+    font: 600 var(--text-xs) var(--font-sans); padding: 4px 10px; border-radius: var(--radius-pill); flex-shrink: 0;
+    border: 1px solid var(--border); background: transparent; color: var(--primary); cursor: pointer;
+  }
+  .me { padding-top: 12px; }
+  .foot { gap: 10px; }
+  .out { font-size: var(--text-sm); color: var(--muted); text-decoration: none; padding: 4px; }
+  .out:hover { color: var(--error); }
+
+  @media (max-width: 800px) {
+    .panel {
+      position: fixed; left: 0; right: 0; bottom: 0; width: auto; max-height: 85vh;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+  }
+</style>

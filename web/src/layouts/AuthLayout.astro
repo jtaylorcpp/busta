@@ -14,6 +14,7 @@ interface Props {
 const { title, heading, subheading } = Astro.props;
 ---
 <Base title={title}>
+  <slot name="head" slot="head" />
   <main class="auth">
     <Brand size={40} />
     {heading && <h1>{heading}</h1>}

@@ -24,6 +24,7 @@ const ASTRO_ROUTES: RegExp[] = [/^\/sign-in\/?$/];
  * and sub-resources (/body, /att/*) stay with the original handlers.
  */
 const ASTRO_GET_ROUTES: RegExp[] = [
+  /^\/$/, // home: redirect to your mailbox, or first-run setup / org picker
   /^\/mb\/[^/]+\/?$/, // mailbox list
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/?$/i, // thread
   /^\/mb\/[^/]+\/search(\/more)?\/?$/, // search + load-more partial

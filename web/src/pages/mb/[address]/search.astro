@@ -8,7 +8,7 @@ import { env } from "cloudflare:workers";
 import AppShell from "../../../layouts/AppShell.astro";
 import { Button, Icon, MailList } from "../../../components/ui";
 import MailboxNav from "../../../components/app/MailboxNav.astro";
-import Account from "../../../components/app/Account.astro";
+import AccountMenu from "../../../components/app/AccountMenu.astro";
 import SearchRows from "../../../components/app/SearchRows.astro";
 import LoadMore from "../../../components/islands/LoadMore";
 import { base, openMailbox, runSearch, searchQuery } from "../../../lib/mail-data";
@@ -26,7 +26,7 @@ const b = base(address);
 const f = page.filters;
 ---
 <AppShell title={page.q ? `“${page.q}” — Search` : "Search"} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`} query={page.q}>
-  <Account slot="account" />
+  <AccountMenu slot="account" current={address} />
   <MailboxNav slot="nav" base={b} view={"search"} activeLabel={null} stats={stats} labels={labels} />
 
   <form class="filters" method="get" action={`${b}/search`}>

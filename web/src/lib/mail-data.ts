@@ -6,8 +6,10 @@
  */
 import { authorizeMailbox } from "../../../src/index";
 import {
-  attachmentBudget, FLAG, inlineThreshold, linkLifetimeMs, normalizeAddress, threadStub,
+  attachmentBudget, FLAG, inlineThreshold, linkLifetimeMs, mailboxStub, normalizeAddress,
+  SYSTEM_LOCAL_PARTS, SYSTEM_ORG_ID, tenantStub, threadStub,
 } from "../../../src/mail";
+import type { TenantMailbox } from "../../../src/tenant-do";
 import type { AgentConfig, IndexedMessage, MailboxDO } from "../../../src/mailbox-do";
 import type { BodySource, ThreadAttachment, ThreadMessage } from "../../../src/thread-do";
 import type { Envelope } from "./audience";
@@ -307,4 +309,42 @@ export async function forwardPrefill(env: Env, stub: MailboxStub, address: strin
     ].join("\n"),
     attachments: found.attachments as ThreadAttachment[],
   };
+}
+
+// --- account menu / home ----------------------------------------------------
+
+/** Remembers the last mailbox opened, so / can take you back to it. */
+export const LAST_MAILBOX_COOKIE = "busta_mb";
+
+export interface AccountMailbox {
+  address: string;
+  label: string | null;
+  /** provisioning | ready | failed */
+  status: string;
+  failure: string | null;
+  unread: number;
+}
+
+/** Everything the sidebar account menu shows. Unread counts only for ready mailboxes. */
+export async function loadAccount(env: Env, session: { userId: string; orgId: string }) {
+  const mailboxes = (await tenantStub(env, session.orgId).listMailboxes()) as TenantMailbox[];
+  const withCounts: AccountMailbox[] = await Promise.all(
+    mailboxes.map(async (m) => ({
+      address: m.address,
+      label: m.label,
+      status: m.status,
+      failure: m.failure,
+      unread: m.status === "ready" ? ((await mailboxStub(env, m.address).stats()) as { unread: number }).unread : 0,
+    })),
+  );
+  const admins = String(env.ADMIN_USER_IDS ?? "").split(",").map((i) => i.trim()).filter(Boolean);
+  let adoptable: string[] = [];
+  if (admins.includes(session.userId)) {
+    // Offer only what is genuinely still system-held, so the menu never
+    // advertises a transfer that would be refused.
+    const candidates = [...SYSTEM_LOCAL_PARTS].map((l) => `${l}@${env.MAIL_DOMAIN}`);
+    const owners = await Promise.all(candidates.map((a) => mailboxStub(env, a).ownerOrgId()));
+    adoptable = candidates.filter((_, i) => owners[i] === SYSTEM_ORG_ID);
+  }
+  return { mailboxes: withCounts, adoptable };
 }

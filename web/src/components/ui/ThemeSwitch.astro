@@ -1,0 +1,39 @@
+---
+/**
+ * System / Light / Dark as a segmented control. Same storage and attribute
+ * as ThemeToggle; Base.astro applies the saved choice before first paint.
+ */
+const modes = ["system", "light", "dark"] as const;
+---
+<div class="seg" role="radiogroup" aria-label="Theme">
+  {modes.map((m) => (
+    <button type="button" role="radio" data-theme-set={m} aria-checked="false">{m[0]!.toUpperCase() + m.slice(1)}</button>
+  ))}
+</div>
+
+<script>
+  type Mode = "system" | "light" | "dark";
+  const read = (): Mode => {
+    try { return (localStorage.getItem("theme") as Mode) || "system"; } catch { return "system"; }
+  };
+  const apply = (mode: Mode) => {
+    const root = document.documentElement;
+    if (mode === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", mode);
+    try { localStorage.setItem("theme", mode); } catch {}
+    document.querySelectorAll<HTMLButtonElement>("[data-theme-set]").forEach((b) =>
+      b.setAttribute("aria-checked", String(b.dataset.themeSet === mode)),
+    );
+  };
+  apply(read());
+  document.querySelectorAll<HTMLButtonElement>("[data-theme-set]").forEach((b) =>
+    b.addEventListener("click", () => apply(b.dataset.themeSet as Mode)),
+  );
+</script>
+
+<style>
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface-2); border-radius: var(--radius-pill); padding: 3px; gap: 2px; }
+  button { border: 0; background: transparent; color: var(--muted); font: 600 var(--text-xs) var(--font-sans); padding: 5px 8px; border-radius: var(--radius-pill); cursor: pointer; }
+  button:hover { color: var(--text); }
+  button[aria-checked="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1); }
+</style>

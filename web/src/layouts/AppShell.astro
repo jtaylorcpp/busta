@@ -1,11 +1,11 @@
 ---
 import Base from "./Base.astro";
-import { Brand, Button, Icon, ThemeToggle } from "../components/ui";
+import { Brand, Button, Icon } from "../components/ui";
 
 /**
- * Signed-in chrome: top bar (brand, search, account), sidebar (Compose + the
- * `nav` slot) and the main pane (default slot). The `account` slot is where
- * Clerk's <UserButton /> goes.
+ * Signed-in chrome: top bar (brand, search), sidebar (Compose, the `nav`
+ * slot, and the `account` slot pinned to the bottom — the AccountMenu) and
+ * the main pane (default slot).
  */
 interface Props {
   title: string;
@@ -25,15 +25,12 @@ const { title, mailbox, composeHref, searchAction, query } = Astro.props;
         <label class="visually-hidden" for="q">Search {mailbox}</label>
         <input id="q" name="q" type="search" placeholder={`Search ${mailbox}`} value={query} />
       </form>
-      <div class="account">
-        <ThemeToggle />
-        <slot name="account" />
-      </div>
     </header>
     <div class="body">
       <nav class="side" aria-label="Folders">
         <Button variant="primary" size="lg" href={composeHref} class="compose"><Icon name="pen" size={18} />Compose</Button>
         <slot name="nav" />
+        <div class="side-account"><slot name="account" /></div>
       </nav>
       <main class="pane"><slot /></main>
     </div>
@@ -41,7 +38,7 @@ const { title, mailbox, composeHref, searchAction, query } = Astro.props;
 </Base>
 
 <style>
-  .shell { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; }
+  .shell { position: relative; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; }
   .top { display: flex; align-items: center; gap: var(--space-4); padding: 10px var(--space-4); }
   .search {
     flex: 1; max-width: 720px; display: flex; align-items: center; gap: var(--space-2);
@@ -51,13 +48,28 @@ const { title, mailbox, composeHref, searchAction, query } = Astro.props;
   :global([data-theme="dark"]) .search, :global(.theme-dark) .search { background: var(--surface); }
   .search:focus-within { background: var(--surface); border-color: var(--border); box-shadow: var(--shadow-1); }
   .search input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 11px 0; outline: none; color: var(--text); }
-  .account { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
   .body { display: grid; grid-template-columns: 232px 1fr; gap: var(--space-2); padding: 0 var(--space-4) var(--space-4) 0; min-height: 0; }
-  .side { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; }
+  .side {
+    display: flex; flex-direction: column; gap: 2px; padding: 4px 0 var(--space-2);
+    position: sticky; top: 0; align-self: start; height: calc(100dvh - 64px);
+    /* Sticky makes its own stacking context; lift it so the account menu's
+       popover paints above the mail list rather than under it. */
+    z-index: 5;
+  }
   .side :global(.compose) { align-self: flex-start; margin: 0 0 var(--space-3) var(--space-3); box-shadow: var(--shadow-1); }
+  .side-account { margin-top: auto; }
   .pane { background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; min-width: 0; }
   @media (max-width: 800px) {
     .body { grid-template-columns: 1fr; padding-left: var(--space-4); }
-    .side { display: none; }
+    .side { position: static; height: auto; padding: 0; }
+    /* Slotted nav items carry another component's scope, hence :global. */
+    .side > :global(:not(.side-account)) { display: none; }
+    /* Folders are hidden on phones; the account avatar sits in the top bar
+       and its menu opens as a bottom sheet. */
+    .side-account { position: absolute; top: 10px; right: var(--space-3); z-index: 20; }
+    .side-account :global(.acct) { margin: 0; }
+    .side-account :global(.acct summary) { padding: 4px; }
+    .side-account :global(.acct .who), .side-account :global(.acct .chev) { display: none; }
+    .top { padding-right: 64px; }
   }
 </style>

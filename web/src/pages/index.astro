@@ -1,0 +1,118 @@
+---
+/**
+ * GET / — where signing in lands. Not a page to browse: it sends you to your
+ * mailbox (the last one you opened, else the first ready one). It only
+ * renders when there is nowhere to go yet:
+ *   - no organization selected → Clerk's organization picker
+ *   - no mailbox ready → first-run setup status (auto-provisioning from the
+ *     Clerk username, pending/failed states with Retry, admin adoption)
+ * Switching mailboxes and orgs otherwise lives in the sidebar account menu.
+ */
+import { env } from "cloudflare:workers";
+import { OrganizationList } from "@clerk/astro/components";
+import AuthLayout from "../layouts/AuthLayout.astro";
+import { Banner } from "../components/ui";
+import { autoProvisionFirstMailbox } from "../../../src/index";
+import { LAST_MAILBOX_COOKIE, loadAccount } from "../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+Astro.response.headers.set("cache-control", "no-store");
+
+const url = Astro.url;
+let flash = { ok: url.searchParams.get("ok"), error: url.searchParams.get("error") };
+let mailboxes: Awaited<ReturnType<typeof loadAccount>>["mailboxes"] = [];
+let adoptable: string[] = [];
+let pending = false;
+
+if (orgId) {
+  // A brand-new org gets its first address from the user's Clerk username.
+  const auto = await autoProvisionFirstMailbox(env, { userId, orgId, orgSlug: null, orgRole: null });
+  ({ mailboxes, adoptable } = await loadAccount(env, { userId, orgId }));
+  pending = mailboxes.some((m) => m.status === "provisioning");
+
+  const ready = mailboxes.filter((m) => m.status === "ready");
+  const last = Astro.cookies.get(LAST_MAILBOX_COOKIE)?.value;
+  const target = ready.find((m) => m.address === last) ?? ready[0];
+  if (target) {
+    // Carry an action's result (adopt, retry) through to the mailbox.
+    const q = new URLSearchParams();
+    if (flash.ok) q.set("ok", flash.ok);
+    if (flash.error) q.set("error", flash.error);
+    const qs = q.toString();
+    return Astro.redirect(`/mb/${encodeURIComponent(target.address)}${qs ? `?${qs}` : ""}`);
+  }
+  if (!flash.ok && !flash.error && auto) flash = auto.kind === "ok" ? { ok: auto.text, error: null } : { ok: null, error: auto.text };
+}
+---
+<AuthLayout
+  title={orgId ? "Setting up" : "Choose organization"}
+  heading={orgId ? "Setting up your mailbox" : "Pick or create an organization"}
+  subheading={orgId ? "This usually takes a few seconds." : "Every mailbox belongs to an organization."}
+>
+  {pending && <meta slot="head" http-equiv="refresh" content="4" />}
+  <div class="card">
+    {flash.ok && <Banner tone="success">{flash.ok}</Banner>}
+    {flash.error && <Banner tone="error">{flash.error}</Banner>}
+
+    {orgId ? (
+      <Fragment>
+        <ul class="list">
+          {mailboxes.map((m) => (
+            <li>
+              <span class="addr">{m.address}</span>
+              {m.status === "provisioning" && <span class="pill warn">Setting up…</span>}
+              {m.status === "failed" && (
+                <Fragment>
+                  <span class="pill bad">Setup failed</span>
+                  {m.failure && <p class="why">{m.failure}</p>}
+                  <form method="post" action={`/mailboxes/${encodeURIComponent(m.address)}/retry`}><button type="submit">Retry setup</button></form>
+                </Fragment>
+              )}
+            </li>
+          ))}
+          {mailboxes.length === 0 && !flash.error && <li class="muted">Creating your address…</li>}
+        </ul>
+        {pending && <p class="muted small">This page refreshes itself until your mailbox is ready.</p>}
+        {adoptable.length > 0 && (
+          <div class="adopt">
+            <p class="muted small">System mailboxes you can adopt (admin):</p>
+            {adoptable.map((a) => (
+              <form method="post" action={`/mailboxes/${encodeURIComponent(a)}/adopt`}><span>{a}</span><button type="submit">Adopt</button></form>
+            ))}
+          </div>
+        )}
+        <p class="small"><a href="/sign-out">Sign out</a></p>
+      </Fragment>
+    ) : (
+      <Fragment>
+        <OrganizationList hidePersonal afterSelectOrganizationUrl="/" afterCreateOrganizationUrl="/" />
+        <p class="small"><a href="/sign-out">Sign out</a></p>
+      </Fragment>
+    )}
+  </div>
+</AuthLayout>
+
+<style>
+  .card {
+    width: min(100%, 440px); display: grid; gap: var(--space-3); text-align: left; justify-items: stretch;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2); padding: var(--space-5); overflow: hidden;
+  }
+  .card :global(.banner) { margin: calc(var(--space-5) * -1) calc(var(--space-5) * -1) 0; }
+  .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+  .list li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  .addr { font-weight: 600; }
+  .pill { font-size: var(--text-xs); font-weight: 600; padding: 2px 8px; border-radius: var(--radius-pill); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--error-soft); color: var(--error); }
+  .why { flex-basis: 100%; font-size: var(--text-sm); color: var(--error); }
+  .adopt { display: grid; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-3); }
+  form { display: flex; gap: var(--space-2); align-items: center; justify-content: space-between; }
+  button {
+    font: 600 var(--text-sm) var(--font-sans); padding: 6px 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--border); background: transparent; color: var(--primary); cursor: pointer;
+  }
+  .small { font-size: var(--text-sm); }
+  .card a { color: var(--muted); }
+</style>

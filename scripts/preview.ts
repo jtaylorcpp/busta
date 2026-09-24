@@ -10,7 +10,6 @@ import {
   composePage,
   errorPage,
   inboxPage,
-  mailboxesPage,
   draftsPage,
   messagePage,
   searchPage,
@@ -232,20 +231,6 @@ const shared = {
 };
 
 const pages: Record<string, string> = {
-  "mailboxes.html": mailboxesPage({
-    orgLabel: shared.orgLabel,
-    userId: shared.userId,
-    clerkKey: shared.clerkKey,
-    domain: "example.com",
-    mailboxes: [
-      { address: "sales@example.com", local_part: "sales", domain: "example.com", label: "Sales team", created_at: now - 40 * 24 * HOUR, status: "ready", failure: null },
-      { address: "support@example.com", local_part: "support", domain: "example.com", label: "Support desk", created_at: now - 12 * 24 * HOUR, status: "ready", failure: null },
-      { address: "billing@example.com", local_part: "billing", domain: "example.com", label: "Billing", created_at: now - 20_000, status: "provisioning", failure: null },
-      { address: "legal@example.com", local_part: "legal", domain: "example.com", label: "Legal", created_at: now - 5 * 60_000, status: "failed", failure: "Could not create the Email Routing rule after 5 attempts." },
-    ],
-    pending: true,
-    notice: { kind: "ok", text: "Setting up billing@example.com…" },
-  }),
   "inbox.html": inboxPage({ ...shared, messages, unread: 5,
     total: 8,
     threads: 6,
