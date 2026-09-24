@@ -40,6 +40,7 @@ interface Props {
 
 export default function TidyPanel({ base, name, rule, onUse, onCancel }: Props) {
   const [text, setText] = useState("");
+  const [missing, setMissing] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
   const [err, setErr] = useState("");
   const [rows, setRows] = useState<CompareRow[] | null>(null);
@@ -59,8 +60,8 @@ export default function TidyPanel({ base, name, rule, onUse, onCancel }: Props) 
   }
 
   useEffect(() => {
-    postJson<{ text: string }>(`${base}/folders/tidy`, { name, rule })
-      .then((t) => { setText(t.text); void check(t.text); })
+    postJson<{ text: string; missing: string[] }>(`${base}/folders/tidy`, { name, rule })
+      .then((t) => { setText(t.text); setMissing(t.missing ?? []); void check(t.text); })
       .catch((e) => setErr((e as Error).message));
   }, []);
 
@@ -86,6 +87,9 @@ export default function TidyPanel({ base, name, rule, onUse, onCancel }: Props) 
           </div>
         </div>
       </div>
+      {text && missing.length > 0 && (
+        <p class="same warn missing">Not in the tidied version: <b>{missing.join(", ")}</b>. Make sure the rewrite still covers them, or edit it.</p>
+      )}
       {text && (
         <div class="checkbox">
           <div class="cb-head"><b>Does it still mean the same?</b><span class="fine">both versions on your recent mail</span><span class="grow" />

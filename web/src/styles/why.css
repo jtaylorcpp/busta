@@ -105,7 +105,7 @@
 
 /* Tidy up */
 .tidy-panel { gap: 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
-.tidy-panel > .fine, .tidy-panel > .err, .tidy-panel > .tidy, .tidy-panel > .checkbox { margin: 0 16px; }
+.tidy-panel > .fine, .tidy-panel > .err, .tidy-panel > .tidy, .tidy-panel > .checkbox, .tidy-panel > .missing { margin: 0 16px; }
 .tidy-panel .tidy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 @media (max-width: 900px) { .tidy-panel .tidy { grid-template-columns: 1fr; } }
 .tidy-panel .ver { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: grid; align-content: start; }
