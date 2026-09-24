@@ -19,6 +19,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* The hidden attribute must win over any display rule a component sets. */
+[hidden] { display: none !important; }
+
 .mono { font-family: var(--font-mono); }
 .muted { color: var(--muted); }
 .visually-hidden {

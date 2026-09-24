@@ -1,8 +1,9 @@
 ---
 /**
- * GET / — where signing in lands. Not a page to browse: it sends you to your
- * mailbox (the last one you opened, else the first ready one). It only
- * renders when there is nowhere to go yet:
+ * GET / — signed out: the landing page (components/marketing). Signed in:
+ * not a page to browse — it sends you to your mailbox (the last one you
+ * opened, else the first ready one), and only renders when there is nowhere
+ * to go yet:
  *   - no organization selected → Clerk's organization picker
  *   - no mailbox ready → first-run setup status (auto-provisioning from the
  *     Clerk username, pending/failed states with Retry, admin adoption)
@@ -13,10 +14,14 @@ import { OrganizationList } from "@clerk/astro/components";
 import AuthLayout from "../layouts/AuthLayout.astro";
 import { Banner } from "../components/ui";
 import { autoProvisionFirstMailbox } from "../../../src/index";
+import Base from "../layouts/Base.astro";
+import Marketing from "../components/marketing/Marketing.astro";
 import { LAST_MAILBOX_COOKIE, loadAccount } from "../lib/mail-data";
 
 const { userId, orgId } = Astro.locals.auth();
-if (!userId) return Astro.redirect("/sign-in");
+// Signed-out visitors get the landing page (rendered below); everyone else is
+// routed to their mailbox.
+const signedOut = !userId;
 Astro.response.headers.set("cache-control", "no-store");
 
 const url = Astro.url;
@@ -25,10 +30,10 @@ let mailboxes: Awaited<ReturnType<typeof loadAccount>>["mailboxes"] = [];
 let adoptable: string[] = [];
 let pending = false;
 
-if (orgId) {
+if (!signedOut && orgId) {
   // A brand-new org gets its first address from the user's Clerk username.
-  const auto = await autoProvisionFirstMailbox(env, { userId, orgId, orgSlug: null, orgRole: null });
-  ({ mailboxes, adoptable } = await loadAccount(env, { userId, orgId }));
+  const auto = await autoProvisionFirstMailbox(env, { userId: userId!, orgId, orgSlug: null, orgRole: null });
+  ({ mailboxes, adoptable } = await loadAccount(env, { userId: userId!, orgId }));
   pending = mailboxes.some((m) => m.status === "provisioning");
 
   const ready = mailboxes.filter((m) => m.status === "ready");
@@ -46,6 +51,12 @@ if (orgId) {
   if (!flash.ok && !flash.error && auto) flash = auto.kind === "ok" ? { ok: auto.text, error: null } : { ok: null, error: auto.text };
 }
 ---
+{signedOut ? (
+  <Base title="Busta" description="Email that files itself from one-sentence rules you write, on a mailbox that's yours: no ads, trackers blocked, never mined.">
+    <link slot="head" rel="alternate" type="text/markdown" href="/llms.txt" title="Busta for language models" />
+    <Marketing />
+  </Base>
+) : (
 <AuthLayout
   title={orgId ? "Setting up" : "Choose organization"}
   heading={orgId ? "Setting up your mailbox" : "Pick or create an organization"}
@@ -93,6 +104,7 @@ if (orgId) {
     )}
   </div>
 </AuthLayout>
+)}
 
 <style>
   .card {

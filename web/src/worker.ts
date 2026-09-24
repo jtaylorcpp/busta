@@ -29,7 +29,8 @@ const ASTRO_ROUTES: RegExp[] = [
  * and sub-resources (/body, /att/*) stay with the original handlers.
  */
 const ASTRO_GET_ROUTES: RegExp[] = [
-  /^\/$/, // home: redirect to your mailbox, or first-run setup / org picker
+  /^\/$/, // home: landing page when signed out; else your mailbox / setup / org picker
+  /^\/llms\.txt$/, // the site as Markdown for language models
   /^\/mb\/[^/]+\/?$/, // mailbox list
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/?$/i, // thread
   /^\/mb\/[^/]+\/search(\/more)?\/?$/, // search + load-more partial

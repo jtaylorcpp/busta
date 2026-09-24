@@ -1,0 +1,564 @@
+---
+/**
+ * Busta's public landing page (signed-out visitors at /), ported from the
+ * approved mockup: designs/2026-09-24-marketing/. Hero demo, three sections
+ * with their own carousels, FAQ, closing call to action, and a Human | LLM
+ * switch whose LLM view is the same Markdown served at /llms.txt.
+ *
+ * Styles are global to this page only (Astro bundles them per page); the
+ * behavior script is inline and self-contained, as in the mockup.
+ */
+import { LLMS_MD } from "../../lib/llms";
+---
+<div class="wrap">
+  <header class="nav">
+    <a class="brand" href="#top" aria-label="Busta home"><span class="mark" aria-hidden="true">b</span>Busta</a>
+    <span class="grow"></span>
+    <div class="seg" role="group" aria-label="View"><button type="button" data-view="human" aria-pressed="true">Human</button><button type="button" data-view="llm" aria-pressed="false">LLM</button></div>
+    <a class="link" href="#sorting">How it works</a>
+    <a class="link" href="#faq">FAQ</a>
+    <button class="theme" type="button" id="theme" aria-label="Theme: System">System</button>
+    <a class="btn primary small" href="/sign-in">Join the waitlist</a>
+  </header>
+
+  <div class="seg-mobile"><div class="seg" role="group" aria-label="View"><button type="button" data-view="human" aria-pressed="true">Human</button><button type="button" data-view="llm" aria-pressed="false">LLM</button></div></div>
+  <section class="llm" id="llm-view" hidden aria-label="Markdown version of this site for language models">
+    <div class="llm-bar"><span>Served at <span class="mono">https://busta.app/llms.txt</span></span><button type="button" class="copy-md" id="copy-md">Copy Markdown</button></div>
+    <pre id="md">{LLMS_MD}</pre>
+  </section>
+  <div id="human-view">
+  <main id="top">
+    <section class="hero">
+      <div>
+        <h1>The emails that matter, <em>found for you.</em></h1>
+        <p class="sub">Say in one sentence what belongs in each folder. Busta files new mail as it arrives, keeps your mail yours, and reads like a conversation.</p>
+        <div class="cta">
+          <a class="btn primary" href="/sign-in">Join the waitlist</a>
+          <a class="btn ghost" href="#sorting">See how it works →</a>
+        </div>
+        <p class="fine">Free while we're on the waitlist. You get yourname@busta.app.</p>
+      </div>
+
+      <div class="demo" id="demo" aria-label="Example inbox sorting new mail">
+        <div class="demo-top">
+          <span class="mark" aria-hidden="true">b</span>
+          <span class="search">Search sam@busta.app</span>
+          <button class="replay" type="button" id="replay">Replay</button>
+        </div>
+        <div class="demo-body">
+          <nav class="side" aria-hidden="true">
+            <span class="it on">Messages <span class="n" id="n-msg">3</span></span>
+            <span class="it child"><i class="sq"></i>Bank <span class="n" id="n-bank">1</span></span>
+            <span class="it">Sent</span>
+            <span class="it">Drafts</span>
+            <span class="it">Trash</span>
+          </nav>
+          <ul class="list">
+            <li class="row unread new" id="r-transfer">
+              <span class="dot"></span>
+              <span class="from">Golden 1</span>
+              <span class="main"><span class="chip rule" id="c-transfer">Bank · 96% <b>auto</b></span><span class="subj">Your September statement is ready</span></span>
+              <span class="time">9:41</span>
+            </li>
+            <li class="row unread new late">
+              <span class="dot"></span>
+              <span class="from">Golden 1</span>
+              <span class="main"><span class="subj">You're pre-approved for a rewards card</span></span>
+              <span class="time">9:41</span>
+            </li>
+            <li class="row unread">
+              <span class="dot"></span>
+              <span class="from">Shop Weekly</span>
+              <span class="main"><span class="subj">48-hour flash sale: 40% off everything</span></span>
+              <span class="time">9:30</span>
+            </li>
+          </ul>
+        </div>
+        <div class="demo-foot"><span>Bank: <b>“Statements, transfers and balances from Golden 1. Not marketing.”</b></span><span class="mono">sorted in ~1s</span></div>
+      </div>
+    </section>
+
+    <section class="block" id="sorting">
+      <div class="problem">
+        <div class="copy">
+          <span class="num">1 of 3</span>
+          <h2>Make your email work for you</h2>
+          <p class="pain">The mail that matters, from your bank, school or doctor, is buried under sales and newsletters.</p>
+          <p class="fix">Write one plain sentence per folder, test it on your own mail, and Busta files new mail as it arrives.</p>
+        </div>
+        <div class="car" aria-roledescription="carousel" aria-label="Make your email work for you: examples" tabindex="0">
+          <div class="track">
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="1 of 4: Write a rule" data-title="Write a rule"><div class="editor"><span class="fname"><i class="sq"></i>Bank</span><div class="rule"><span id="typed">Any email from my bank Golden 1 about transfers, balances or statements. Marketing and new credit products do not go in this folder.</span><i class="caret" aria-hidden="true"></i></div></div></div>
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="2 of 4: Test it on your mail" data-title="Test it on your mail"><div class="editor"><div class="tester"><div class="t-head"><b>Test this rule</b><span>on your newest mail · nothing is filed</span></div><div class="t-row"><span>Your September statement is ready</span><span class="v in">✓ In · 97%</span></div><div class="t-row"><span>Transfer confirmation: $250.00 to Savings</span><span class="v in">✓ In · 96%</span></div><div class="t-row"><span>You're pre-approved for a Visa card</span><span class="v outv">✕ Out · 2%</span></div></div></div></div>
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="3 of 4: It files itself" data-title="It files itself"><div class="mini"><div class="mrow unread"><span class="dot"></span><span class="mmain"><span class="chip rule">Bank · 96% <b>auto</b></span>Your September statement is ready</span></div><div class="mrow unread"><span class="dot"></span><span class="mmain">You're pre-approved for a Visa card</span></div><div class="mrow unread"><span class="dot"></span><span class="mmain">48-hour flash sale: 40% off everything</span></div></div></div>
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="4 of 4: Any folder, one sentence" data-title="Any folder, one sentence"><div class="pair"><div class="rcard"><span class="fname"><i class="sq"></i>School</span><p>“Anything from my kids' school or teachers, but not the PTA fundraising emails.”</p></div><div class="rcard"><span class="fname"><i class="sq"></i>Orders</span><p>“Shipping and delivery updates for things I bought; no promotions from the stores.”</p></div></div></div>
+          </div>
+          <div class="controls">
+            <span class="cap-title" aria-live="polite">Write a rule</span>
+            <span class="dots"><button type="button" class="dot-btn" aria-label="Go to slide 1: Write a rule"></button><button type="button" class="dot-btn" aria-label="Go to slide 2: Test it on your mail"></button><button type="button" class="dot-btn" aria-label="Go to slide 3: It files itself"></button><button type="button" class="dot-btn" aria-label="Go to slide 4: Any folder, one sentence"></button></span>
+            <span class="btns"><button type="button" class="arrow prev" aria-label="Previous slide">←</button><button type="button" class="arrow pause" aria-label="Pause auto-advance" hidden>❚❚</button><button type="button" class="arrow next" aria-label="Next slide">→</button></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="yours">
+      <div class="problem flip">
+        <div class="copy">
+          <span class="num">2 of 3</span>
+          <h2>Stop being the product</h2>
+          <p class="pain">Free email pays for itself with what it learns about you.</p>
+          <p class="fix">Busta keeps each mailbox in its own storage, blocks trackers and never mines your mail. You're the customer.</p>
+        </div>
+        <div class="car" aria-roledescription="carousel" aria-label="Stop being the product: examples" tabindex="0">
+          <div class="track">
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="1 of 3: Your own mailbox" data-title="Your own mailbox"><div class="iso"><div class="pool"><span class="lbl2">Pooled and mined</span><div class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p>Everyone's mail in one place, read to sell ads.</p></div><div class="mine"><span class="lbl2" style="color: var(--primary)">Busta</span><div class="vault"><b>sam@busta.app</b><span>its own storage, near you</span></div></div></div></div>
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="2 of 3: Nobody watches you read" data-title="Nobody watches you read"><div class="imgstrip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l7 2.5v5.5c0 4.3-3 7.8-7 9-4-1.2-7-4.7-7-9V6z"/></svg><span>Remote images are blocked. They tell the sender when and where you opened this.</span><a href="#sorting">Load images</a></div></div>
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="3 of 3: Never mined, never sold" data-title="Never mined, never sold"><div class="honest"><h4>A model reads your mail only to sort it</h4><p>It answers one question: which of your folders a message belongs in. It's a zero-retention model, so it keeps nothing.</p></div></div>
+          </div>
+          <div class="controls">
+            <span class="cap-title" aria-live="polite">Your own mailbox</span>
+            <span class="dots"><button type="button" class="dot-btn" aria-label="Go to slide 1: Your own mailbox"></button><button type="button" class="dot-btn" aria-label="Go to slide 2: Nobody watches you read"></button><button type="button" class="dot-btn" aria-label="Go to slide 3: Never mined, never sold"></button></span>
+            <span class="btns"><button type="button" class="arrow prev" aria-label="Previous slide">←</button><button type="button" class="arrow pause" aria-label="Pause auto-advance" hidden>❚❚</button><button type="button" class="arrow next" aria-label="Next slide">→</button></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="digging">
+      <div class="problem">
+        <div class="copy">
+          <span class="num">3 of 3</span>
+          <h2>Less digging</h2>
+          <p class="pain">Traditional email makes you scroll through quoted chains and wonder who's on the thread.</p>
+          <p class="fix">Conversations read like a chat, show who joined, and new mail arrives live with starred mail on top.</p>
+        </div>
+        <div class="car" aria-roledescription="carousel" aria-label="Less digging: examples" tabindex="0">
+          <div class="track">
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="1 of 3: Conversations, not chains" data-title="Conversations, not chains"><div class="chat"><div class="msg in"><span class="who"><b>Alice Chen</b></span><div class="bubble">Can you send the lease draft before Friday?<br><span class="fold">··· Show quoted text</span></div></div><div class="msg out"><div class="bubble">Attached. Section 4 has the new dates.</div><span class="meta">9:12 · Delivered</span></div></div></div>
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="2 of 3: See who joined" data-title="See who joined"><div class="chat"><div class="msg out"><div class="bubble">Attached. Section 4 has the new dates.</div></div><div class="divider big"><span class="lead">Alice Chen added</span><span class="add">+ Carol Diaz <span class="f">· Cc</span></span></div><div class="msg in"><span class="who"><b>Carol Diaz</b></span><div class="bubble">Looks good to me. I'll sign tonight.</div></div></div></div>
+            <div class="slide" role="group" aria-roledescription="slide" aria-label="3 of 3: Live, and pinned" data-title="Live, and pinned"><div class="mini"><div class="pillrow"><span class="live-pill">2 new messages</span></div><div class="mrow"><span class="star" aria-hidden="true">★</span><span class="mmain"><b>Lease renewal: sign by Friday</b></span></div><div class="mrow unread"><span class="dot"></span><span class="mmain">Early dismissal Friday at 12:30</span></div></div></div>
+          </div>
+          <div class="controls">
+            <span class="cap-title" aria-live="polite">Conversations, not chains</span>
+            <span class="dots"><button type="button" class="dot-btn" aria-label="Go to slide 1: Conversations, not chains"></button><button type="button" class="dot-btn" aria-label="Go to slide 2: See who joined"></button><button type="button" class="dot-btn" aria-label="Go to slide 3: Live, and pinned"></button></span>
+            <span class="btns"><button type="button" class="arrow prev" aria-label="Previous slide">←</button><button type="button" class="arrow pause" aria-label="Pause auto-advance" hidden>❚❚</button><button type="button" class="arrow next" aria-label="Next slide">→</button></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="faq">
+      <div class="faqhead"><h2>Questions</h2></div>
+      <div class="faq">
+        <details open><summary>Do I have to set up complicated filters?</summary><p>No. You write a sentence, test it on your recent mail, and save.</p></details>
+        <details><summary>Is AI reading my mail?</summary><p>Yes, to sort it. When mail arrives and you have folders, a zero-retention model decides which folder it belongs in, or none, and keeps nothing. You can always file mail by hand, and your choice sticks.</p></details>
+        <details><summary>How does Busta make money?</summary><p>You'll pay for it, which is the point: you're the customer, not the product. It's free while we're on the waitlist, and we'll tell you the price before anything changes.</p></details>
+      </div>
+    </section>
+
+    <section class="closing">
+      <h2>Find what matters. Skip the rest.</h2>
+      <p>Join the waitlist and get yourname@busta.app.</p>
+      <a class="btn primary" href="/sign-in">Join the waitlist</a>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand" href="#top"><span class="mark" aria-hidden="true">b</span>Busta</a>
+    <span>© 2026 Busta</span>
+    <span class="grow"></span>
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+  </footer>
+
+  
+  </div>
+</div>
+
+<script is:inline>
+(() => {
+  const btn = document.getElementById("theme");
+  const order = ["system", "light", "dark"];
+  let mode = "system";
+  try { mode = localStorage.getItem("theme") || "system"; } catch (e) {}
+  const apply = (m) => {
+    mode = m;
+    if (m === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", m);
+    const label = m[0].toUpperCase() + m.slice(1);
+    btn.textContent = label;
+    btn.setAttribute("aria-label", "Theme: " + label);
+    try { localStorage.setItem("theme", m); } catch (e) {}
+  };
+  apply(mode);
+  btn.addEventListener("click", () => apply(order[(order.indexOf(mode) + 1) % order.length]));
+
+  // Hero demo: markup is the final state; this replays arrival + sorting.
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const demo = document.getElementById("demo");
+  const rT = document.getElementById("r-transfer");
+  const nBank = document.getElementById("n-bank");
+  const finalT = document.getElementById("c-transfer").outerHTML;
+  let timers = [];
+  function play() {
+    if (reduce) return;
+    timers.forEach(clearTimeout); timers = [];
+    demo.classList.remove("playing"); void demo.offsetWidth;
+    document.getElementById("c-transfer").outerHTML = '<span class="chip sorting" id="c-transfer"><i></i>Sorting…</span>';
+    nBank.textContent = "0";
+    demo.classList.add("playing");
+    timers.push(setTimeout(() => {
+      document.getElementById("c-transfer").outerHTML = finalT;
+      nBank.textContent = "1";
+      rT.classList.remove("flash"); void rT.offsetWidth; rT.classList.add("flash");
+    }, 2100));
+  }
+  document.getElementById("replay").addEventListener("click", play);
+  if ("IntersectionObserver" in window && !reduce) {
+    let played = false;
+    new IntersectionObserver((entries, io) => {
+      if (!played && entries.some((e) => e.isIntersecting)) { played = true; io.disconnect(); setTimeout(play, 400); }
+    }, { threshold: 0.4 }).observe(demo);
+  }
+
+  // ---- Human | LLM view (#llm in the URL makes the LLM view linkable) ----
+  const human = document.getElementById("human-view");
+  const llm = document.getElementById("llm-view");
+  const segBtns = [...document.querySelectorAll(".seg button")];
+  function setView(v, push) {
+    const isLlm = v === "llm";
+    human.hidden = isLlm;
+    llm.hidden = !isLlm;
+    segBtns.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === v)));
+    if (push) {
+      try { history.replaceState(null, "", isLlm ? "#llm" : location.pathname + location.search); } catch (e) {}
+      window.scrollTo(0, 0);
+    }
+  }
+  segBtns.forEach((b) => b.addEventListener("click", () => setView(b.dataset.view, true)));
+  window.addEventListener("hashchange", () => { if (location.hash === "#llm") setView("llm"); else if (!llm.hidden) setView("human"); });
+  setView(location.hash === "#llm" ? "llm" : "human");
+  const copyBtn = document.getElementById("copy-md");
+  copyBtn.addEventListener("click", () => {
+    const pre = document.getElementById("md");
+    const done = (t) => { copyBtn.textContent = t; setTimeout(() => (copyBtn.textContent = "Copy Markdown"), 1800); };
+    const select = () => { const r = document.createRange(); r.selectNodeContents(pre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); done("Selected, press Ctrl+C"); };
+    try { navigator.clipboard.writeText(pre.textContent).then(() => done("Copied"), select); } catch (e) { select(); }
+  });
+
+  // ---- per-section carousels ----
+  const INTERVAL = 4500;
+  document.querySelectorAll(".car").forEach((car) => {
+    const track = car.querySelector(".track");
+    const slides = [...track.querySelectorAll(".slide")];
+    const dots = [...car.querySelectorAll(".dot-btn")];
+    const cap = car.querySelector(".cap-title");
+    const pauseBtn = car.querySelector(".pause");
+    const typed = car.querySelector("#typed");
+    const fullRule = typed ? typed.textContent : "";
+    let idx = 0, inView = false, hovering = false, userPaused = false, timer = null, typedDone = false;
+
+    function mark(i) {
+      idx = i;
+      dots.forEach((d, k) => d.setAttribute("aria-current", String(k === i)));
+      cap.textContent = slides[i].dataset.title;
+      if (i === 0 && typed && inView) typeRule();
+    }
+    function go(i) {
+      i = (i + slides.length) % slides.length;
+      track.scrollTo({ left: slides[i].offsetLeft - slides[0].offsetLeft, behavior: reduce ? "auto" : "smooth" });
+      mark(i);
+    }
+    function typeRule() {
+      if (typedDone || reduce) return;
+      typedDone = true;
+      const box = typed.parentElement;
+      box.classList.add("typing");
+      let k = 0; typed.textContent = "";
+      const t = setInterval(() => {
+        k += 2; typed.textContent = fullRule.slice(0, k);
+        if (k >= fullRule.length) { clearInterval(t); typed.textContent = fullRule; setTimeout(() => box.classList.remove("typing"), 1200); }
+      }, 22);
+    }
+    const canAuto = () => !reduce && !userPaused && inView && !hovering && document.visibilityState === "visible";
+    function schedule() {
+      clearTimeout(timer);
+      if (canAuto()) timer = setTimeout(() => { go(idx + 1); schedule(); }, INTERVAL);
+    }
+    track.addEventListener("scroll", () => {
+      const i = Math.round(track.scrollLeft / track.clientWidth);
+      if (i !== idx && slides[i]) { mark(i); schedule(); }
+    }, { passive: true });
+    car.querySelector(".prev").addEventListener("click", () => { go(idx - 1); schedule(); });
+    car.querySelector(".next").addEventListener("click", () => { go(idx + 1); schedule(); });
+    dots.forEach((d, k) => d.addEventListener("click", () => { go(k); schedule(); }));
+    car.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") { e.preventDefault(); go(idx + 1); schedule(); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); go(idx - 1); schedule(); }
+    });
+    car.addEventListener("mouseenter", () => { hovering = true; schedule(); });
+    car.addEventListener("mouseleave", () => { hovering = false; schedule(); });
+    car.addEventListener("focusin", () => { hovering = true; schedule(); });
+    car.addEventListener("focusout", () => { hovering = false; schedule(); });
+    document.addEventListener("visibilitychange", schedule);
+    if (!reduce) {
+      pauseBtn.hidden = false;
+      pauseBtn.addEventListener("click", () => {
+        userPaused = !userPaused;
+        pauseBtn.textContent = userPaused ? "▶" : "❚❚";
+        pauseBtn.setAttribute("aria-label", userPaused ? "Resume auto-advance" : "Pause auto-advance");
+        schedule();
+      });
+    }
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver((entries) => {
+        inView = entries.some((e) => e.intersectionRatio >= 0.5);
+        if (inView && idx === 0 && typed) typeRule();
+        schedule();
+      }, { threshold: [0, 0.5, 1] }).observe(car);
+    }
+    mark(0);
+  });
+})();
+</script>
+
+<style is:global>
+:root {
+  /* The page uses the app's tokens (styles/tokens.css); these two aliases
+     keep the ported rules readable. */
+  --sans: var(--font-sans);
+  --mono: var(--font-mono);
+}
+
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--sans); padding-inline: 20px; }
+a { color: var(--primary); }
+h1, h2, h3 { margin: 0; line-height: 1.12; text-wrap: balance; }
+p { margin: 0; }
+.wrap { max-width: 1120px; margin: 0 auto; }
+.mono { font-family: var(--mono); }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 6px; }
+
+/* ---- nav ---- */
+.nav { display: flex; align-items: center; gap: 16px; padding-block: 18px; }
+.brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; color: var(--text); text-decoration: none; }
+.mark { width: 28px; height: 28px; border-radius: 8px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-weight: 700; font-size: 19px; line-height: 1; padding-bottom: 2px; }
+.nav .grow { flex: 1; }
+.nav a.link { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+.nav a.link:hover { color: var(--text); }
+.theme { border: 1px solid var(--border); background: var(--surface); color: var(--muted); font: 500 13px var(--sans); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 600; border-radius: 999px; white-space: nowrap; }
+.btn.primary { background: var(--primary); color: var(--on-primary); padding: 12px 22px; font-size: 15px; box-shadow: var(--shadow-1); }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.small { padding: 8px 16px; font-size: 14px; }
+.btn.ghost { color: var(--text); padding: 12px 6px; font-size: 15px; }
+.btn.ghost:hover { color: var(--primary); }
+
+/* ---- hero ---- */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 56px; align-items: center; padding-block: 56px 88px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.hero h1 { font-size: clamp(40px, 6vw, 68px); font-weight: 700; letter-spacing: -.035em; margin-top: 18px; }
+.hero h1 em { font-style: normal; color: var(--primary); }
+.hero .sub { margin-top: 22px; font-size: 19px; line-height: 1.55; color: var(--muted); max-width: 34ch; }
+.hero .cta { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; margin-top: 32px; }
+.hero .fine { margin-top: 14px; font-size: 13px; color: var(--faint); }
+
+/* ---- demo (the one orchestrated moment) ---- */
+.demo { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-2); overflow: hidden; font-size: 13px; line-height: 1.4; }
+.demo-top { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.demo-top .mark { width: 20px; height: 20px; border-radius: 6px; font-size: 13px; }
+.demo-top .search { flex: 1; min-width: 0; background: var(--surface-2); color: var(--faint); border-radius: 999px; padding: 6px 12px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.replay { border: 1px solid var(--border); background: transparent; color: var(--muted); font: 500 11px var(--sans); padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+.demo-body { display: grid; grid-template-columns: 150px minmax(0, 1fr); }
+.side { padding: 10px 0; border-right: 1px solid var(--border); display: grid; align-content: start; gap: 1px; }
+.side .it { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 0 999px 999px 0; margin-right: 8px; color: var(--text); }
+.side .it.on { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.side .it.child { padding-left: 26px; font-size: 12px; }
+.side .sq { width: 7px; height: 7px; border-radius: 2px; background: var(--secondary); opacity: .7; }
+.side .n { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--attention); font-variant-numeric: tabular-nums; }
+.side .n.muted { color: var(--muted); font-weight: 500; }
+.list { list-style: none; margin: 0; padding: 0; min-width: 0; }
+.row { display: grid; grid-template-columns: 10px minmax(0, 7.5em) minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--row-read); }
+.row.unread { background: var(--row-unread); }
+.row.unread .from, .row.unread .subj { font-weight: 700; }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.row.unread .dot { background: var(--attention); }
+.from, .main { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.snip { color: var(--muted); font-weight: 400; }
+.time { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 500; line-height: 1; padding: 3px 7px; border-radius: 5px; margin-right: 6px; vertical-align: 1px; white-space: nowrap; }
+.chip.sorting { background: var(--warn-soft); color: var(--warn); }
+.chip.sorting i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; border-top-color: transparent; animation: spin .8s linear infinite; }
+.chip.rule { background: var(--secondary-soft); color: var(--secondary); }
+.chip.rule b { font: 600 9px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.chip.out { color: var(--muted); border: 1px dashed var(--border); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Animation states. At rest (no JS, reduced motion, thumbnails) the demo
+   shows its final state; JS only adds these classes to play the sequence. */
+.demo.playing .row.new { animation: slide-in .5s cubic-bezier(.2,.8,.2,1) both; }
+.demo.playing .row.new.late { animation-delay: .45s; }
+.demo .row.flash { animation: flash 1.8s ease-out; }
+@keyframes slide-in { from { transform: translateY(-10px); opacity: .0; } to { transform: none; opacity: 1; } }
+@keyframes flash { from { background: var(--primary-soft); } to { background: var(--row-unread); } }
+@media (prefers-reduced-motion: reduce) { .demo.playing .row.new, .demo .row.flash { animation: none; } .chip.sorting i { animation: none; } }
+
+.demo-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; font-size: 11px; color: var(--muted); background: var(--surface-2); }
+.demo-foot b { color: var(--text); font-weight: 600; }
+
+
+
+section.block { padding-block: 80px; border-top: 1px solid var(--border); }
+.problem { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; }
+.problem.flip .copy { order: 2; }
+.num { font: 500 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.copy { display: grid; gap: 16px; }
+.copy h2 { font-size: clamp(30px, 4vw, 44px); letter-spacing: -.025em; }
+.copy .pain { font-size: 18px; color: var(--muted); }
+.copy .fix { font-size: 17px; }
+.copy ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.copy li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; font-size: 16px; }
+.copy li::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--primary); margin-top: 9px; }
+.copy .note { font-size: 14px; color: var(--muted); }
+
+/* problem 1: rule card */
+.editor { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: grid; gap: 12px; box-shadow: var(--shadow-1); }
+.editor .fname { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.sq { width: 8px; height: 8px; border-radius: 2px; background: var(--secondary); opacity: .75; }
+.editor .rule { padding: 12px 14px; border: 1.5px solid var(--primary); border-radius: 10px; background: var(--bg); line-height: 1.55; box-shadow: 0 0 0 3px var(--primary-soft); }
+.tester { background: var(--surface-2); border-radius: 10px; padding: 10px; display: grid; gap: 4px; }
+.t-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); padding: 2px 4px 6px; }
+.t-head b { color: var(--primary); font-weight: 600; }
+.t-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; background: var(--surface); border-radius: 7px; padding: 8px 10px; font-size: 13px; }
+.t-row span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v { font-weight: 600; font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.v.in { color: var(--success); }
+.v.outv { color: var(--muted); }
+
+/* problem 2: isolation diagram */
+.iso { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.pool, .mine { border-radius: 14px; padding: 18px; display: grid; gap: 12px; align-content: start; }
+.pool { border: 1.5px dashed var(--border); color: var(--faint); }
+.mine { border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow-1); }
+.lbl2 { font: 500 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.pool .dots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.pool .dots i { aspect-ratio: 1; border-radius: 3px; background: var(--border); }
+.pool p, .mine p { font-size: 13.5px; }
+.pool p { color: var(--muted); }
+.vault { border: 1.5px solid var(--primary); border-radius: 10px; padding: 12px; display: grid; gap: 6px; background: var(--primary-soft); }
+.vault b { font-family: var(--mono); font-weight: 500; font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
+.vault span { font-size: 12.5px; color: var(--muted); }
+.shield { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--secondary); }
+
+/* problem 3: chat */
+.chat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: grid; gap: 10px; box-shadow: var(--shadow-1); font-size: 14px; }
+.msg { display: grid; gap: 4px; max-width: 78%; }
+.msg.out { justify-self: end; justify-items: end; }
+.msg .who { font-size: 12px; color: var(--muted); }
+.msg .who b { color: var(--text); }
+.bubble { padding: 9px 13px; border-radius: 14px; line-height: 1.45; }
+.msg.in .bubble { background: var(--surface-2); border-top-left-radius: 4px; }
+.msg.out .bubble { background: var(--primary-soft); border-top-right-radius: 4px; }
+.fold { margin-top: 6px; display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; }
+.divider { position: relative; display: grid; justify-items: center; gap: 6px; margin-block: 4px; }
+.divider::before { content: ""; position: absolute; left: 0; right: 0; top: 10px; height: 1px; background: var(--border); }
+.divider .lead { position: relative; background: var(--surface); padding: 0 8px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.divider .add { position: relative; font-size: 11px; padding: 3px 8px; border-radius: 999px; background: var(--success-soft); color: var(--success); }
+.divider .add .f { font-family: var(--mono); opacity: .8; }
+.meta { font-size: 11px; color: var(--muted); }
+
+.faq { margin-top: 28px; display: grid; gap: 10px; max-width: 760px; }
+.faqhead h2 { font-size: clamp(28px, 3.5vw, 38px); letter-spacing: -.025em; }
+details { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0 18px; }
+summary { cursor: pointer; font-weight: 600; font-size: 17px; padding: 16px 0; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; color: var(--muted); font-weight: 400; }
+details[open] summary::after { content: "–"; }
+details p { color: var(--muted); padding-bottom: 16px; max-width: 64ch; }
+
+.closing { padding-block: 88px; border-top: 1px solid var(--border); display: grid; gap: 20px; justify-items: start; }
+.closing h2 { font-size: clamp(34px, 5vw, 54px); letter-spacing: -.03em; max-width: 16ch; }
+.closing p { color: var(--muted); font-size: 17px; }
+footer { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding-block: 28px 44px; border-top: 1px solid var(--border); font-size: 14px; color: var(--muted); }
+footer .grow { flex: 1; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--text); }
+footer .brand { font-size: 15px; }
+footer .brand .mark { width: 22px; height: 22px; font-size: 15px; border-radius: 6px; }
+.notes { margin-block: 12px 48px; border: 1px dashed var(--border); border-radius: 14px; padding: 20px; display: grid; gap: 10px; background: var(--surface-2); }
+.notes h3 { font: 500 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.notes ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+/* ---- per-section carousels ----
+   Default is a swipeable scroll-snap row; JS adds captions, dot state and
+   auto-advance (only while half in view, never with reduced motion). */
+.car { min-width: 0; display: grid; gap: 12px; outline: none; border-radius: 16px; }
+.car:focus-visible { box-shadow: 0 0 0 2px var(--primary); }
+.car .track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+.car .track::-webkit-scrollbar { display: none; }
+.car .slide { flex: 0 0 100%; scroll-snap-align: start; height: 340px; padding: 24px; display: grid; align-content: center; min-width: 0; }
+.controls { display: flex; align-items: center; gap: 12px; }
+.cap-title { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dots { display: inline-flex; gap: 6px; }
+.dot-btn { width: 8px; height: 8px; border-radius: 50%; border: 0; padding: 0; background: var(--border); cursor: pointer; }
+.dot-btn[aria-current="true"] { background: var(--primary); }
+.btns { display: inline-flex; gap: 6px; }
+.arrow { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 14px; cursor: pointer; }
+.arrow.pause { font-size: 10px; letter-spacing: -1px; }
+.caret { display: none; width: 2px; height: 1.1em; background: var(--primary); vertical-align: -3px; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+.typing .caret { display: inline-block; }
+@keyframes blink { 50% { opacity: 0; } }
+.car .editor { box-shadow: none; }
+.mini { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; font-size: 13.5px; }
+.mrow { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; align-items: center; padding: 11px 14px; border-bottom: 1px solid var(--border); background: var(--row-read); }
+.mrow:last-child { border-bottom: 0; }
+.mrow.unread { background: var(--row-unread); font-weight: 600; }
+.mrow.unread .dot { background: var(--attention); }
+.mmain { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pillrow { display: flex; justify-content: center; padding: 10px; background: var(--surface-2); }
+.live-pill { background: var(--primary); color: var(--on-primary); font-weight: 600; font-size: 12px; padding: 5px 12px; border-radius: 999px; }
+.star { color: #F4B400; font-size: 12px; }
+.pair { display: grid; gap: 12px; }
+.rcard { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: grid; gap: 6px; }
+.rcard .fname { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.rcard p { font-size: 14.5px; line-height: 1.5; }
+.imgstrip { display: flex; gap: 10px; align-items: center; background: var(--bg); border: 1px solid var(--border); color: var(--secondary); border-radius: 10px; padding: 14px; font-size: 14px; }
+.imgstrip a { margin-left: auto; font-weight: 600; white-space: nowrap; }
+.honest { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: grid; gap: 8px; }
+.honest h4 { margin: 0; font-size: 17px; }
+.honest p { color: var(--muted); font-size: 15px; }
+.divider.big .lead { font-size: 13px; }
+.divider.big .add { font-size: 13px; padding: 5px 12px; }
+.car .chat { box-shadow: none; border: 0; padding: 0; background: transparent; }
+.car .divider .lead { background: var(--surface); }
+@media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
+@media (max-width: 520px) { .car .slide { height: 380px; padding: 16px; } .iso { gap: 10px; } }
+
+/* ---- Human | LLM view ---- */
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: 600 12.5px var(--sans); padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1); }
+.seg-mobile { display: none; justify-content: flex-end; padding-bottom: 8px; }
+.llm { max-width: 88ch; margin: 24px auto 64px; display: grid; gap: 12px; }
+.llm-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.copy-md { border: 1px solid var(--border); background: var(--surface); color: var(--primary); font: 600 13px var(--sans); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.llm pre { margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; font: 13.5px/1.65 var(--mono); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; max-width: 100%; }
+@media (max-width: 640px) { .nav .seg { display: none; } .seg-mobile { display: flex; } .llm pre { padding: 16px; font-size: 12.5px; } }
+
+@media (max-width: 900px) {
+  .hero, .problem { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+  .problem.flip .copy { order: 0; }
+  .hero { padding-block: 32px 64px; }
+  .nav a.link { display: none; }
+}
+@media (max-width: 520px) {
+  .demo-body { grid-template-columns: minmax(0, 1fr); }
+  .side { display: none; }
+  .row { grid-template-columns: 8px minmax(0, 1fr) auto; }
+  .row .from { display: none; }
+  .iso { grid-template-columns: minmax(0, 1fr); }
+  section.block { padding-block: 60px; }
+}
+</style>
