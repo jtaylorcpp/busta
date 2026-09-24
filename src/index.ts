@@ -26,8 +26,7 @@ import { errorPage } from "./ui/pages";
 import { fileMessage as fileIncoming } from "./folders";
 import { CLERK_BOOTSTRAP, clerkScripts, MULTI_MAILBOX } from "./ui/layout";
 
-export { MailboxProvisionWorkflow } from "./provision";
-import { provisionInstanceId } from "./provision";
+import { provisionMailbox } from "./provision";
 export { MailboxDO } from "./mailbox-do";
 export { ThreadDO } from "./thread-do";
 export { TenantDO } from "./tenant-do";
@@ -260,10 +259,10 @@ async function route(
       return html(errorPage(404, `No such mailbox: ${address}`), 404);
     }
     try {
-      const instance = await env.PROVISION.get(await provisionInstanceId(address));
-      await instance.restart();
-      await tenantStub(env, session.orgId!).setMailboxStatus(address, "provisioning", null);
-      return redirect("/", { kind: "ok", text: `Retrying setup for ${address}…` });
+      const local = address.slice(0, address.indexOf("@"));
+      const result = await provisionMailbox(env, { orgId: session.orgId!, address, localPart: local, label: null });
+      if (!result.ok) return redirect("/", { kind: "error", text: result.reason });
+      return redirect("/", { kind: "ok", text: `${address} is ready.` });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return redirect("/", { kind: "error", text: `Could not retry: ${message}` });
@@ -465,7 +464,7 @@ async function route(
  *
  * Runs at most once per organization — `claimAutoProvision()` is the gate, and
  * it is atomic inside the Durable Object, so concurrent first page loads
- * cannot start two workflows.
+ * cannot both provision.
  *
  * Returns a notice to show, or null when there is nothing to say. Nothing here
  * throws: a first sign-in must not fail to render because the address could
@@ -525,21 +524,24 @@ export async function autoProvisionFirstMailbox(
   }
 
   try {
-    await env.PROVISION.create({
-      id: await provisionInstanceId(address),
-      params: { orgId: session.orgId!, address, localPart: derived.localPart, label: null },
+    const result = await provisionMailbox(env, {
+      orgId: session.orgId!,
+      address,
+      localPart: derived.localPart,
+      label: null,
     });
+    if (!result.ok) return fail(`${result.reason} Pick another address below.`);
   } catch (error) {
+    // Transient (a Durable Object hiccup): release the claim so the next page
+    // load tries again.
     const message = error instanceof Error ? error.message : String(error);
-    if (!/exists/i.test(message)) {
-      console.error("auto-provision failed to start", message);
-      await tenant.finishAutoProvision({ ok: false, retryable: true });
-      return { kind: "error", text: `Could not set up ${address}: ${message}. Reload to retry.` };
-    }
+    console.error("auto-provision failed", message);
+    await tenant.finishAutoProvision({ ok: false, retryable: true });
+    return { kind: "error", text: `Could not set up ${address}: ${message}. Reload to retry.` };
   }
 
   await tenant.finishAutoProvision({ ok: true });
-  return { kind: "ok", text: `Setting up your mailbox, ${address}…` };
+  return { kind: "ok", text: `Your mailbox is ready: ${address}.` };
 }
 
 async function claimMailbox(request: Request, env: Env, session: Session): Promise<Response> {
@@ -556,30 +558,22 @@ async function claimMailbox(request: Request, env: Env, session: Session): Promi
 
   const address = `${local}@${env.MAIL_DOMAIN}`;
 
-  // Cheap pre-check purely for immediate feedback. It is not the authority —
-  // the workflow's claim step is, and it is atomic. This only spares the user
-  // a round trip through a workflow that was always going to fail.
+  // Cheap pre-check purely for a clearer message. It is not the authority —
+  // MailboxDO.claim() inside provisionMailbox() is, and it is atomic.
   const owner = await mailboxStub(env, address).ownerOrgId();
   if (owner && owner !== session.orgId) {
     return redirect("/", { kind: "error", text: `${address} is already taken.` });
   }
 
   try {
-    // The instance id is the address, so Cloudflare refuses a second
-    // provisioning run for the same mailbox outright.
-    await env.PROVISION.create({
-      id: await provisionInstanceId(address),
-      params: { orgId: session.orgId!, address, localPart: local, label },
-    });
+    const result = await provisionMailbox(env, { orgId: session.orgId!, address, localPart: local, label });
+    if (!result.ok) return redirect("/", { kind: "error", text: result.reason });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (/exists/i.test(message)) {
-      return redirect("/", { kind: "error", text: `${address} is already being set up.` });
-    }
-    return redirect("/", { kind: "error", text: `Could not start setup: ${message}` });
+    return redirect("/", { kind: "error", text: `Could not set up ${address}: ${message}` });
   }
 
-  return redirect("/", { kind: "ok", text: `Setting up ${address}…` });
+  return redirect("/", { kind: "ok", text: `${address} is ready.` });
 }
 
 /**

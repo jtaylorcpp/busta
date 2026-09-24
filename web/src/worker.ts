@@ -3,7 +3,7 @@
  * to Astro.
  *
  * Everything the old Worker exports is re-exported unchanged: inbound mail
- * (`email`), the Durable Object classes and the provisioning Workflow. The
+ * (`email`) and the Durable Object classes. The
  * DO classes must stay exported from this script under the same names, or
  * their stored data is orphaned.
  *
@@ -14,7 +14,7 @@
 import { handle } from "@astrojs/cloudflare/handler";
 import legacy from "../../src/index";
 
-export { MailboxDO, MailboxProvisionWorkflow, TenantDO, ThreadDO } from "../../src/index";
+export { MailboxDO, TenantDO, ThreadDO } from "../../src/index";
 
 /** Paths Astro owns in every environment, for any method. */
 const ASTRO_ROUTES: RegExp[] = [

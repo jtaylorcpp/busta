@@ -38,6 +38,7 @@ if (orgId) {
     // Carry an action's result (adopt, retry) through to the mailbox.
     const q = new URLSearchParams();
     if (flash.ok) q.set("ok", flash.ok);
+    else if (auto?.kind === "ok") q.set("ok", auto.text);
     if (flash.error) q.set("error", flash.error);
     const qs = q.toString();
     return Astro.redirect(`/mb/${encodeURIComponent(target.address)}${qs ? `?${qs}` : ""}`);

@@ -118,14 +118,6 @@
   // once MAIL_DOMAIN is onboarded to Email Sending.
   "send_email": [{ "name": "EMAIL" }],
 
-  "workflows": [
-    {
-      "name": "mailbox-provision",
-      "binding": "PROVISION",
-      "class_name": "MailboxProvisionWorkflow"
-    }
-  ],
-
   "durable_objects": {
     "bindings": [
       { "name": "MAILBOX", "class_name": "MailboxDO" },

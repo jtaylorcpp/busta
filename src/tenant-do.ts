@@ -108,8 +108,8 @@ export class TenantDO extends DurableObject<Env> {
    *
    * `retryable` releases the claim entirely. The distinction matters: a Clerk
    * API hiccup should be retried on the next page load, while a username that
-   * cannot become an address will never become one and must not spawn a doomed
-   * workflow on every request.
+   * cannot become an address will never become one and must not be retried on
+   * every request.
    */
   finishAutoProvision(outcome: { ok: boolean; reason?: string; retryable?: boolean }): void {
     if (outcome.retryable) {

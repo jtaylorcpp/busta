@@ -694,7 +694,7 @@ npm run deploy    # builds web/ and deploys the one Worker
 ```
 
 The deployed Worker is `web/src/worker.ts`. It re-exports `email()`, the
-Durable Objects and the Workflow from `src/`, and sends each web request either
+Durable Objects from `src/`, and sends each web request either
 to Astro (pages already moved to `web/`) or to the original router in
 `src/index.ts`. `wrangler.jsonc` at the repo root is still the only deploy
 config. See `web/README.md` for the UI.
