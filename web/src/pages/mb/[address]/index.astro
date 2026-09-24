@@ -74,6 +74,7 @@ const back = url.pathname + url.search;
     )}
   </header>
 
+  <div data-live="list">
   <MailList empty={data.messages.length === 0}>
     {data.messages.map((m, i) => {
       const status = deliveryStatus(m);
@@ -124,6 +125,7 @@ const back = url.pathname + url.search;
     mailbox={address}
     nextHref={data.nextBefore !== null ? withParams({ before: String(data.nextBefore) }) : undefined}
   />
+  </div>
   {!data.activeFolder && data.view === "messages" && (
     <p class="hint">Hand out <code>{local}+anything@{domain}</code>. A folder can catch mail sent to its own +address.</p>
   )}

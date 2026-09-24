@@ -107,7 +107,7 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
     </Banner>
   ))}
 
-  <div class="chat-log">
+  <div class="chat-log" data-live="chat">
     {entries.map((e, i) => {
       const prev = entries[i - 1];
       const day = formatDay(e.message.received_at);

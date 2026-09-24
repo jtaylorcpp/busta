@@ -1,6 +1,7 @@
 ---
 import Base from "./Base.astro";
 import { Brand, Button, Icon } from "../components/ui";
+import Live from "../components/app/Live.astro";
 
 /**
  * Signed-in chrome: top bar (brand, search), sidebar (Compose, the `nav`
@@ -34,6 +35,7 @@ const { title, mailbox, composeHref, searchAction, query } = Astro.props;
       </nav>
       <main class="pane"><slot /></main>
     </div>
+    <Live address={mailbox} />
   </div>
 </Base>
 

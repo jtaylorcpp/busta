@@ -27,7 +27,7 @@ const summary =
     : "No folder";
 const probs = v.probs ? Object.entries(v.probs).sort((a, b) => b[1] - a[1]) : [];
 ---
-<details class="tf" data-thread-folder>
+<details class="tf" data-thread-folder data-live="thread-folder">
   <summary class:list={[v.state === "filed" ? "filed" : v.state === "pending" ? "sorting" : "plain"]}>
     {v.source === "you" && <Icon name="lock" size={11} />}
     {summary}
@@ -73,10 +73,14 @@ const probs = v.probs ? Object.entries(v.probs).sort((a, b) => b[1] - a[1]) : []
 </details>
 
 <script>
-  for (const menu of document.querySelectorAll<HTMLDetailsElement>("[data-thread-folder]")) {
-    document.addEventListener("click", (e) => { if (menu.open && !menu.contains(e.target as Node)) menu.open = false; });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") menu.open = false; });
-  }
+  // Delegated, because live updates replace this element.
+  const openMenus = () => document.querySelectorAll<HTMLDetailsElement>("[data-thread-folder][open]");
+  document.addEventListener("click", (e) => {
+    for (const m of openMenus()) if (!m.contains(e.target as Node)) m.open = false;
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") for (const m of openMenus()) m.open = false;
+  });
 </script>
 
 <style>

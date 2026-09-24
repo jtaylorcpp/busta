@@ -1,0 +1,127 @@
+---
+/**
+ * Keeps a mailbox page current. Opens a WebSocket to the mailbox's Durable
+ * Object (via /mb/<addr>/live); on a change notice it re-fetches this same
+ * page and swaps only the regions marked data-live:
+ *   nav            sidebar counts and folders
+ *   list           the mail list — new rows fade in at the top; if you've
+ *                  scrolled down, a "N new messages" pill waits instead
+ *   chat           a thread's messages (the reply box is never replaced)
+ *   thread-folder  a thread's folder chip ("Sorting…" → "Bank")
+ * The server renders every region, so there is one source of markup. Without
+ * JavaScript the page simply doesn't update on its own.
+ */
+interface Props { address: string }
+const { address } = Astro.props;
+---
+<div hidden data-live-url={`/mb/${encodeURIComponent(address)}/live`}></div>
+<button type="button" class="live-pill" hidden data-live-pill></button>
+
+<script>
+  const holder = document.querySelector<HTMLElement>("[data-live-url]");
+  const pill = document.querySelector<HTMLButtonElement>("[data-live-pill]");
+  if (holder && pill && "WebSocket" in window) {
+    const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${holder.dataset.liveUrl}`;
+    let ws: WebSocket | null = null;
+    let retry = 1000;
+    let timer: number | undefined;
+    let ping: number | undefined;
+    let pendingList: Element | null = null;
+    let inflight = false;
+    let again = false;
+
+    const rowIds = (root: Element) =>
+      [...root.querySelectorAll<HTMLAnchorElement>("li.row a.body")].map((a) => a.getAttribute("href")?.split("/").pop() ?? "");
+
+    function applyList(next: Element, highlight: string[]) {
+      const cur = document.querySelector("[data-live='list']");
+      if (!cur) return;
+      cur.replaceWith(next);
+      for (const a of next.querySelectorAll<HTMLAnchorElement>("li.row a.body")) {
+        if (highlight.includes(a.getAttribute("href")?.split("/").pop() ?? "")) a.closest("li")?.classList.add("live-fresh");
+      }
+    }
+
+    async function refresh() {
+      if (inflight) { again = true; return; }
+      inflight = true;
+      try {
+        const res = await fetch(location.href, { headers: { accept: "text/html" }, cache: "no-store", credentials: "same-origin" });
+        if (!res.ok || res.redirected) return;
+        const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+        for (const key of ["nav", "chat", "thread-folder"]) {
+          const cur = document.querySelector(`[data-live='${key}']`);
+          const nxt = doc.querySelector(`[data-live='${key}']`);
+          if (cur && nxt && cur.innerHTML !== nxt.innerHTML) cur.replaceWith(nxt);
+        }
+        const curList = document.querySelector("[data-live='list']");
+        const nxtList = doc.querySelector("[data-live='list']");
+        if (curList && nxtList && curList.innerHTML !== nxtList.innerHTML) {
+          const before = new Set(rowIds(curList));
+          const added = rowIds(nxtList).filter((id) => id && !before.has(id));
+          if (added.length > 0 && window.scrollY > 240) {
+            pendingList = nxtList;
+            pill!.textContent = `${added.length} new message${added.length > 1 ? "s" : ""}`;
+            pill!.hidden = false;
+            pill!.dataset.ids = added.join(",");
+          } else {
+            applyList(nxtList, added);
+          }
+        }
+      } catch {
+        // Offline or mid-deploy: the next notice or reconnect tries again.
+      } finally {
+        inflight = false;
+        if (again) { again = false; void refresh(); }
+      }
+    }
+
+    pill.addEventListener("click", () => {
+      if (pendingList) applyList(pendingList, (pill.dataset.ids ?? "").split(","));
+      pendingList = null;
+      pill.hidden = true;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    function schedule() {
+      clearTimeout(timer);
+      timer = window.setTimeout(() => void refresh(), 250); // coalesce bursts
+    }
+
+    function connect() {
+      ws = new WebSocket(url);
+      ws.addEventListener("open", () => {
+        retry = 1000;
+        clearInterval(ping);
+        ping = window.setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send("ping"), 25_000);
+      });
+      ws.addEventListener("message", (e) => { if (e.data !== "pong") schedule(); });
+      ws.addEventListener("close", () => {
+        clearInterval(ping);
+        if (document.visibilityState === "visible") {
+          window.setTimeout(connect, retry);
+          retry = Math.min(retry * 2, 30_000);
+        }
+      });
+    }
+
+    // Catch up on anything missed while the tab was hidden or the socket down.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") return;
+      if (!ws || ws.readyState === WebSocket.CLOSED) { connect(); schedule(); }
+    });
+    window.addEventListener("pagehide", () => ws?.close(1000, "leaving"));
+    connect();
+  }
+</script>
+
+<style>
+  .live-pill {
+    position: fixed; top: 76px; left: 50%; translate: -50% 0; z-index: 40;
+    font: 600 var(--text-sm) var(--font-sans); padding: 8px 16px; border-radius: var(--radius-pill); border: 0; cursor: pointer;
+    background: var(--primary); color: var(--on-primary); box-shadow: var(--shadow-2);
+  }
+  :global(li.live-fresh) { animation: live-fresh 2.4s ease-out; }
+  @keyframes live-fresh { from { background: var(--primary-soft); } to { background: inherit; } }
+  @media (prefers-reduced-motion: reduce) { :global(li.live-fresh) { animation: none; } }
+</style>

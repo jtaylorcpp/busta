@@ -177,6 +177,52 @@ export class MailboxDO extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.#migrate();
+    // Keep-alive pings from open pages are answered by the runtime without
+    // waking this object, so an idle tab costs nothing.
+    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+  }
+
+  // ---- live updates ----------------------------------------------------
+  //
+  // Open pages hold a hibernatable WebSocket to this object. Every method that
+  // changes something a page shows announces it with a small event — never the
+  // data itself; the page re-renders the affected region from the server. An
+  // idle socket costs nothing: the object hibernates between events.
+  //
+  // Authentication and ownership are checked before the upgrade reaches here
+  // (src/live.ts), so this only accepts.
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+      return new Response("Expected a WebSocket upgrade", { status: 426 });
+    }
+    const pair = new WebSocketPair();
+    this.ctx.acceptWebSocket(pair[1]);
+    return new Response(null, { status: 101, webSocket: pair[0] });
+  }
+
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    if (message === "ping") ws.send("pong");
+  }
+
+  async webSocketClose(ws: WebSocket, code: number): Promise<void> {
+    try { ws.close(code === 1005 ? 1000 : code, "closing"); } catch { /* already closed */ }
+  }
+
+  /**
+   * Tell open pages what changed.
+   *   new  — a message was indexed (id, its thread, direction)
+   *   row  — one message's state changed (read, star, trash, folder, delivery)
+   *   list — many rows changed at once
+   *   nav  — folders or drafts changed (sidebar only)
+   */
+  #emit(event: { t: "new"; id: string; thread: string; dir: string } | { t: "row"; id: string } | { t: "list" } | { t: "nav" }): void {
+    const sockets = this.ctx.getWebSockets();
+    if (sockets.length === 0) return;
+    const text = JSON.stringify(event);
+    for (const ws of sockets) {
+      try { ws.send(text); } catch { /* closing; the runtime will drop it */ }
+    }
   }
 
   // ---- schema ----------------------------------------------------------
@@ -742,6 +788,7 @@ export class MailboxDO extends DurableObject<Env> {
       input.subject,
       input.receivedAt,
     );
+      this.#emit({ t: "new", id: input.id, thread: input.threadId, dir: input.direction });
   }
 
   // ---- storage pressure ------------------------------------------------
@@ -899,6 +946,7 @@ export class MailboxDO extends DurableObject<Env> {
   /** Index many messages in one call. Used by bulk ingest and capacity tests. */
   bulkIndex(inputs: IndexInput[]): number {
     for (const input of inputs) this.index(input);
+    this.#emit({ t: "list" });
     return inputs.length;
   }
 
@@ -963,10 +1011,12 @@ export class MailboxDO extends DurableObject<Env> {
       Date.now(),
       id,
     );
+      this.#emit({ t: "row", id });
   }
 
   restore(id: string): void {
     this.ctx.storage.sql.exec(`UPDATE messages SET deleted_at = NULL WHERE id = ?`, id);
+      this.#emit({ t: "row", id });
   }
 
   setStarred(id: string, starred: boolean): void {
@@ -975,10 +1025,12 @@ export class MailboxDO extends DurableObject<Env> {
       starred ? 1 : 0,
       id,
     );
+      this.#emit({ t: "row", id });
   }
 
   setRead(id: string, read: boolean): void {
     this.ctx.storage.sql.exec(`UPDATE messages SET read = ? WHERE id = ?`, read ? 1 : 0, id);
+      this.#emit({ t: "row", id });
   }
 
   /**
@@ -1217,6 +1269,7 @@ export class MailboxDO extends DurableObject<Env> {
         `UPDATE folders SET name = ?, rule = ?, plus_label = ?, updated_at = ? WHERE id = ?`,
         input.name.trim(), input.rule.trim(), plus, now, input.id,
       );
+      this.#emit({ t: "nav" });
       return input.id;
     }
     const id = crypto.randomUUID();
@@ -1225,6 +1278,7 @@ export class MailboxDO extends DurableObject<Env> {
       `INSERT INTO folders (id, name, rule, plus_label, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       id, input.name.trim(), input.rule.trim(), plus, next, now, now,
     );
+    this.#emit({ t: "nav" });
     return id;
   }
 
@@ -1238,6 +1292,7 @@ export class MailboxDO extends DurableObject<Env> {
       id, id,
     );
     sql.exec(`DELETE FROM folders WHERE id = ?`, id);
+      this.#emit({ t: "list" });
   }
 
   /** Move a folder one place up or down. Order only breaks ties between rules. */
@@ -1248,11 +1303,13 @@ export class MailboxDO extends DurableObject<Env> {
     if (i < 0 || j < 0 || j >= list.length) return;
     [list[i], list[j]] = [list[j]!, list[i]!];
     list.forEach((f, pos) => this.ctx.storage.sql.exec(`UPDATE folders SET position = ? WHERE id = ?`, pos, f.id));
+      this.#emit({ t: "nav" });
   }
 
   markFoldersSorted(ids: string[]): void {
     const now = Date.now();
     for (const id of ids) this.ctx.storage.sql.exec(`UPDATE folders SET sorted_at = ? WHERE id = ?`, now, id);
+      this.#emit({ t: "nav" });
   }
 
   /** Mark a message as being sorted, unless a person already filed it. */
@@ -1260,6 +1317,7 @@ export class MailboxDO extends DurableObject<Env> {
     const cur = this.lookup(id);
     if (!cur || cur.folder_source === "you") return false;
     this.ctx.storage.sql.exec(`UPDATE messages SET folder_state = 'pending' WHERE id = ?`, id);
+    this.#emit({ t: "row", id });
     return true;
   }
 
@@ -1282,6 +1340,7 @@ export class MailboxDO extends DurableObject<Env> {
       d.probs ? JSON.stringify(d.probs) : null,
       id,
     );
+    this.#emit({ t: "row", id });
     return true;
   }
 
@@ -1358,6 +1417,7 @@ export class MailboxDO extends DurableObject<Env> {
 
   markRead(id: string): void {
     this.ctx.storage.sql.exec(`UPDATE messages SET read = 1 WHERE id = ?`, id);
+      this.#emit({ t: "row", id });
   }
 
   unindex(id: string): void {
@@ -1367,6 +1427,7 @@ export class MailboxDO extends DurableObject<Env> {
       .toArray()[0];
     if (row?.seq != null) sql.exec(`DELETE FROM messages_fts WHERE rowid = ?`, row.seq);
     sql.exec(`DELETE FROM messages WHERE id = ?`, id);
+      this.#emit({ t: "list" });
   }
 
   stats(): { total: number; unread: number; threads: number; trashed: number; starred: number } {
@@ -1401,6 +1462,7 @@ export class MailboxDO extends DurableObject<Env> {
       detail,
       id,
     );
+      this.#emit({ t: "row", id });
   }
 
   /** Find an outbound message by its RFC Message-ID, to attach a bounce to it. */
@@ -1591,6 +1653,7 @@ export class MailboxDO extends DurableObject<Env> {
       input.attachmentsJson ?? null,
       Date.now(),
     );
+    this.#emit({ t: "nav" });
     return this.getDraft(id)!;
   }
 
@@ -1622,6 +1685,7 @@ export class MailboxDO extends DurableObject<Env> {
       ? (JSON.parse(draft.attachments_json) as { r2_key: string }[]).map((a) => a.r2_key)
       : [];
     this.ctx.storage.sql.exec(`DELETE FROM drafts WHERE id = ?`, id);
+    this.#emit({ t: "nav" });
     return keys;
   }
 

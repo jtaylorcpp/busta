@@ -13,6 +13,7 @@
  */
 import { handle } from "@astrojs/cloudflare/handler";
 import legacy from "../../src/index";
+import { liveSocket } from "../../src/live";
 
 export { MailboxDO, TenantDO, ThreadDO } from "../../src/index";
 
@@ -49,6 +50,10 @@ function astroOwns(method: string, path: string, env: Env): boolean {
 export default {
   fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
+    // Live-update sockets go straight to the mailbox's Durable Object after
+    // the auth + ownership + origin checks in src/live.ts.
+    const live = path.match(/^\/mb\/([^/]+)\/live\/?$/);
+    if (live && request.method === "GET") return liveSocket(request, env, live[1]!);
     return astroOwns(request.method, path, env) ? handle(request, env, ctx) : legacy.fetch(request, env, ctx);
   },
   email: legacy.email,

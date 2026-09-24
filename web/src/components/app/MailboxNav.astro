@@ -20,7 +20,7 @@ const b = `/mb/${encodeURIComponent(address)}`;
 const nav = await loadNav(mailboxStub(env, address));
 const messagesActive = bin === "messages" && !folderId;
 ---
-<div class="nav">
+<div class="nav" data-live="nav">
   <div class:list={["bin-row", { active: messagesActive }]}>
     <a class="bin" href={b} aria-current={messagesActive ? "page" : undefined}>
       <Icon name="inbox" size={18} />
