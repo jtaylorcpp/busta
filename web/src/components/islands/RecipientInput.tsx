@@ -28,7 +28,11 @@ const looksValid = (a: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a);
 
 export default function RecipientInput({ id, name, label, value = "", placeholder, hint, checkUrl, bounced: known = [], autofocus }: Props) {
   const [hydrated, setHydrated] = useState(false);
-  const [chips, setChips] = useState<string[]>(() => split(value));
+  // Start from what's in the server-rendered input, not just the prop, so
+  // anything typed before hydration isn't wiped when the island takes over.
+  const [chips, setChips] = useState<string[]>(() =>
+    split(typeof document === "undefined" ? value : (document.getElementById(id) as HTMLInputElement | null)?.value ?? value),
+  );
   const [draft, setDraft] = useState("");
   const [bounced, setBounced] = useState<Set<string>>(() => new Set(known.map((a) => a.toLowerCase())));
   const checked = useRef(new Set<string>(known.map((a) => a.toLowerCase())));
