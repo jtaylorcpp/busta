@@ -1,10 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cloudflare-email",
-  "main": "src/index.ts",
+  // The Astro build (web/) wraps the original Worker in src/: web/src/worker.ts
+  // re-exports email(), the Durable Objects and the Workflow, and sends each
+  // web request either to Astro or to the old router. Build and deploy from
+  // the repo root with `npm run build` / `npm run deploy`.
+  "main": "web/src/worker.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+
+  // Astro's client bundles (/_astro/*) and web/public. Served ahead of the
+  // Worker, so nothing that needs auth may be put here.
+  "assets": { "directory": "web/dist/client", "binding": "ASSETS" },
 
   // Two hostnames, two jobs. The app itself lives on mail.ragedb.io; the
   // mta-sts hostname exists only to serve /.well-known/mta-sts.txt, which

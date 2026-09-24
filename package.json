@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "npm --prefix web run dev",
+    "deploy": "npm --prefix web run deploy",
     "types": "wrangler types",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
     "dns:check": "bun scripts/dns.ts",
     "dns:apply": "bun scripts/dns.ts --apply",
-    "dns:verify": "bun scripts/verify-dns.ts"
+    "dns:verify": "bun scripts/verify-dns.ts",
+    "build": "npm --prefix web run build"
   },
   "dependencies": {
     "@clerk/backend": "^3.18.1",

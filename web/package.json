@@ -6,12 +6,12 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
+    "dev": "astro dev --port 8787",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "generate-types": "wrangler types",
-    "check": "astro check"
+    "check": "astro check",
+    "deploy": "astro build && wrangler deploy -c dist/server/wrangler.json"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.3",

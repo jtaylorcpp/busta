@@ -1,13 +1,21 @@
 # Busta web
 
-The Astro frontend for Busta. **Not live yet.** The Worker in `../src` still serves
-every page. This app holds the design system so pages can be ported one at a time.
+The Astro frontend for Busta, built into the same Worker as the mail server.
+`src/worker.ts` is the Worker entry. It re-exports `email()`, the Durable
+Objects and the Workflow from `../src`, and sends a web request to Astro only if
+its path is in `ASTRO_ROUTES`. Every other path still uses the old string-rendered
+pages in `../src/ui`. To move a page: build it here, add its path to `ASTRO_ROUTES`,
+then delete its renderer from `../src/ui/pages.ts`.
 
 ```sh
-npm run dev      # styleguide at http://localhost:4321; full screens at /mock/sign-in, /mock/mailbox, /mock/thread
+npm run dev      # http://localhost:8787; styleguide at /design, full screens at /design/mock/* (development only)
 npm run check    # astro check (types + templates)
 npm run build
+npm run deploy   # astro build, then wrangler deploy of the generated config
 ```
+
+Config: the adapter reads `../wrangler.jsonc` (`configPath`) and `../.dev.vars`, and
+keeps local state in `../.wrangler/state`, so dev data is shared with the old setup.
 
 ## Design system
 
@@ -31,7 +39,7 @@ meaning-based props (`tone="bounced"`), never colors.
 
 ## Sample screens
 
-`src/pages/mock/*` build the Sign in, Mailbox and Thread screens from the design with the real layouts and components.
+`src/pages/design/mock/*` build the Sign in, Mailbox and Thread screens from the design with the real layouts and components.
 The sample data is in `src/mock/`. Clerk isn't wired in yet, so the sign-in card is a stand-in built from our own components.
 `AgentDraft` and the agent bar are marked **Future**: agents aren't shipping yet.
 

@@ -1,0 +1,36 @@
+/**
+ * The one Worker behind busta.app, mid-migration from string-rendered pages
+ * to Astro.
+ *
+ * Everything the old Worker exports is re-exported unchanged: inbound mail
+ * (`email`), the Durable Object classes and the provisioning Workflow. The
+ * DO classes must stay exported from this script under the same names, or
+ * their stored data is orphaned.
+ *
+ * Web requests go to Astro only for paths it has taken over (ASTRO_ROUTES);
+ * everything else still goes to the old router in ../../src. Move a page by
+ * adding its path here and deleting its string renderer from src/ui/pages.ts.
+ */
+import { handle } from "@astrojs/cloudflare/handler";
+import legacy from "../../src/index";
+
+export { MailboxDO, MailboxProvisionWorkflow, TenantDO, ThreadDO } from "../../src/index";
+
+/** Paths Astro owns in every environment. */
+const ASTRO_ROUTES: RegExp[] = [];
+
+/** Paths Astro owns only in local development: the styleguide and mocks. */
+const DEV_ONLY_ROUTES: RegExp[] = [/^\/design(\/|$)/];
+
+function astroOwns(path: string, env: Env): boolean {
+  if (ASTRO_ROUTES.some((r) => r.test(path))) return true;
+  return env.ENVIRONMENT === "development" && DEV_ONLY_ROUTES.some((r) => r.test(path));
+}
+
+export default {
+  fetch(request, env, ctx) {
+    const path = new URL(request.url).pathname;
+    return astroOwns(path, env) ? handle(request, env, ctx) : legacy.fetch(request, env, ctx);
+  },
+  email: legacy.email,
+} satisfies ExportedHandler<Env>;

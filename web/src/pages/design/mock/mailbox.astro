@@ -1,9 +1,9 @@
 ---
 /** Full mailbox screen from the design, on sample data. Not wired to the Worker. */
-import AppShell from "../../layouts/AppShell.astro";
-import { Banner, ListFooter, MailList, MailRow, Tabs } from "../../components/ui";
-import SampleNav from "../../mock/SampleNav.astro";
-import { rows, self } from "../../mock/data";
+import AppShell from "../../../layouts/AppShell.astro";
+import { Banner, ListFooter, MailList, MailRow, Tabs } from "../../../components/ui";
+import SampleNav from "../../../mock/SampleNav.astro";
+import { rows, self } from "../../../mock/data";
 ---
 <AppShell title="Inbox" mailbox={self} composeHref="#compose" searchAction="#search">
   <span slot="account" class="avatar" aria-label="Account">JT</span>
@@ -12,7 +12,7 @@ import { rows, self } from "../../mock/data";
   <Banner tone="error">1 message bounced: dave@old-domain.example has no mailbox.<a slot="action" href="#">View</a></Banner>
   <Tabs tabs={[{ label: "All", href: "#", active: true, unread: 3, icon: "inbox" }, { label: "+triage", href: "#" }, { label: "+orders", href: "#" }]} />
   <MailList>
-    {rows.map((r, i) => <MailRow href="/mock/thread" {...r} starAction={`#star-${i}`} trashAction={`#trash-${i}`} />)}
+    {rows.map((r, i) => <MailRow href="/design/mock/thread" {...r} starAction={`#star-${i}`} trashAction={`#trash-${i}`} />)}
   </MailList>
   <ListFooter from={1} to={rows.length} total={48} mailbox={self} size="3.1 MB" nextHref="#" />
 </AppShell>
