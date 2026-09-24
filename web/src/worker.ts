@@ -21,6 +21,7 @@ export { MailboxDO, TenantDO, ThreadDO } from "../../src/index";
 const ASTRO_ROUTES: RegExp[] = [
   /^\/sign-in\/?$/,
   /^\/mb\/[^/]+\/folders(\/.*)?$/, // folders: list, editor, save/delete/move/test
+  /^\/mb\/[^/]+\/start(\/.*)?$/, // Getting started guide: steps + progress actions
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/folder(\/retry)?\/?$/i, // file a message by hand / retry sorting
 ];
 

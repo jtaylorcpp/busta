@@ -130,6 +130,40 @@ const DEFAULT_AGENT_CONFIG: AgentConfig = {
   updatedAt: 0,
 };
 
+/**
+ * Progress through the Getting started guide (designs/2026-09-24-getting-started).
+ * Three steps: describe what matters (creates the "Must read" folder), send
+ * yourself a test, see where it went. `active` shows the guide on Messages,
+ * `done` shows the one-time "You're set up" bar, `hidden` shows nothing.
+ * Mailboxes created before the guide existed have no state, which reads as
+ * hidden; the account menu can still open it.
+ */
+export interface GuideState {
+  status: "active" | "done" | "hidden";
+  folderId: string | null;
+  ruleSkipped: boolean;
+  /** When step 2 began: the first mail received from then on is the test. */
+  testSince: number | null;
+  testSkipped: boolean;
+  landedId: string | null;
+}
+
+export interface GuideView extends GuideState {
+  folderName: string | null;
+  folderRule: string | null;
+  /** The test message, once it has arrived. */
+  landed: IndexedMessage | null;
+}
+
+const NEW_GUIDE: GuideState = {
+  status: "active",
+  folderId: null,
+  ruleSkipped: false,
+  testSince: null,
+  testSkipped: false,
+  landedId: null,
+};
+
 export interface Draft {
   id: string;
   to: string;
@@ -484,6 +518,8 @@ export class MailboxDO extends DurableObject<Env> {
     this.#setMeta("owner_org_id", orgId);
     this.#setMeta("address", address);
     this.#setMeta("created_at", String(Date.now()));
+    // A brand-new mailbox opens on the Getting started guide.
+    if (this.#meta("guide") === null) this.#setMeta("guide", JSON.stringify(NEW_GUIDE));
     return { claimed: true, ownerOrgId: orgId };
   }
 
@@ -511,6 +547,66 @@ export class MailboxDO extends DurableObject<Env> {
     if (this.#meta("owner_org_id") !== orgId) return false;
     this.ctx.storage.sql.exec(`DELETE FROM meta WHERE k = 'owner_org_id'`);
     return true;
+  }
+
+  // ---- getting started --------------------------------------------------
+
+  #guideState(): GuideState {
+    const raw = this.#meta("guide");
+    return raw === null ? { ...NEW_GUIDE, status: "hidden" } : { ...NEW_GUIDE, ...JSON.parse(raw) };
+  }
+
+  /**
+   * The guide with what the page needs to render it. While step 2 is waiting,
+   * this is also where the test is detected: the first mail received since
+   * `testSince` becomes the landed message.
+   */
+  guide(): GuideView {
+    const state = this.#guideState();
+    const sql = this.ctx.storage.sql;
+    if (state.status !== "hidden" && state.testSince !== null && !state.landedId && !state.testSkipped) {
+      const first = sql
+        .exec<{ id: string }>(
+          `SELECT id FROM messages WHERE direction = 'in' AND deleted_at IS NULL AND received_at >= ?
+            ORDER BY received_at ASC LIMIT 1`,
+          state.testSince,
+        )
+        .toArray()[0];
+      if (first) {
+        state.landedId = first.id;
+        this.#setMeta("guide", JSON.stringify(state));
+      }
+    }
+    const folder = state.folderId ? this.getFolder(state.folderId) : null;
+    if (state.folderId && !folder) state.folderId = null; // deleted since
+    const landed = state.landedId
+      ? ((sql
+          .exec<Row<IndexedMessage>>(`SELECT * FROM messages WHERE id = ?`, state.landedId)
+          .toArray()[0] as IndexedMessage | undefined) ?? null)
+      : null;
+    return { ...state, folderName: folder?.name ?? null, folderRule: folder?.rule ?? null, landed };
+  }
+
+  /** Change the guide's progress; returns the new state. Notifies open pages. */
+  updateGuide(patch: Partial<GuideState>): GuideState {
+    const next = { ...this.#guideState(), ...patch };
+    this.#setMeta("guide", JSON.stringify(next));
+    this.#emit({ t: "list" });
+    return next;
+  }
+
+  /** Open the guide again from the account menu, keeping the folder it made. */
+  restartGuide(): GuideState {
+    const { folderId } = this.#guideState();
+    return this.updateGuide({ ...NEW_GUIDE, folderId: folderId && this.getFolder(folderId) ? folderId : null });
+  }
+
+  /** A folder by name, ignoring case — so the guide reuses an existing "Must read". */
+  folderByName(name: string): Folder | null {
+    const rows = this.ctx.storage.sql
+      .exec<Row<Folder>>(`SELECT * FROM folders WHERE lower(name) = lower(?) LIMIT 1`, name.trim())
+      .toArray();
+    return (rows[0] as Folder | undefined) ?? null;
   }
 
   // ---- agent -----------------------------------------------------------

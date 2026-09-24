@@ -1,7 +1,8 @@
 ---
 /**
  * Bottom-left account menu: who you are, which mailbox you're in, the other
- * mailboxes and orgs you can switch to, admin adoption, theme and sign-out.
+ * mailboxes and orgs you can switch to, admin adoption, Getting started (the
+ * guide, reopened for the current mailbox), theme and sign-out.
  * Replaces the old Mailboxes page and org chooser.
  *
  * A <details> popover, so it opens without JavaScript; a small script only
@@ -98,6 +99,14 @@ const unreadElsewhere = mailboxes.filter((m) => m.address !== current).reduce((n
       </section>
     )}
 
+    {current && (
+      <section>
+        <form method="post" action={`/mb/${encodeURIComponent(current)}/start/reopen`}>
+          <button type="submit" class="mb menu-btn"><span class="check" aria-hidden="true"><Icon name="spark" size={14} /></span><span class="mb-addr">Getting started</span></button>
+        </form>
+      </section>
+    )}
+
     <section class="foot">
       <ThemeSwitch />
       <a class="out" href="/sign-out">Sign out</a>
@@ -153,7 +162,8 @@ const unreadElsewhere = mailboxes.filter((m) => m.address !== current).reduce((n
   .admin { font-family: var(--font-sans); letter-spacing: 0; text-transform: none; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-pill); background: var(--secondary-soft); color: var(--secondary); }
   .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
   .mb { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--radius-sm); color: var(--text); text-decoration: none; }
-  a.mb:hover { background: var(--surface-2); }
+  a.mb:hover, .menu-btn:hover { background: var(--surface-2); }
+  .menu-btn { width: 100%; border: 0; background: transparent; font: inherit; cursor: pointer; text-align: left; }
   .mb.here { background: var(--primary-soft); color: var(--primary); }
   .mb.latched { color: var(--muted); }
   .check { width: 14px; display: inline-grid; flex-shrink: 0; }

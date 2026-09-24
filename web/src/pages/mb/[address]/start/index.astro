@@ -1,0 +1,147 @@
+---
+/**
+ * GET /mb/<address>/start — Getting started, step 1: "What's important to
+ * you?" The description becomes the rule of a folder named Must read (or
+ * whatever you call it), created or updated by POST /start/rule. Test this
+ * rule uses sample mail until the mailbox has some of its own.
+ */
+import { env } from "cloudflare:workers";
+import AppShell from "../../../../layouts/AppShell.astro";
+import MailboxNav from "../../../../components/app/MailboxNav.astro";
+import AccountMenu from "../../../../components/app/AccountMenu.astro";
+import RuleTest from "../../../../components/app/RuleTest.astro";
+import { Banner, Button, Icon } from "../../../../components/ui";
+import { openMailbox } from "../../../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+const b = `/mb/${encodeURIComponent(address)}`;
+
+const guide = await stub.guide();
+const existing = guide.folderId ? null : await stub.folderByName("Must read");
+const name = guide.folderName ?? existing?.name ?? "Must read";
+const rule = guide.folderRule ?? existing?.rule ?? "";
+const error = Astro.url.searchParams.get("error");
+
+/** Tap to add (or remove) a sentence. Only shown with JavaScript. */
+const STARTERS: [string, string][] = [
+  ["People I know", "Anything from a real person I know, not a company."],
+  ["School or daycare", "Messages from my kids' school or daycare."],
+  ["Bills and due dates", "Bills and anything with a due date."],
+  ["Doctor or pharmacy", "Anything from my doctor or pharmacy."],
+  ["Needs a reply from me", "Mail that asks me a question or needs a reply."],
+  ["Travel changes", "Changes to flights, hotels or reservations I've made."],
+  ["Not newsletters or sales", "Not newsletters, sales or receipts."],
+];
+---
+<AppShell title={`Getting started — ${address}`} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
+  <AccountMenu slot="account" current={address} />
+  <MailboxNav slot="nav" address={address} bin="messages" />
+  {error && <Banner tone="error">{error}</Banner>}
+
+  <form class="setup" method="post" action={`${b}/start/rule`}>
+    <div class="cols">
+      <section class="col">
+        <span class="stepper">Step 1 of 3</span>
+        <h1>What's important to you?</h1>
+        <p class="lede">Describe the mail you never want to miss, the way you'd explain it to a person. Busta turns it into a folder and files matching mail there as it arrives.</p>
+        <div class="field">
+          <label for="gs-name">Folder name</label>
+          <div class="name-row"><input id="gs-name" name="name" type="text" value={name} maxlength="60" required /><span class="hint">You can rename it later.</span></div>
+        </div>
+        <div class="field">
+          <label for="gs-rule">Describe it</label>
+          <textarea id="gs-rule" name="rule" rows="6" maxlength="2000" required autofocus placeholder="Anything from a real person I know, not a company. Messages from my kids' school. Bills with a due date. Not newsletters, sales or receipts.">{rule}</textarea>
+          <p class="hint" data-starters-hint hidden>Start from these, or write your own. <b>Say what belongs and what doesn't.</b></p>
+          <p class="hint" data-starters-nojs>Say what belongs <b>and</b> what doesn't.</p>
+        </div>
+        <div class="starters" data-starters hidden>
+          {STARTERS.map(([label, text]) => (
+            <button type="button" class="starter" data-add={text} aria-pressed="false"><span class="sym" aria-hidden="true">+</span>{label}</button>
+          ))}
+        </div>
+      </section>
+      <section class="col">
+        <RuleTest endpoint={`${b}/folders/test`} nameField="gs-name" ruleField="gs-rule" />
+        <p class="hint">Whatever doesn't match stays in Messages, where it always is.</p>
+      </section>
+    </div>
+    <div class="foot">
+      <Button variant="ghost" href={b}>Back</Button>
+      <span class="grow"></span>
+      <Button variant="ghost" type="submit" formaction={`${b}/start/skip-rule`} formnovalidate>Skip this step</Button>
+      <Button variant="primary" type="submit"><Icon name="check" size={15} />{guide.folderId ? `Save ${name}` : `Create ${name}`}</Button>
+    </div>
+  </form>
+</AppShell>
+
+<script>
+  // Starters add a sentence to the description, or take it back out.
+  const box = document.getElementById("gs-rule") as HTMLTextAreaElement | null;
+  const wrap = document.querySelector<HTMLElement>("[data-starters]");
+  if (box && wrap) {
+    wrap.hidden = false;
+    document.querySelector<HTMLElement>("[data-starters-hint]")!.hidden = false;
+    document.querySelector<HTMLElement>("[data-starters-nojs]")!.hidden = true;
+    const buttons = [...wrap.querySelectorAll<HTMLButtonElement>("[data-add]")];
+    const sync = () => {
+      for (const btn of buttons) {
+        const on = box.value.includes(btn.dataset.add!);
+        btn.setAttribute("aria-pressed", String(on));
+        btn.querySelector(".sym")!.textContent = on ? "✓" : "+";
+      }
+    };
+    for (const btn of buttons) {
+      btn.addEventListener("click", () => {
+        const text = btn.dataset.add!;
+        box.value = box.value.includes(text)
+          ? box.value.replace(text, "").replace(/\s{2,}/g, " ").trim()
+          : `${box.value.trim()} ${text}`.trim();
+        sync();
+        box.focus();
+      });
+    }
+    box.addEventListener("input", sync);
+    sync();
+  }
+</script>
+
+<style>
+  .setup { display: grid; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .col { display: grid; gap: var(--space-4); align-content: start; padding: var(--space-5); }
+  .col + .col { border-left: 1px solid var(--border); }
+  @media (max-width: 1000px) {
+    .cols { grid-template-columns: 1fr; }
+    .col + .col { border-left: 0; border-top: 1px solid var(--border); }
+  }
+  .stepper { font: 500 11px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: var(--text-xl); font-weight: 600; }
+  .lede { color: var(--muted); max-width: 60ch; }
+  .field { display: grid; gap: 6px; }
+  label { font-size: var(--text-sm); font-weight: 600; }
+  .name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  input[type="text"], textarea {
+    padding: 9px 12px; border-radius: var(--radius-md); border: 1.5px solid var(--border);
+    background: var(--bg); color: var(--text); font: var(--text-md)/1.5 var(--font-sans);
+  }
+  input[type="text"] { width: 18ch; }
+  textarea { width: 100%; resize: vertical; min-height: 150px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); background: var(--surface); }
+  .hint { font-size: var(--text-xs); color: var(--muted); }
+  .hint b { color: var(--text); font-weight: 600; }
+  .starters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .starter {
+    display: inline-flex; align-items: center; gap: 5px; font: 600 12px var(--font-sans); padding: 5px 11px;
+    border-radius: var(--radius-pill); border: 1px dashed var(--border); background: transparent; color: var(--secondary); cursor: pointer;
+  }
+  .starter:hover { color: var(--primary); }
+  .starter[aria-pressed="true"] { border-style: solid; border-color: transparent; background: var(--primary-soft); color: var(--primary); }
+  .foot { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; padding: 12px var(--space-5) var(--space-4); border-top: 1px solid var(--border); }
+  .grow { flex: 1; }
+</style>

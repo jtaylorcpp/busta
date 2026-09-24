@@ -1,0 +1,128 @@
+---
+/**
+ * GET /mb/<address>/start/test — Getting started, step 2: send yourself a
+ * message and watch it arrive. Once the first mail since this step began is
+ * in, this page redirects to Messages, where the guide shows where it went.
+ * Live updates re-fetch this page on every mailbox change and follow that
+ * redirect (data-live-follow); without JavaScript, reload does the same.
+ */
+import { env } from "cloudflare:workers";
+import AppShell from "../../../../layouts/AppShell.astro";
+import MailboxNav from "../../../../components/app/MailboxNav.astro";
+import AccountMenu from "../../../../components/app/AccountMenu.astro";
+import { Button, Icon } from "../../../../components/ui";
+import { openMailbox } from "../../../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+const b = `/mb/${encodeURIComponent(address)}`;
+
+let guide = await stub.guide();
+if (guide.landed) return Astro.redirect(b);
+// Reached without step 1 (e.g. Continue after reopening): start waiting now.
+if (guide.testSince === null) {
+  await stub.updateGuide({ testSince: Date.now(), status: "active" });
+  guide = await stub.guide();
+}
+const name = guide.folderName ?? "Must read";
+---
+<AppShell title={`Send a test — ${address}`} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
+  <AccountMenu slot="account" current={address} />
+  <MailboxNav slot="nav" address={address} bin="messages" />
+
+  <div class="cols" data-live-follow>
+    <section class="col">
+      <span class="stepper">Step 2 of 3</span>
+      <h1>Send yourself something that matters</h1>
+      <p class="lede">From your phone or another email account, send a message to your new address. Keep this page open and watch it arrive.</p>
+      <div class="addr-box">
+        <code id="gs-addr">{address}</code>
+        <button type="button" class="copy-addr" data-copy="gs-addr" hidden>Copy</button>
+      </div>
+      <div class="examples">
+        <div class="ex in">
+          <span class="k">{guide.folderId ? `Try one like this · should go in ${name}` : "Try one like this"}</span>
+          <span class="s">Dentist moved to Tuesday 3pm</span>
+          <span class="x2">Hi, Dr. Patel's office here. Your cleaning is now Tuesday at 3:00 pm.</span>
+        </div>
+        <div class="ex">
+          <span class="k">Or one like this · should stay out</span>
+          <span class="s">Forward any newsletter or sale email</span>
+          <span class="x2">It should stay in Messages without a folder.</span>
+        </div>
+      </div>
+    </section>
+    <section class="col">
+      <div class="waiting" role="status"><i class="ring" aria-hidden="true"></i>Waiting for your message… <span>Usually a few seconds.</span></div>
+      {guide.folderId ? (
+        <div class="rule">
+          <div class="rule-head"><b>Your {name} rule</b><span class="grow"></span><Button variant="secondary" size="sm" href={`${b}/start`}><Icon name="pen" size={12} />Edit</Button></div>
+          <p>{guide.folderRule}</p>
+        </div>
+      ) : (
+        <p class="hint">You skipped making {name}, so your test will land in Messages without a folder. <a href={`${b}/start`}>Make it now</a></p>
+      )}
+    </section>
+  </div>
+  <form class="foot" method="post" action={`${b}/start/skip-test`}>
+    <Button variant="ghost" href={`${b}/start`}>Back</Button>
+    <span class="grow"></span>
+    <Button variant="ghost" type="submit">Skip for now</Button>
+  </form>
+</AppShell>
+
+<script>
+  for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+    const text = document.getElementById(btn.dataset.copy!)?.textContent ?? "";
+    if (!navigator.clipboard) continue;
+    btn.hidden = false;
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied";
+      } catch {
+        getSelection()?.selectAllChildren(document.getElementById(btn.dataset.copy!)!);
+      }
+      setTimeout(() => (btn.textContent = "Copy"), 1600);
+    });
+  }
+</script>
+
+<style>
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .col { display: grid; gap: var(--space-4); align-content: start; padding: var(--space-5); }
+  .col + .col { border-left: 1px solid var(--border); }
+  @media (max-width: 1000px) {
+    .cols { grid-template-columns: 1fr; }
+    .col + .col { border-left: 0; border-top: 1px solid var(--border); }
+  }
+  .stepper { font: 500 11px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: var(--text-xl); font-weight: 600; }
+  .lede { color: var(--muted); max-width: 60ch; }
+  .addr-box { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border: 1.5px solid var(--primary); border-radius: var(--radius-md); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .addr-box code { flex: 1; min-width: 0; overflow-wrap: anywhere; font: 500 15px var(--font-mono); }
+  .copy-addr { font: 600 var(--text-sm) var(--font-sans); padding: 5px 12px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--surface); color: var(--primary); cursor: pointer; }
+  .examples { display: grid; gap: 8px; }
+  .ex { display: grid; gap: 3px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-2); }
+  .k { font: 500 10px/1.3 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .ex.in .k { color: var(--success); }
+  .s { font-weight: 600; }
+  .x2 { font-size: var(--text-sm); color: var(--muted); }
+  .waiting { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--radius-md); background: var(--warn-soft); color: var(--warn); font-weight: 600; }
+  .waiting span { font-weight: 500; opacity: .85; }
+  .ring { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--warn-fill); border-top-color: transparent; animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
+  .rule { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  .rule-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface-2); }
+  .rule-head b { font-weight: 600; }
+  .rule p { padding: 10px 12px; color: var(--muted); }
+  .hint { font-size: var(--text-sm); color: var(--muted); }
+  .foot { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; padding: 12px var(--space-5) var(--space-4); border-top: 1px solid var(--border); }
+  .grow { flex: 1; }
+</style>
