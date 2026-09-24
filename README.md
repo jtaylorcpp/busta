@@ -774,14 +774,6 @@ curl -X POST localhost:8787/__dev/send -H 'content-type: application/json' \
        "replyToStoredId":"<id from __dev/list>"}'
 ```
 
-## UI preview without Clerk
-
-Renders every page with fixture data to `preview/*.html`:
-
-```bash
-bun scripts/preview.ts
-```
-
 ## Routes
 
 | Method | Path | Purpose |

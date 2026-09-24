@@ -7,10 +7,6 @@ import type { MailboxDO } from "./mailbox-do";
 import type { ThreadAttachment, ThreadMessage } from "./thread-do";
 import {
   AttachmentError,
-  attachmentBudget,
-  FLAG,
-  inlineThreshold,
-  linkLifetimeMs,
   ingest,
   isSystemAddress,
   isValidLocalPart,
@@ -21,21 +17,12 @@ import {
   parseRecipientList,
   RecipientError,
   sanitizeFilename,
-  SYSTEM_LOCAL_PARTS,
   SYSTEM_ORG_ID,
   send,
   tenantStub,
   threadStub,
 } from "./mail";
-import {
-  chooseOrgPage,
-  composePage,
-  errorPage,
-  inboxPage,
-  draftsPage,
-  messagePage,
-  searchPage,
-} from "./ui/pages";
+import { errorPage } from "./ui/pages";
 import { CLERK_BOOTSTRAP, clerkScripts, MULTI_MAILBOX } from "./ui/layout";
 
 export { MailboxProvisionWorkflow } from "./provision";
@@ -44,8 +31,6 @@ export { MailboxDO } from "./mailbox-do";
 export { ThreadDO } from "./thread-do";
 export { TenantDO } from "./tenant-do";
 
-const INBOX_PAGE_SIZE = 50;
-const SEARCH_PAGE_SIZE = 25;
 const MESSAGE_ACTIONS = new Set(["trash", "restore", "purge", "star", "unstar", "read", "unread"]);
 
 function html(body: string, status = 200): Response {
@@ -58,18 +43,6 @@ function html(body: string, status = 200): Response {
 function redirect(location: string, flash?: { kind: "ok" | "warn" | "error"; text: string }): Response {
   const url = flash ? `${location}${location.includes("?") ? "&" : "?"}${flash.kind}=${encodeURIComponent(flash.text)}` : location;
   return new Response(null, { status: 303, headers: { location: url } });
-}
-
-function flashFrom(url: URL): { kind: "ok" | "error"; text: string } | undefined {
-  const ok = url.searchParams.get("ok") ?? url.searchParams.get("warn");
-  if (ok) return { kind: "ok", text: ok };
-  const error = url.searchParams.get("error");
-  if (error) return { kind: "error", text: error };
-  return undefined;
-}
-
-function orgLabel(session: Session): string {
-  return session.orgSlug ?? session.orgId ?? "no-org";
 }
 
 /**
@@ -155,10 +128,8 @@ export default {
 
     const session = auth.session;
     if (!session.orgId) {
-      return withAuthCookies(
-        html(chooseOrgPage(env.CLERK_PUBLISHABLE_KEY, session.userId)),
-        auth.headers,
-      );
+      // The organization picker lives at / (web/src/pages/index.astro).
+      return withAuthCookies(redirect("/"), auth.headers);
     }
 
     try {
@@ -215,7 +186,6 @@ async function route(
   session: Session,
 ): Promise<Response> {
   const path = url.pathname;
-  const flash = flashFrom(url);
 
   // GET / is rendered by Astro (web/src/pages/index.astro): it sends you to
   // your mailbox, or shows first-run setup.
@@ -298,113 +268,8 @@ async function route(
     const rest = mbMatch[2] ?? "";
     const { address, stub } = access;
 
-    if (rest === "" && request.method === "GET") {
-      if (await stub.backfillPending()) await stub.backfill();
-      const label = url.searchParams.get("tag");
-      const view = url.searchParams.get("view");
-      const beforeParam = url.searchParams.get("before");
-      const before = beforeParam ? Number(beforeParam) : undefined;
-
-      // One extra row tells us whether another page exists without a count.
-      const [rows, stats, labels, agent] = await Promise.all([
-        stub.list(INBOX_PAGE_SIZE + 1, 0, {
-          label: label ?? undefined,
-          before,
-          trash: view === "trash",
-          starred: view === "starred",
-        }),
-        stub.stats(),
-        stub.labels(),
-        stub.agentConfig(),
-      ]);
-      const messages = rows.slice(0, INBOX_PAGE_SIZE);
-      const nextBefore = rows.length > INBOX_PAGE_SIZE ? messages[messages.length - 1]!.seq : null;
-      return html(
-        inboxPage({
-          address,
-          orgLabel: orgLabel(session),
-          userId: session.userId,
-          clerkKey: env.CLERK_PUBLISHABLE_KEY,
-          messages,
-          unread: stats.unread,
-          total: stats.total,
-          threads: stats.threads,
-          labels,
-          agent,
-          activeLabel: label,
-          view: view === "trash" ? "trash" : view === "starred" ? "starred" : "inbox",
-          nextBefore,
-          trashed: stats.trashed,
-          starredCount: stats.starred,
-          notice: flash,
-        }),
-      );
-    }
-
-    if (rest === "search" && request.method === "GET") {
-      const q = url.searchParams.get("q") ?? "";
-      const cursorParam = url.searchParams.get("cursor");
-      const filters = {
-        unreadOnly: url.searchParams.get("unread") === "1",
-        sender: normalizeAddress(url.searchParams.get("from") ?? ""),
-        label: url.searchParams.get("tag") ?? "",
-        hasAttachments: url.searchParams.get("attach") === "1",
-        hideBulk: url.searchParams.get("nobulk") === "1",
-        hideAuto: url.searchParams.get("noauto") === "1",
-      };
-
-      // Flag filters are bitmask work on the index, so they compose with the
-      // text query in one pass rather than post-filtering results.
-      const flagsAll = filters.hasAttachments ? FLAG.hasAttachments : 0;
-      const flagsNone =
-        (filters.hideBulk ? FLAG.bulk : 0) | (filters.hideAuto ? FLAG.autoSubmitted : 0);
-
-      const [page, labels] = await Promise.all([
-        q
-          ? stub.searchText({
-              q,
-              cursor: cursorParam ? Number(cursorParam) : null,
-              limit: SEARCH_PAGE_SIZE,
-              unreadOnly: filters.unreadOnly,
-              sender: filters.sender || undefined,
-              label: filters.label || undefined,
-              flagsAll: flagsAll || undefined,
-              flagsNone: flagsNone || undefined,
-            })
-          : Promise.resolve({ results: [], nextCursor: null, examined: 0, exhausted: true }),
-        stub.labels(),
-      ]);
-
-      return html(
-        searchPage({
-          address,
-          orgLabel: orgLabel(session),
-          userId: session.userId,
-          clerkKey: env.CLERK_PUBLISHABLE_KEY,
-          query: q,
-          results: page.results,
-          nextCursor: page.nextCursor,
-          examined: page.examined,
-          exhausted: page.exhausted,
-          filters,
-          labels,
-        }),
-      );
-    }
-
-    if (rest === "drafts" && request.method === "GET") {
-      const drafts = await stub.listDrafts();
-      return html(
-        draftsPage({
-          address,
-          orgLabel: orgLabel(session),
-          userId: session.userId,
-          clerkKey: env.CLERK_PUBLISHABLE_KEY,
-          drafts,
-          notice: flash,
-        }),
-      );
-    }
+    // GET views (mailbox, search, drafts, compose, thread) are rendered by
+    // Astro (web/src/pages/mb). Only form posts and sub-resources remain here.
 
     const draftMatch = rest.match(/^drafts\/([0-9a-f-]{36})(?:\/(delete))?$/i);
     if (draftMatch) {
@@ -415,74 +280,9 @@ async function route(
         await Promise.all(keys.map((key) => env.MAIL_ARCHIVE.delete(key)));
         return redirect(`${base(address)}/drafts`, { kind: "ok", text: "Draft discarded." });
       }
-
-      if (request.method === "GET") {
-        const draft = await stub.getDraft(draftId);
-        if (!draft) return html(errorPage(404, "Draft not found"), 404);
-        return html(
-          composePage({
-            address,
-            orgLabel: orgLabel(session),
-            userId: session.userId,
-            clerkKey: env.CLERK_PUBLISHABLE_KEY,
-            attachmentLimit: formatBytes(attachmentBudget(env)),
-            inlineLimit: formatBytes(inlineThreshold(env)),
-            linkDays: String(Math.round(linkLifetimeMs(env) / 86_400_000)),
-            prefill: { to: draft.to, cc: draft.cc, subject: draft.subject, body: draft.body },
-            draft,
-            notice: flash,
-          }),
-        );
-      }
     }
 
     if (rest === "compose") {
-      if (request.method === "GET") {
-        // Forward reuses compose rather than a parallel form: the only
-        // differences are the prefilled body and the carried attachments.
-        const forwardId = url.searchParams.get("forward");
-        let prefill: { subject?: string; body?: string } | undefined;
-        let forwardFrom: { messageId: string; attachments: ThreadAttachment[] } | undefined;
-
-        if (forwardId) {
-          const row = await stub.lookup(forwardId);
-          const found = row ? await threadStub(env, address, row.thread_id).get(forwardId) : null;
-          if (found) {
-            const original = found.message;
-            prefill = {
-              subject: /^fwd:/i.test(original.subject)
-                ? original.subject
-                : `Fwd: ${original.subject}`,
-              body: [
-                "",
-                "---------- Forwarded message ----------",
-                `From: ${original.sender}`,
-                `Date: ${new Date(original.received_at).toUTCString()}`,
-                `Subject: ${original.subject}`,
-                `To: ${original.recipient}`,
-                "",
-                original.body_text ?? "(no plain-text body)",
-              ].join("\n"),
-            };
-            forwardFrom = { messageId: forwardId, attachments: found.attachments };
-          }
-        }
-
-        return html(
-          composePage({
-            address,
-            orgLabel: orgLabel(session),
-            userId: session.userId,
-            clerkKey: env.CLERK_PUBLISHABLE_KEY,
-            attachmentLimit: formatBytes(attachmentBudget(env)),
-            inlineLimit: formatBytes(inlineThreshold(env)),
-            linkDays: String(Math.round(linkLifetimeMs(env) / 86_400_000)),
-            prefill,
-            forwardFrom,
-            notice: flash,
-          }),
-        );
-      }
       if (request.method === "POST") {
         // The forward source is a hidden field, so the POST can reload the
         // original's attachments from R2 without the browser re-uploading.
@@ -522,44 +322,6 @@ async function route(
       const action = msgMatch[2];
 
       const indexed = stub.lookup(messageId);
-
-      if (!action && request.method === "GET") {
-        const row = await indexed;
-        if (!row) return html(errorPage(404, "Message not found"), 404);
-
-        const [found, thread] = await Promise.all([
-          threadStub(env, address, row.thread_id).get(messageId),
-          // The index already holds every row in this thread, so rendering the
-          // conversation costs no extra Durable Object hop.
-          stub.threadIndex(row.thread_id),
-        ]);
-        if (!found) return html(errorPage(404, "Message body not found"), 404);
-        if (!row.read) await stub.markRead(messageId);
-
-        return html(
-          messagePage({
-            address,
-            orgLabel: orgLabel(session),
-            userId: session.userId,
-            clerkKey: env.CLERK_PUBLISHABLE_KEY,
-            message: found.message,
-            attachments: found.attachments,
-            thread,
-            threadId: row.thread_id,
-            bodySource: found.bodySource,
-            hasHtml: Boolean(found.message.body_html),
-            showImages: url.searchParams.get("images") === "1",
-            delivery: row.delivery_status
-              ? {
-                  status: row.delivery_status,
-                  code: row.delivery_code,
-                  detail: row.delivery_detail,
-                }
-              : null,
-            notice: flash,
-          }),
-        );
-      }
 
       // --- single-message actions -------------------------------------
       if (request.method === "POST" && action && MESSAGE_ACTIONS.has(action)) {
@@ -861,12 +623,6 @@ async function saveDraftFromForm(
 
 function base(address: string): string {
   return `/mb/${encodeURIComponent(address)}`;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /**
