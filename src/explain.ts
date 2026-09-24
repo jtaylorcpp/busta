@@ -190,7 +190,7 @@ export interface Tidied {
   missing: string[];
 }
 
-const STOP = new Set("about after also and any anything are but can could did does doesn't don't each emails for from have into its just like mail messages more most not only other our should some such than that the their them then there these they this those very was were what when where which while who will with would your yours".split(" "));
+const STOP = new Set("about after also and any anything are but can could did does doesn't don't each emails etc for from have include included includes including into its just like mail messages more most not only other our should some such than that the their them then there these they this those very was were what when where which while who will with would your yours".split(" "));
 /** Content words (4+ letters) of the original that the rewrite dropped. */
 function droppedWords(original: string, rewrite: string): string[] {
   const words = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{3,}/g) ?? []).map((w) => w.replace(/'s$/, "")));

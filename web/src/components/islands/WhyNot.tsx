@@ -206,7 +206,8 @@ export default function WhyNot({ base, messageId, folderId, closeHref }: Props) 
       <input type="hidden" name="folder" value={folder.id} />
       <input type="hidden" name="rule" value={newRule} />
       <div class="why-head"><h3>Add to {folder.name}</h3><button type="button" class="linkish" onClick={() => setView("why")}>← Why</button></div>
-      <Meter name={folder.name} before={data.score} after={self?.after?.p} none={data.none} threshold={data.threshold} />
+      {/* Once checked, both numbers come from the same single-folder scoring. */}
+      <Meter name={folder.name} before={self?.before?.p ?? data.score} after={self?.after?.p} none={data.none} threshold={data.threshold} />
       <div class="why-body">
         <section>
           {tidied ? (
