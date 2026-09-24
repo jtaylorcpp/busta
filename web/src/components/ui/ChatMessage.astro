@@ -30,6 +30,8 @@ interface Props {
   tint?: "primary" | "secondary";
   status?: { tone: StatusTone; label: string };
   remoteImages?: string;
+  /** Sanitized HTML body URL, shown in a sandboxed frame inside the bubble. */
+  htmlSrc?: string;
   unverified?: boolean;
   fromArchive?: boolean;
   /** `more` fills the ··· menu, e.g. View original, Mark unread from here. */
@@ -37,7 +39,7 @@ interface Props {
 }
 const {
   from, address, time, outbound = false, first = true, tint = "primary", status,
-  remoteImages, unverified = false, fromArchive = false, actions,
+  remoteImages, htmlSrc, unverified = false, fromArchive = false, actions,
 } = Astro.props;
 const initial = from.trim().charAt(0).toUpperCase();
 // Render optional slots up front: a slot passed empty content (e.g. a falsy
@@ -64,6 +66,7 @@ const attachments = Astro.slots.has("attachments") ? (await Astro.slots.render("
           <a href={remoteImages}>Load images</a></p>
       )}
       <div class="text"><slot /></div>
+      {htmlSrc && <iframe class="html" src={htmlSrc} sandbox="" title={`Message from ${from}`} loading="lazy" referrerpolicy="no-referrer"></iframe>}
       {quoted && (
         <details class="quoted">
           <summary><Icon name="more" size={14} />Show quoted text</summary>
@@ -120,6 +123,9 @@ const attachments = Astro.slots.has("attachments") ? (await Astro.slots.render("
   }
   .images span { flex: 1; }
   .images a { font-weight: 600; white-space: nowrap; }
+  .text { white-space: pre-line; }
+  .text:empty { display: none; }
+  .html { display: block; width: 100%; height: 420px; margin-top: 6px; border: 1px solid var(--border); border-radius: var(--radius-md); background: #FFFFFF; resize: vertical; }
   .text :global(p + p) { margin-top: .7em; }
 
   .quoted { margin-top: 8px; }

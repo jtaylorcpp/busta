@@ -1,15 +1,15 @@
 ---
 /** Muted line under a mail list: the range shown and the mailbox's size. */
-interface Props { from: number; to: number; total: number; mailbox: string; size: string; prevHref?: string; nextHref?: string }
+interface Props { from: number; to: number; total: number; mailbox: string; size?: string; prevHref?: string; nextHref?: string }
 const { from, to, total, mailbox, size, prevHref, nextHref } = Astro.props;
 ---
 <footer class="lf">
   <span class="range">
-    {total === 0 ? "0 messages" : `${from}–${to} of ${total}`}
+    {total === 0 ? "0 messages" : to >= total ? `${total} message${total === 1 ? "" : "s"}` : `${from}–${to} of ${total}`}
     {prevHref && <a href={prevHref} aria-label="Newer messages">‹</a>}
     {nextHref && <a href={nextHref} aria-label="Older messages">›</a>}
   </span>
-  <span class="mono">{mailbox} · {size}</span>
+  <span class="mono">{mailbox}{size ? ` · ${size}` : ""}</span>
 </footer>
 
 <style>

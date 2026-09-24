@@ -9,8 +9,8 @@ import Field from "./Field.astro";
  * To/Cc/Subject fields in a <details>, and everything posts as one form.
  *
  * `original` lists the attachments of the message being answered. Checked
- * ones are re-attached (field name `include`, one value per file). Forward
- * checks them all by default and starts with an empty To.
+ * ones are re-attached (field name `reattach`, one value per file, as the
+ * Worker's reply handler expects). Forward checks them all by default.
  */
 type Mode = "reply" | "replyAll" | "forward";
 interface Original { id: string; name: string; size: string }
@@ -27,15 +27,19 @@ interface Props {
   names?: Record<string, string>;
   /** Prefix for field ids; set it when a page renders more than one composer. */
   id?: string;
+  /** Quoted original, sent alongside the body (field `quote`) instead of cluttering the textarea. */
+  quote?: string;
+  /** Bcc to prefill. */
+  bcc?: string[];
 }
-const { action, mode, modeHrefs, to, cc = [], subject, original = [], names = {} } = Astro.props;
+const { action, mode, modeHrefs, to, cc = [], bcc = [], subject, original = [], names = {}, quote } = Astro.props;
 const include = new Set(Astro.props.include ?? (mode === "forward" ? original.map((o) => o.id) : []));
 const show = (list: string[]) => list.map((a) => names[a] ?? a).join(", ");
 const modes: [Mode, string][] = [["reply", "Reply"], ["replyAll", "Reply all"], ["forward", "Forward"]];
 const uid = Astro.props.id ?? "reply";
 ---
 <form class="composer" method="post" action={action} enctype="multipart/form-data">
-  <input type="hidden" name="mode" value={mode} />
+  {quote && <input type="hidden" name="quote" value={quote} />}
   <nav class="modes" aria-label="Response type">
     {modes.map(([m, label]) => (
       <a href={modeHrefs[m]} class:list={{ on: m === mode }} aria-current={m === mode ? "true" : undefined}>{label}</a>
@@ -51,20 +55,20 @@ const uid = Astro.props.id ?? "reply";
     <div class="fields">
       <Field id={`${uid}-to`} name="to" label="To" value={to.join(", ")} />
       <Field id={`${uid}-cc`} name="cc" label="Cc" value={cc.join(", ")} />
-      <Field id={`${uid}-bcc`} name="bcc" label="Bcc" hint="Only you see who is on Bcc." />
+      <Field id={`${uid}-bcc`} name="bcc" label="Bcc" value={bcc.join(", ")} hint="Only you see who is on Bcc." />
       <Field id={`${uid}-subject`} name="subject" label="Subject" value={subject} />
     </div>
   </details>
 
   <label class="visually-hidden" for={`${uid}-body`}>Message</label>
-  <textarea id={`${uid}-body`} name="body" rows="3" placeholder={mode === "forward" ? "Add a note…" : mode === "replyAll" ? "Reply to all…" : "Reply…"}></textarea>
+  <textarea id={`${uid}-body`} name="body" rows="3" required placeholder={mode === "forward" ? "Add a note…" : mode === "replyAll" ? "Reply to all…" : "Reply…"}></textarea>
 
   {original.length > 0 && (
     <fieldset class="orig">
       <legend>Include from the original</legend>
       {original.map((o) => (
         <label class="pick">
-          <input type="checkbox" name="include" value={o.id} checked={include.has(o.id)} />
+          <input type="checkbox" name="reattach" value={o.id} checked={include.has(o.id)} />
           <Icon name="check" size={13} class="tick" />
           <span>{o.name}</span><span class="sz">· {o.size}</span>
         </label>

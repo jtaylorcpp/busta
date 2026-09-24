@@ -26,10 +26,15 @@ interface Props {
   attachments?: number;
   starAction?: string;
   trashAction?: string;
+  /** Trash view: put back, or delete for good. */
+  restoreAction?: string;
+  purgeAction?: string;
+  /** Joined its thread via an unsigned In-Reply-To. */
+  unverified?: boolean;
 }
 const {
   href, from, subject, snippet, date, unread = false, starred = false, outbound = false,
-  tags = [], status, attachments = 0, starAction, trashAction,
+  tags = [], status, attachments = 0, starAction, trashAction, restoreAction, purgeAction, unverified = false,
 } = Astro.props;
 ---
 <li class:list={["row", { unread }]}>
@@ -46,6 +51,7 @@ const {
   <a class="body" href={href}>
     <span class="from">{outbound && <span class="out">→</span>}{outbound ? `To: ${from}` : from}</span>
     <span class="main">
+      {unverified && <Status tone="queued" label="Unverified" title="Joined this thread through an unsigned In-Reply-To header" />}
       {status && <Status tone={status.tone} label={status.label} />}
       {tags.map((t) => <Tag name={t} />)}
       <span class="subj">{subject}</span>
@@ -56,10 +62,12 @@ const {
       <time>{date}</time>
     </span>
   </a>
-  {trashAction && (
-    <form class="hover-actions" method="post" action={trashAction}>
-      <IconButton icon="trash" label="Move to Trash" tone="danger" type="submit" size={17} />
-    </form>
+  {(trashAction || restoreAction || purgeAction) && (
+    <div class="hover-actions">
+      {restoreAction && <form method="post" action={restoreAction}><IconButton icon="inbox" label="Restore to inbox" type="submit" size={17} /></form>}
+      {purgeAction && <form method="post" action={purgeAction}><IconButton icon="trash" label="Delete permanently" tone="danger" type="submit" size={17} /></form>}
+      {trashAction && <form method="post" action={trashAction}><IconButton icon="trash" label="Move to Trash" tone="danger" type="submit" size={17} /></form>}
+    </div>
   )}
   {unread && <span class="visually-hidden">Unread</span>}
 </li>
@@ -93,7 +101,8 @@ const {
   .meta { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .unread .meta time { color: var(--text); font-weight: 700; }
 
-  .hover-actions { position: absolute; right: 8px; top: 50%; translate: 0 -50%; display: none; background: inherit; padding-left: 8px; }
+  .hover-actions { position: absolute; right: 8px; top: 50%; translate: 0 -50%; display: none; gap: 2px; background: inherit; padding-left: 8px; }
+  .hover-actions form { display: contents; }
   .row:hover .hover-actions, .row:focus-within .hover-actions { display: flex; }
 
   @media (max-width: 640px) {

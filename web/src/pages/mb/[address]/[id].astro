@@ -1,0 +1,172 @@
+---
+/**
+ * GET /mb/<address>/<message-id>: the whole conversation around one
+ * message, as a chat. Other people's mail is on the left and ours on the
+ * right, with dividers wherever To/Cc/Bcc changed.
+ *
+ * Read-only apart from marking the thread read. Star, trash, unread and
+ * reply all post to the original handlers. HTML bodies come from the
+ * original /body endpoint (sanitized, strict CSP) in a sandboxed frame.
+ */
+import { env } from "cloudflare:workers";
+import AppShell from "../../../layouts/AppShell.astro";
+import {
+  Attachment, AudienceDivider, Banner, ChatComposer, ChatMessage, DayDivider, ThreadHeader, ThreadInfo,
+} from "../../../components/ui";
+import MailboxNav from "../../../components/app/MailboxNav.astro";
+import Account from "../../../components/app/Account.astro";
+import { audienceChanges } from "../../../lib/audience";
+import {
+  base, deliveryStatus, formatDay, formatSize, formatTime, loadThread, openMailbox, splitQuoted,
+} from "../../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+
+const id = Astro.params.id!;
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+
+const loaded = await loadThread(env, stub, address, id);
+if (!loaded) return new Response("Message not found", { status: 404 });
+const [stats, labels] = await Promise.all([stub.stats(), stub.labels()]);
+
+const { entries, names, focus, threadId } = loaded;
+const self = address.toLowerCase();
+const b = base(address);
+const url = Astro.url;
+const showImages = url.searchParams.get("images") === "1";
+const ok = url.searchParams.get("ok");
+const error = url.searchParams.get("error");
+const displayName = (a: string) => (a === self ? "You" : names[a] ?? a);
+
+const changes = audienceChanges(entries.map((e) => e.envelope), self);
+
+// Everyone on the thread (Bcc excluded: only the sender ever knew it).
+const everyone = new Map<string, { name: string; address: string; self?: boolean }>();
+for (const e of entries) {
+  for (const a of [e.envelope.from, ...e.envelope.to, ...(e.envelope.cc ?? [])]) {
+    if (!everyone.has(a)) everyone.set(a, { name: a === self ? "You" : names[a] ?? a, address: a, self: a === self });
+  }
+}
+const people = [...everyone.values()].sort((x, y) => Number(!!x.self) - Number(!!y.self));
+const tags = [...new Set(entries.map((e) => e.row.label).filter((l): l is string => !!l))];
+const focusEntry = entries.find((e) => e.row.id === id) ?? entries[entries.length - 1]!;
+const subject = focusEntry.message.subject || "(no subject)";
+
+// The composer answers ?re=<id>, or else the newest message.
+const target = entries.find((e) => e.row.id === url.searchParams.get("re")) ?? entries[entries.length - 1]!;
+const others = (list: string[]) => list.filter((a) => a !== self);
+const directTo = target.envelope.outbound ? others(target.envelope.to) : [target.envelope.from];
+const allTo = target.envelope.outbound ? others(target.envelope.to) : [target.envelope.from, ...others(target.envelope.to)];
+const allCc = others(target.envelope.cc ?? []).filter((a) => !allTo.includes(a));
+const multi = new Set([...allTo, ...allCc]).size > 1;
+const mode = url.searchParams.get("mode") === "reply" ? "reply" : url.searchParams.get("mode") === "replyAll" || multi ? "replyAll" : "reply";
+const replyTo = mode === "replyAll" ? [...new Set(allTo)] : directTo;
+const replyCc = mode === "replyAll" ? [...new Set(allCc)] : [];
+const replySubject = /^re:/i.test(target.message.subject) ? target.message.subject : `Re: ${target.message.subject}`;
+const quote = target.message.body_text
+  ? `On ${new Date(target.message.received_at).toUTCString()}, ${target.message.sender} wrote:\n` +
+    target.message.body_text.split("\n").map((l) => `> ${l}`).join("\n")
+  : undefined;
+const modeHref = (m: string, re = target.row.id) => `?mode=${m}&re=${re}#reply`;
+
+const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_status === "bounced" || e.row.delivery_status === "failed"));
+---
+<AppShell title={subject} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
+  <Account slot="account" />
+  <MailboxNav slot="nav" base={b} view={null} activeLabel={null} stats={stats} labels={labels} />
+
+  <ThreadHeader
+    backHref={b}
+    subject={subject}
+    tags={tags}
+    people={people}
+    starred={!!focus.starred}
+    starAction={`${b}/${id}/${focus.starred ? "unstar" : "star"}`}
+    unreadAction={`${b}/${id}/unread`}
+    trashAction={focus.deleted_at === null ? `${b}/${id}/trash` : undefined}
+  />
+  {ok && <Banner tone="success">{ok}</Banner>}
+  {error && <Banner tone="error">{error}</Banner>}
+  {bounced.map((e) => (
+    <Banner tone="error">
+      Your message to {e.message.recipient} {e.row.delivery_status === "bounced" ? "bounced" : "was not delivered"}
+      {[e.row.delivery_code, (e.row as { delivery_detail?: string | null }).delivery_detail].filter(Boolean).length > 0 &&
+        `: ${[e.row.delivery_code, (e.row as { delivery_detail?: string | null }).delivery_detail].filter(Boolean).join(" — ")}`}
+    </Banner>
+  ))}
+
+  <div class="chat-log">
+    {entries.map((e, i) => {
+      const prev = entries[i - 1];
+      const day = formatDay(e.message.received_at);
+      const newDay = !prev || formatDay(prev.message.received_at) !== day;
+      const first = !prev || prev.envelope.from !== e.envelope.from || newDay || changes[i]!.length > 0;
+      const text = e.message.body_text;
+      const split = text ? splitQuoted(text) : null;
+      const htmlOnly = !text && !!e.message.body_html;
+      const bodyUrl = `${b}/${e.row.id}/body${showImages ? "?images=1" : ""}`;
+      const more = [
+        ...(text && e.message.body_html ? [{ label: "View formatted version", href: bodyUrl }] : []),
+      ];
+      return (
+        <Fragment>
+          {newDay && <DayDivider label={day} />}
+          <AudienceDivider actor={e.envelope.outbound ? "You" : displayName(e.envelope.from)} changes={changes[i]!} names={names} unverified={e.envelope.unverified} />
+          <ChatMessage
+            from={displayName(e.envelope.from)}
+            address={e.envelope.from}
+            time={formatTime(e.message.received_at)}
+            outbound={e.envelope.outbound}
+            first={first}
+            tint={people.findIndex((p) => p.address === e.envelope.from) % 2 ? "secondary" : "primary"}
+            status={deliveryStatus(e.row)}
+            unverified={e.envelope.unverified}
+            fromArchive={e.bodySource !== "hot"}
+            htmlSrc={htmlOnly ? bodyUrl : undefined}
+            remoteImages={htmlOnly && !showImages ? "?images=1" : undefined}
+            actions={{
+              reply: modeHref("reply", e.row.id),
+              replyAll: modeHref("replyAll", e.row.id),
+              forward: `${b}/compose?forward=${e.row.id}`,
+              more: more.length ? more : undefined,
+            }}
+          >
+            {split ? split.fresh || split.quoted : htmlOnly ? "" : "(no body)"}
+            {split && split.fresh && split.quoted && <Fragment slot="quoted">{split.quoted}</Fragment>}
+            {e.attachments.length > 0 && (
+              <Fragment slot="attachments">
+                {e.attachments.map((a) => (
+                  <Attachment name={a.filename} size={formatSize(a.size)} href={`${b}/${e.row.id}/att/${encodeURIComponent(a.id)}`} />
+                ))}
+              </Fragment>
+            )}
+          </ChatMessage>
+        </Fragment>
+      );
+    })}
+  </div>
+
+  <div id="reply">
+    <ChatComposer
+      action={`${b}/${target.row.id}/reply`}
+      mode={mode}
+      modeHrefs={{ reply: modeHref("reply"), replyAll: modeHref("replyAll"), forward: `${b}/compose?forward=${target.row.id}` }}
+      to={replyTo}
+      cc={replyCc}
+      subject={replySubject}
+      names={names}
+      quote={quote}
+      original={target.attachments.map((a) => ({ id: a.id, name: a.filename, size: formatSize(a.size) }))}
+    />
+  </div>
+  <ThreadInfo mailbox={address} threadId={threadId} size={formatSize(focusEntry.message.size)} source={focusEntry.bodySource === "hot" ? "local" : "archive"} />
+</AppShell>
+
+<style>
+  .chat-log { padding-bottom: var(--space-2); }
+</style>

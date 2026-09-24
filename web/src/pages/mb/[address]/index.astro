@@ -1,0 +1,99 @@
+---
+/**
+ * GET /mb/<address> — the mailbox list. Reads the same Durable Objects as
+ * the original router; every row action posts to the original handlers,
+ * which redirect back here with ?ok= / ?error=.
+ */
+import { env } from "cloudflare:workers";
+import AppShell from "../../../layouts/AppShell.astro";
+import { Banner, ListFooter, MailList, MailRow } from "../../../components/ui";
+import MailboxNav from "../../../components/app/MailboxNav.astro";
+import Account from "../../../components/app/Account.astro";
+import { base, deliveryStatus, formatListDate, loadInbox, openMailbox, INBOX_PAGE_SIZE } from "../../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+
+const url = Astro.url;
+const data = await loadInbox(stub, url.searchParams);
+const b = base(address);
+const ok = url.searchParams.get("ok");
+const error = url.searchParams.get("error");
+
+const keep = (extra: Record<string, string>) => {
+  const q = new URLSearchParams();
+  if (data.view !== "inbox") q.set("view", data.view);
+  if (data.label) q.set("tag", data.label);
+  for (const [k, v] of Object.entries(extra)) q.set(k, v);
+  return `${b}?${q}`;
+};
+const heading = data.label ? `+${data.label}` : data.view === "trash" ? "Trash" : data.view === "starred" ? "Starred" : "Inbox";
+const [local, domain] = address.split("@");
+---
+<AppShell title={`${heading} — ${address}`} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
+  <Account slot="account" />
+  <MailboxNav slot="nav" base={b} view={data.label ? null : data.view} activeLabel={data.label} stats={data.stats} labels={data.labels} />
+
+  {ok && <Banner tone="success">{ok}</Banner>}
+  {error && <Banner tone="error">{error}</Banner>}
+  {data.agent.enabled && (
+    <Banner tone="agent"><b>Agent on</b> · acting on {data.agent.labels.length ? data.agent.labels.map((l) => `+${l}`).join(", ") : "all mail"} · {data.agent.autoSend ? "auto-send" : "drafts held for review"}</Banner>
+  )}
+
+  <header class="head">
+    <h1>{heading}</h1>
+    <span class="muted">{data.stats.unread > 0 ? `${data.stats.unread} unread · ` : ""}{data.stats.threads} threads</span>
+  </header>
+
+  <MailList empty={data.messages.length === 0}>
+    {data.messages.map((m) => {
+      const status = deliveryStatus(m);
+      const to = `${b}/${m.id}`;
+      return (
+        <MailRow
+          href={to}
+          from={m.direction === "out" ? m.recipient : m.from_name ? `${m.from_name}` : m.sender}
+          subject={m.subject || "(no subject)"}
+          snippet={m.snippet}
+          date={formatListDate(m.received_at)}
+          unread={!m.read}
+          starred={!!m.starred}
+          outbound={m.direction === "out"}
+          tags={m.label ? [m.label] : []}
+          status={status && status.label !== "Sent" ? status : undefined}
+          attachments={m.attachment_count}
+          unverified={m.grafted === 1}
+          starAction={data.view === "trash" ? undefined : `${to}/${m.starred ? "unstar" : "star"}`}
+          trashAction={data.view === "trash" ? undefined : `${to}/trash`}
+          restoreAction={data.view === "trash" ? `${to}/restore` : undefined}
+          purgeAction={data.view === "trash" ? `${to}/purge` : undefined}
+        />
+      );
+    })}
+    <Fragment slot="empty">
+      {data.view === "trash" ? "Trash is empty." : data.view === "starred" ? "Nothing starred yet." : "No messages yet."}
+    </Fragment>
+  </MailList>
+
+  <ListFooter
+    from={data.messages.length ? 1 : 0}
+    to={data.messages.length}
+    total={data.label ? data.messages.length : data.view === "trash" ? data.stats.trashed : data.view === "starred" ? data.stats.starred : data.stats.total}
+    mailbox={address}
+    nextHref={data.nextBefore !== null ? keep({ before: String(data.nextBefore) }) : undefined}
+  />
+  <p class="hint">Hand out <code>{local}+anything@{domain}</code>. Mail to it lands here in its own folder.</p>
+</AppShell>
+
+<style>
+  .head { display: flex; align-items: baseline; gap: var(--space-3); padding: 16px var(--space-4) 10px; border-bottom: 1px solid var(--border); }
+  h1 { font-size: var(--text-xl); font-weight: 600; }
+  .hint { padding: 0 var(--space-4) var(--space-4); font-size: var(--text-xs); color: var(--muted); }
+  code { font-family: var(--font-mono); }
+</style>

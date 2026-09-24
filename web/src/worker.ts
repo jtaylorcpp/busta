@@ -16,21 +16,31 @@ import legacy from "../../src/index";
 
 export { MailboxDO, MailboxProvisionWorkflow, TenantDO, ThreadDO } from "../../src/index";
 
-/** Paths Astro owns in every environment. */
+/** Paths Astro owns in every environment, for any method. */
 const ASTRO_ROUTES: RegExp[] = [/^\/sign-in\/?$/];
+
+/**
+ * Paths Astro renders for GET only. Their form posts (star, trash, reply, …)
+ * and sub-resources (/body, /att/*) stay with the original handlers.
+ */
+const ASTRO_GET_ROUTES: RegExp[] = [
+  /^\/mb\/[^/]+\/?$/, // mailbox list
+  /^\/mb\/[^/]+\/[0-9a-f-]{36}\/?$/i, // thread
+];
 
 /** Paths Astro owns only in local development: the styleguide and mocks. */
 const DEV_ONLY_ROUTES: RegExp[] = [/^\/design(\/|$)/];
 
-function astroOwns(path: string, env: Env): boolean {
+function astroOwns(method: string, path: string, env: Env): boolean {
   if (ASTRO_ROUTES.some((r) => r.test(path))) return true;
+  if ((method === "GET" || method === "HEAD") && ASTRO_GET_ROUTES.some((r) => r.test(path))) return true;
   return env.ENVIRONMENT === "development" && DEV_ONLY_ROUTES.some((r) => r.test(path));
 }
 
 export default {
   fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
-    return astroOwns(path, env) ? handle(request, env, ctx) : legacy.fetch(request, env, ctx);
+    return astroOwns(request.method, path, env) ? handle(request, env, ctx) : legacy.fetch(request, env, ctx);
   },
   email: legacy.email,
 } satisfies ExportedHandler<Env>;

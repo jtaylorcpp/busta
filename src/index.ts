@@ -78,7 +78,11 @@ function orgLabel(session: Session): string {
  * The single authorization gate: a mailbox is readable only by the org that
  * claimed it, as recorded inside the mailbox's own Durable Object.
  */
-async function authorizeMailbox(env: Env, session: Session, rawAddress: string) {
+export async function authorizeMailbox(
+  env: Env,
+  session: Pick<Session, "orgId">,
+  rawAddress: string,
+) {
   const address = parseRecipient(decodeURIComponent(rawAddress)).mailbox;
   const stub = mailboxStub(env, address);
   const owner = await stub.ownerOrgId();
@@ -952,7 +956,10 @@ async function sendFromForm(
   const cc = parseRecipientList(String(form.get("cc") ?? ""));
   const bcc = parseRecipientList(String(form.get("bcc") ?? ""));
   const subject = String(form.get("subject") ?? "").trim() || "(no subject)";
-  const body = String(form.get("body") ?? "");
+  // The chat-style composer keeps the quoted original out of the textarea and
+  // sends it separately, so what the user typed stays uncluttered.
+  const quote = String(form.get("quote") ?? "");
+  const body = String(form.get("body") ?? "") + (quote ? `\n\n${quote}` : "");
   const backTo = base(address);
 
   try {

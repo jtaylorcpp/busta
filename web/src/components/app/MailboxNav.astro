@@ -1,0 +1,28 @@
+---
+import { NavItem } from "../ui";
+import type { View } from "../../lib/mail-data";
+
+/** Sidebar for a real mailbox: views, then one folder per +label. */
+interface Props {
+  base: string;
+  view: View | null;
+  activeLabel: string | null;
+  stats: { unread: number; total: number; trashed: number; starred: number };
+  labels: { label: string; total: number; unread: number }[];
+}
+const { base, view, activeLabel, stats, labels } = Astro.props;
+const inboxActive = view === "inbox" && !activeLabel;
+---
+<NavItem href={base} icon="inbox" label="Inbox" unread={stats.unread} total={stats.total} active={inboxActive} />
+<NavItem href={`${base}?view=starred`} icon="star" label="Starred" total={stats.starred} active={view === "starred"} />
+<NavItem href={`${base}/search`} icon="search" label="Search" />
+<NavItem href={`${base}/drafts`} icon="file" label="Drafts" />
+<NavItem href={`${base}?view=trash`} icon="trash" label="Trash" total={stats.trashed} active={view === "trash"} />
+{labels.length > 0 && <span class="grp">Folders</span>}
+{labels.map((l) => (
+  <NavItem href={`${base}?tag=${encodeURIComponent(l.label)}`} tag label={`+${l.label}`} unread={l.unread} total={l.total} active={activeLabel === l.label} />
+))}
+
+<style>
+  .grp { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 16px 16px 6px; }
+</style>
