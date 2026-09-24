@@ -63,6 +63,8 @@ export interface Folder {
   created_at: number;
   updated_at: number;
   sorted_at: number | null;
+  /** The rule before its last change; null when there is nothing to undo. */
+  prev_rule: string | null;
 }
 
 export interface FolderWithCounts extends Folder {
@@ -471,6 +473,8 @@ export class MailboxDO extends DurableObject<Env> {
         sorted_at   INTEGER
       );
     `);
+    // The rule before its last change, so "Undo" can put it back.
+    this.#addColumn("folders", "prev_rule", "TEXT");
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_folder ON messages(folder_id, seq DESC);`);
     // Partial index: most mail carries no List-Id, so this stays small while
     // making "all newsletters" a cheap query.
@@ -1377,10 +1381,12 @@ export class MailboxDO extends DurableObject<Env> {
     const sql = this.ctx.storage.sql;
     const now = Date.now();
     const plus = input.plusLabel?.trim().toLowerCase() || null;
-    if (input.id && this.getFolder(input.id)) {
+    const current = input.id ? this.getFolder(input.id) : null;
+    if (input.id && current) {
+      const rule = input.rule.trim();
       sql.exec(
-        `UPDATE folders SET name = ?, rule = ?, plus_label = ?, updated_at = ? WHERE id = ?`,
-        input.name.trim(), input.rule.trim(), plus, now, input.id,
+        `UPDATE folders SET name = ?, rule = ?, plus_label = ?, updated_at = ?, prev_rule = ? WHERE id = ?`,
+        input.name.trim(), rule, plus, now, rule === current.rule ? current.prev_rule : current.rule, input.id,
       );
       this.#emit({ t: "nav" });
       return input.id;
@@ -1393,6 +1399,18 @@ export class MailboxDO extends DurableObject<Env> {
     );
     this.#emit({ t: "nav" });
     return id;
+  }
+
+  /** Put a folder's rule back to what it was before its last change. */
+  undoRule(id: string): Folder | null {
+    const f = this.getFolder(id);
+    if (!f || f.prev_rule === null) return null;
+    this.ctx.storage.sql.exec(
+      `UPDATE folders SET rule = ?, prev_rule = NULL, updated_at = ? WHERE id = ?`,
+      f.prev_rule, Date.now(), id,
+    );
+    this.#emit({ t: "nav" });
+    return this.getFolder(id);
   }
 
   /** Delete a folder. Its mail stays in Messages, unfiled. */
