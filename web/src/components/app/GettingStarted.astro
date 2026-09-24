@@ -111,7 +111,7 @@ const idea = ([name, rule]: [string, string]) => `${b}/folders/new?${new URLSear
   {g.status === "active" && now === 2 && (
     <section class="guide" aria-label="Getting started">
       <div class="win">
-        <span class:list={["mark", win.tone]}>{win.tone === "wait" ? <i class="ring" aria-hidden="true"></i> : <Icon name={win.tone === "ok" ? "check" : "spark"} size={16} />}</span>
+        <span class:list={["mark", win.tone]} data-live-pending={win.tone === "wait" ? "" : undefined}>{win.tone === "wait" ? <i class="ring" aria-hidden="true"></i> : <Icon name={win.tone === "ok" ? "check" : "spark"} size={16} />}</span>
         <div class="win-t">
           <h2>{win.title}</h2>
           <p>{win.body}{win.edit && g.folderId && <Fragment> <a href={`${b}/start`}>Edit your description</a></Fragment>}</p>

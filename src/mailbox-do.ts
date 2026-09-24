@@ -142,8 +142,14 @@ export interface GuideState {
   status: "active" | "done" | "hidden";
   folderId: string | null;
   ruleSkipped: boolean;
-  /** When step 2 began: the first mail received from then on is the test. */
+  /** When step 2 began (ms). */
   testSince: number | null;
+  /**
+   * The mailbox's arrival counter when step 2 began: the first mail received
+   * after it is the test. Arrival order, not the Date header, which is the
+   * sender's clock and can run behind.
+   */
+  testAfterSeq: number | null;
   testSkipped: boolean;
   landedId: string | null;
 }
@@ -160,6 +166,7 @@ const NEW_GUIDE: GuideState = {
   folderId: null,
   ruleSkipped: false,
   testSince: null,
+  testAfterSeq: null,
   testSkipped: false,
   landedId: null,
 };
@@ -565,13 +572,20 @@ export class MailboxDO extends DurableObject<Env> {
     const state = this.#guideState();
     const sql = this.ctx.storage.sql;
     if (state.status !== "hidden" && state.testSince !== null && !state.landedId && !state.testSkipped) {
-      const first = sql
-        .exec<{ id: string }>(
-          `SELECT id FROM messages WHERE direction = 'in' AND deleted_at IS NULL AND received_at >= ?
-            ORDER BY received_at ASC LIMIT 1`,
-          state.testSince,
-        )
-        .toArray()[0];
+      // Guides saved before testAfterSeq existed fall back to the Date header.
+      const first = (
+        state.testAfterSeq !== null
+          ? sql.exec<{ id: string }>(
+              `SELECT id FROM messages WHERE direction = 'in' AND deleted_at IS NULL AND seq > ?
+                ORDER BY seq ASC LIMIT 1`,
+              state.testAfterSeq,
+            )
+          : sql.exec<{ id: string }>(
+              `SELECT id FROM messages WHERE direction = 'in' AND deleted_at IS NULL AND received_at >= ?
+                ORDER BY received_at ASC LIMIT 1`,
+              state.testSince,
+            )
+      ).toArray()[0];
       if (first) {
         state.landedId = first.id;
         this.#setMeta("guide", JSON.stringify(state));
@@ -589,7 +603,10 @@ export class MailboxDO extends DurableObject<Env> {
 
   /** Change the guide's progress; returns the new state. Notifies open pages. */
   updateGuide(patch: Partial<GuideState>): GuideState {
-    const next = { ...this.#guideState(), ...patch };
+    const prev = this.#guideState();
+    const next = { ...prev, ...patch };
+    // Starting step 2 marks where in the arrival order the test must come after.
+    if (patch.testSince && patch.testSince !== prev.testSince) next.testAfterSeq = Number(this.#meta("seq_counter") ?? 0);
     this.#setMeta("guide", JSON.stringify(next));
     this.#emit({ t: "list" });
     return next;

@@ -58,7 +58,7 @@ const name = guide.folderName ?? "Must read";
       </div>
     </section>
     <section class="col">
-      <div class="waiting" role="status"><i class="ring" aria-hidden="true"></i>Waiting for your message… <span>Usually a few seconds.</span></div>
+      <div class="waiting" role="status" data-live-pending><i class="ring" aria-hidden="true"></i>Waiting for your message… <span>Usually a few seconds.</span></div>
       {guide.folderId ? (
         <div class="rule">
           <div class="rule-head"><b>Your {name} rule</b><span class="grow"></span><Button variant="secondary" size="sm" href={`${b}/start`}><Icon name="pen" size={12} />Edit</Button></div>

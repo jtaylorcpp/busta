@@ -14,7 +14,7 @@ interface Props { view: FolderView }
 const { view: v } = Astro.props;
 const pct = (n: number | null) => (n === null || n === undefined ? "" : `${Math.round(n * 100)}%`);
 ---
-{v.state === "pending" && <span class="fc sorting"><i class="spin" aria-hidden="true"></i>Sorting…</span>}
+{v.state === "pending" && <span class="fc sorting" data-live-pending><i class="spin" aria-hidden="true"></i>Sorting…</span>}
 {v.state === "failed" && <span class="fc muted">Couldn't sort</span>}
 {v.state === "unsure" && v.suggestName && <span class="fc muted" title="Below the confidence threshold, so it stayed in Messages">Unsure: {v.suggestName} {pct(v.confidence)}</span>}
 {v.state === "filed" && v.name && (
