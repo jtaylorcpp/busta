@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import PostalMime from "postal-mime";
+import { classifyEmail, type ClassifyResult } from "./classify";
 
 export type Direction = "in" | "out";
 
@@ -94,15 +95,6 @@ const RELIEF_BUDGET = 2_000;
  * Bodies are hot in SQLite while recent and tier out to R2 on the alarm;
  * reads hydrate them back. Attachment content is always in R2.
  */
-/** typesafe/jev's answer to our single "folder" choice question. */
-interface JevResult {
-  answers?: { folder?: { choice?: string; confidence?: number; probabilities?: Record<string, number> } };
-}
-interface JevEnvelope {
-  state?: string;
-  result?: JevResult;
-}
-
 export class ThreadDO extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -327,7 +319,7 @@ export class ThreadDO extends DurableObject<Env> {
   async classify(
     id: string,
     folders: { id: string; name: string; rule: string }[],
-  ): Promise<{ folderId: string | null; probability: number; confidence: number; probabilities: Record<string, number> }> {
+  ): Promise<ClassifyResult> {
     const view = await this.get(id);
     if (!view) throw new Error(`classify: message ${id} not found`);
     const m = view.message;
@@ -338,56 +330,17 @@ export class ThreadDO extends DurableObject<Env> {
         : [];
     const text = m.body_text ?? (m.body_html ? m.body_html.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ") : "");
 
-    // Option keys are positional so they are always valid identifiers; the
-    // model sees the folder's name and rule as the description.
-    const criteria: Record<string, string> = {};
-    folders.forEach((f, i) => {
-      criteria[`f${i}`] = f.rule ? `${f.name}: ${f.rule}` : f.name;
-    });
-    criteria.none = "Does not clearly belong in any of the other folders.";
-
-    const response = (await this.env.AI.run("typesafe/jev" as never, {
-      state: {
+    return classifyEmail(
+      this.env,
+      {
         from: m.sender,
         to: addrs(envelope.to).join(", ") || m.recipient,
         cc: addrs(envelope.cc).join(", "),
         subject: m.subject,
-        // A bounded excerpt: enough to judge, and a predictable cost per message.
-        body: text.replace(/\s+/g, " ").trim().slice(0, 4000),
+        body: text,
       },
-      questions: {
-        folder: {
-          type: "choice",
-          instructions: "Which folder does this email belong in? Pick none unless it clearly fits a folder's description.",
-          criteria,
-        },
-      },
-    } as never, {
-      // Third-party models must run through an AI Gateway (Unified Billing).
-      gateway: { id: String(this.env.AI_GATEWAY_ID ?? "default") },
-    } as never)) as JevEnvelope | JevResult;
-
-    // Through the AI binding the answer arrives wrapped as
-    // { state: "Completed", result: { answers } }; the docs show the bare
-    // { answers }. Accept both, and refuse anything that didn't complete.
-    const wrapped = response as JevEnvelope;
-    if (wrapped.state && wrapped.state !== "Completed") {
-      throw new Error(`classify: model state ${wrapped.state}`);
-    }
-    const answer = (wrapped.result ?? (response as JevResult)).answers?.folder;
-    if (!answer?.choice) {
-      throw new Error(`classify: model returned no choice: ${JSON.stringify(response).slice(0, 600)}`);
-    }
-    const keyToId = (key: string) => (key === "none" ? "none" : folders[Number(key.slice(1))]?.id ?? "none");
-    const probabilities: Record<string, number> = {};
-    for (const [key, p] of Object.entries(answer.probabilities ?? {})) probabilities[keyToId(key)] = p;
-    const chosen = keyToId(answer.choice);
-    return {
-      folderId: chosen === "none" ? null : chosen,
-      probability: answer.probabilities?.[answer.choice] ?? answer.confidence ?? 0,
-      confidence: answer.confidence ?? 0,
-      probabilities,
-    };
+      folders,
+    );
   }
 
   async get(id: string): Promise<MessageView | null> {

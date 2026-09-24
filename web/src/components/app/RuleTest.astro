@@ -1,0 +1,44 @@
+---
+/**
+ * "Test this rule" (the RuleTester island) with its styles, shared by the
+ * folder editor and the Getting started guide.
+ */
+import RuleTester from "../islands/RuleTester";
+
+interface Props { endpoint: string; nameField: string; ruleField: string }
+const { endpoint, nameField, ruleField } = Astro.props;
+---
+<div class="rule-test">
+  <RuleTester client:visible endpoint={endpoint} nameField={nameField} ruleField={ruleField} />
+</div>
+
+<style>
+
+  .rule-test :global(.tester) { display: grid; gap: var(--space-2); background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-3); }
+  .rule-test :global(.tester .bar) { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+  .rule-test :global(.tester button) {
+    font: 600 var(--text-sm) var(--font-sans); padding: 6px 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--border); background: var(--surface); color: var(--primary); cursor: pointer;
+  }
+  .rule-test :global(.tester button:disabled) { opacity: .6; cursor: progress; }
+  .rule-test :global(.tester .hint) { font-size: var(--text-xs); color: var(--muted); }
+  .rule-test :global(.tester .rows) { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .rule-test :global(.tester li) { display: flex; gap: var(--space-3); align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-sm); }
+  .rule-test :global(.tester .who) { display: grid; min-width: 0; }
+  .rule-test :global(.tester .who > *) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rule-test :global(.tester .who span) { color: var(--muted); font-size: var(--text-xs); }
+  .rule-test :global(.verdict) { font-weight: 600; font-size: var(--text-xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rule-test :global(.verdict.in) { color: var(--success); }
+  .rule-test :global(.verdict.out) { color: var(--muted); }
+  .rule-test :global(.verdict.fail) { color: var(--warn); }
+  .rule-test :global(.tester .err) { margin: 0; color: var(--error); font-size: var(--text-sm); }
+  .rule-test :global(.skeleton span) { display: block; height: 10px; border-radius: 5px; background: var(--surface-2); width: 55%; }
+  .rule-test :global(.skeleton span + span) { width: 18%; }
+  .rule-test :global(.empty) { color: var(--muted); }
+  .rule-test :global(.tester .hint b) { color: var(--text); font-weight: 600; }
+  .rule-test :global(.sample) {
+    display: inline-block; margin-left: 8px; padding: 3px 6px; border-radius: 4px; vertical-align: 1px;
+    font: 500 10px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
+    background: var(--warn-soft); color: var(--warn);
+  }
+</style>

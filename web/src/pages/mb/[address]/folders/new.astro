@@ -12,7 +12,10 @@ const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
 if (!access.ok) return new Response(access.message, { status: access.status });
 Astro.response.headers.set("cache-control", "no-store");
 const b = `/mb/${encodeURIComponent(access.address)}`;
+// ?name=&rule= pre-fill a suggestion (Getting started's "next folder ideas").
+const q = Astro.url.searchParams;
+const preset = { name: (q.get("name") ?? "").slice(0, 60), rule: (q.get("rule") ?? "").slice(0, 2000) };
 ---
 <FolderPageShell title="New folder" address={access.address} backHref={`${b}/folders`} backLabel="Folders">
-  <FolderEditor base={b} address={access.address} />
+  <FolderEditor base={b} address={access.address} preset={preset} />
 </FolderPageShell>
