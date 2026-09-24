@@ -919,6 +919,7 @@ export class MailboxDO extends DurableObject<Env> {
       /** messages = received mail, sent = our own. Ignored in Trash. */
       box?: "messages" | "sent";
       folder?: string;
+      unread?: boolean;
     },
   ): IndexedMessage[] {
     const where: string[] = [filter?.trash ? "deleted_at IS NOT NULL" : "deleted_at IS NULL"];
@@ -930,6 +931,7 @@ export class MailboxDO extends DurableObject<Env> {
       bindings.push(filter.folder);
     }
     if (filter?.unstarred) where.push("starred = 0");
+    if (filter?.unread) where.push("read = 0");
 
     if (filter?.label) {
       where.push("label = ?");

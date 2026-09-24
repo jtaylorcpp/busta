@@ -27,7 +27,7 @@ const f = page.filters;
 ---
 <AppShell title={page.q ? `“${page.q}” — Search` : "Search"} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`} query={page.q}>
   <AccountMenu slot="account" current={address} />
-  <MailboxNav slot="nav" base={b} view={"search"} activeLabel={null} stats={stats} labels={labels} />
+  <MailboxNav slot="nav" address={address} bin={null} />
 
   <form class="filters" method="get" action={`${b}/search`}>
     <div class="qrow">

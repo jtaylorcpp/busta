@@ -1,0 +1,71 @@
+---
+/** GET /mb/<address>/folders — your folders: rule, counts, +address, order. */
+import { env } from "cloudflare:workers";
+import FolderPageShell from "../../../../components/app/FolderPageShell.astro";
+import { Button, Icon } from "../../../../components/ui";
+import { formatListDate, openMailbox } from "../../../../lib/mail-data";
+import type { FolderWithCounts } from "../../../../../../src/mailbox-do";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+Astro.response.headers.set("cache-control", "no-store");
+const folders = (await stub.listFolders()) as FolderWithCounts[];
+const b = `/mb/${encodeURIComponent(address)}`;
+const [local, domain] = address.split("@");
+---
+<FolderPageShell title="Folders" address={address} backHref={b} backLabel="Messages">
+  <Button slot="actions" variant="primary" href={`${b}/folders/new`}>+ New folder</Button>
+  {folders.length === 0 ? (
+    <div class="empty">
+      <p><b>No folders yet.</b> Create one and describe in plain English what belongs in it. New mail is sorted as it arrives.</p>
+      <Button variant="primary" href={`${b}/folders/new`}>+ New folder</Button>
+    </div>
+  ) : (
+    <ol class="list">
+      {folders.map((f, i) => (
+        <li class="item">
+          <div class="order">
+            <form method="post" action={`${b}/folders/${f.id}/move?dir=up`}><button type="submit" disabled={i === 0} aria-label={`Move ${f.name} up`}>↑</button></form>
+            <form method="post" action={`${b}/folders/${f.id}/move?dir=down`}><button type="submit" disabled={i === folders.length - 1} aria-label={`Move ${f.name} down`}>↓</button></form>
+          </div>
+          <div class="body">
+            <a class="name" href={`${b}?folder=${f.id}`}>{f.name}</a>
+            {f.rule ? <p class="rule">{f.rule}</p> : <p class="rule none">No rule. Only +address mail lands here.</p>}
+            <div class="meta">
+              <span>{f.total} message{f.total === 1 ? "" : "s"}{f.unread ? ` · ${f.unread} unread` : ""}</span>
+              {f.plus_label && <code>{local}+{f.plus_label}@{domain}</code>}
+              <span>{f.sorted_at ? `Last sorted ${formatListDate(f.sorted_at)}` : "Not re-sorted yet"}</span>
+            </div>
+          </div>
+          <a class="edit" href={`${b}/folders/${f.id}`}><Icon name="pen" size={14} />Edit</a>
+        </li>
+      ))}
+    </ol>
+  )}
+  <p class="note">When mail arrives, the model picks the single best folder from your rules, or none. A +address match wins without asking it. Order only breaks ties. Low-confidence picks stay in Messages as "Unsure" for you to decide.</p>
+</FolderPageShell>
+
+<style>
+  .list { list-style: none; margin: 0; padding: 0; }
+  .item { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-4); align-items: start; padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border); }
+  .order { display: grid; gap: 2px; }
+  .order form { display: contents; }
+  .order button { width: 26px; height: 22px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--muted); cursor: pointer; font-size: 12px; }
+  .order button:disabled { opacity: .35; cursor: default; }
+  .body { display: grid; gap: 4px; min-width: 0; }
+  .name { font-weight: 600; color: var(--text); text-decoration: none; }
+  .name:hover { color: var(--primary); }
+  .rule { margin: 0; font-size: var(--text-sm); color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rule.none { font-style: italic; }
+  .meta { display: flex; gap: var(--space-3); flex-wrap: wrap; font-size: var(--text-xs); color: var(--muted); }
+  code { font-family: var(--font-mono); }
+  .edit { display: inline-flex; gap: 5px; align-items: center; font-size: var(--text-sm); color: var(--primary); text-decoration: none; padding: 5px 10px; border-radius: var(--radius-pill); }
+  .edit:hover { background: var(--surface-2); }
+  .empty { display: grid; gap: var(--space-3); justify-items: start; padding: var(--space-6) var(--space-5); }
+  .empty p { margin: 0; color: var(--muted); }
+  .note { margin: 0; padding: var(--space-4) var(--space-5); font-size: var(--text-xs); color: var(--muted); max-width: 72ch; }
+</style>

@@ -14,10 +14,11 @@ import {
   Attachment, AudienceDivider, Banner, ChatComposer, ChatMessage, DayDivider, ThreadHeader, ThreadInfo,
 } from "../../../components/ui";
 import MailboxNav from "../../../components/app/MailboxNav.astro";
+import ThreadFolder from "../../../components/app/ThreadFolder.astro";
 import AccountMenu from "../../../components/app/AccountMenu.astro";
 import { audienceChanges } from "../../../lib/audience";
 import {
-  base, deliveryStatus, formatDay, formatSize, formatTime, loadThread, openMailbox, splitQuoted,
+  base, deliveryStatus, folderView, formatDay, formatSize, formatTime, loadThread, openMailbox, splitQuoted,
 } from "../../../lib/mail-data";
 
 const { userId, orgId } = Astro.locals.auth();
@@ -32,7 +33,7 @@ Astro.response.headers.set("cache-control", "no-store");
 
 const loaded = await loadThread(env, stub, address, id);
 if (!loaded) return new Response("Message not found", { status: 404 });
-const [stats, labels] = await Promise.all([stub.stats(), stub.labels()]);
+const folders = (await stub.listFolders()) as { id: string; name: string }[];
 
 const { entries, names, focus, threadId } = loaded;
 const self = address.toLowerCase();
@@ -79,7 +80,7 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
 ---
 <AppShell title={subject} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
   <AccountMenu slot="account" current={address} />
-  <MailboxNav slot="nav" base={b} view={null} activeLabel={null} stats={stats} labels={labels} />
+  <MailboxNav slot="nav" address={address} bin="messages" folderId={focus.folder_id} />
 
   <ThreadHeader
     backHref={b}
@@ -90,7 +91,11 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
     starAction={`${b}/${id}/${focus.starred ? "unstar" : "star"}`}
     unreadAction={`${b}/${id}/unread`}
     trashAction={focus.deleted_at === null ? `${b}/${id}/trash` : undefined}
-  />
+  >
+    {focus.direction === "in" && (
+      <ThreadFolder slot="folder" view={folderView(focus, folders)} folders={folders} action={`${b}/${id}/folder?back=${encodeURIComponent(url.pathname)}`} />
+    )}
+  </ThreadHeader>
   {ok && <Banner tone="success">{ok}</Banner>}
   {error && <Banner tone="error">{error}</Banner>}
   {warn && <Banner tone="warn" icon="alert">{warn}</Banner>}

@@ -10,7 +10,7 @@ import {
   SYSTEM_LOCAL_PARTS, SYSTEM_ORG_ID, tenantStub, threadStub,
 } from "../../../src/mail";
 import type { TenantMailbox } from "../../../src/tenant-do";
-import type { AgentConfig, IndexedMessage, MailboxDO } from "../../../src/mailbox-do";
+import type { AgentConfig, FolderWithCounts, IndexedMessage, MailboxDO } from "../../../src/mailbox-do";
 import type { BodySource, ThreadAttachment, ThreadMessage } from "../../../src/thread-do";
 import type { Envelope } from "./audience";
 
@@ -35,26 +35,37 @@ export async function openMailbox(env: Env, session: Session, rawAddress: string
 export async function loadInbox(stub: MailboxStub, params: URLSearchParams) {
   if (await stub.backfillPending()) await stub.backfill();
   const label = params.get("tag");
+  const folder = params.get("folder");
   const rawView = params.get("view");
-  const view: View = rawView === "trash" ? "trash" : rawView === "starred" ? "starred" : "inbox";
+  // "starred" is kept for old links: it is now Messages sorted starred-first.
+  const view: "messages" | "sent" | "trash" = rawView === "trash" ? "trash" : rawView === "sent" ? "sent" : "messages";
+  const unread = params.get("unread") === "1";
+  const starredFirst = params.get("sort") === "starred" || rawView === "starred";
   const beforeParam = params.get("before");
   const before = beforeParam ? Number(beforeParam) : undefined;
 
-  // One extra row tells us whether another page exists without a count.
-  const [rows, stats, labels, agent] = await Promise.all([
-    stub.list(INBOX_PAGE_SIZE + 1, 0, {
-      label: label ?? undefined,
-      before,
-      trash: view === "trash",
-      starred: view === "starred",
-    }),
+  const base = {
+    label: label ?? undefined,
+    folder: folder ?? undefined,
+    trash: view === "trash",
+    box: view === "trash" ? undefined : view,
+    unread: unread || undefined,
+  } as const;
+
+  // Starred first works like pinning: the first page leads with every starred
+  // message, then the rest newest-first; later pages continue the rest.
+  const [pinned, rows, stats, folders, agent] = await Promise.all([
+    starredFirst && before === undefined ? stub.list(INBOX_PAGE_SIZE, 0, { ...base, starred: true }) : Promise.resolve([]),
+    stub.list(INBOX_PAGE_SIZE + 1, 0, { ...base, before, unstarred: starredFirst || undefined }),
     stub.stats(),
-    stub.labels(),
+    stub.listFolders() as Promise<FolderWithCounts[]>,
     stub.agentConfig(),
   ]);
-  const messages = rows.slice(0, INBOX_PAGE_SIZE) as IndexedMessage[];
-  const nextBefore = rows.length > INBOX_PAGE_SIZE ? messages[messages.length - 1]!.seq : null;
-  return { messages, stats, labels, agent: agent as AgentConfig, label, view, nextBefore };
+  const rest = rows.slice(0, INBOX_PAGE_SIZE) as IndexedMessage[];
+  const nextBefore = rows.length > INBOX_PAGE_SIZE ? rest[rest.length - 1]!.seq : null;
+  const messages = [...(pinned as IndexedMessage[]), ...rest];
+  const activeFolder = folder ? folders.find((f) => f.id === folder) ?? null : null;
+  return { messages, pinnedCount: pinned.length, stats, folders, activeFolder, agent: agent as AgentConfig, label, view, unread, starredFirst, nextBefore };
 }
 
 /** Recipient lists are stored as plain strings (sent) or postal-mime objects (received). */
@@ -348,3 +359,46 @@ export async function loadAccount(env: Env, session: { userId: string; orgId: st
   }
   return { mailboxes: withCounts, adoptable };
 }
+
+// --- bins & folders ---------------------------------------------------------
+
+/** A just-filed "pending" row older than this is shown as failed (the sort was cut off). */
+export const SORTING_STALE_MS = 2 * 60_000;
+
+export type Bin = "messages" | "sent" | "drafts" | "trash" | "folders";
+
+/** Sidebar data: bin counts and folders with their counts. */
+export async function loadNav(stub: MailboxStub) {
+  const [box, stats, folders, drafts] = await Promise.all([
+    stub.boxCounts(),
+    stub.stats(),
+    stub.listFolders() as Promise<FolderWithCounts[]>,
+    stub.listDrafts() as Promise<unknown[]>,
+  ]);
+  return {
+    messagesUnread: box.messagesUnread,
+    sent: box.sent,
+    trashed: stats.trashed,
+    drafts: drafts.length,
+    folders,
+  };
+}
+
+/** How a row's folder should look, from the index fields. */
+export function folderView(m: IndexedMessage, folders: { id: string; name: string }[]) {
+  const name = (id: string | null) => (id ? folders.find((f) => f.id === id)?.name ?? null : null);
+  const stale = m.folder_state === "pending" && Date.now() - m.received_at > SORTING_STALE_MS;
+  const state = stale ? "failed" : m.folder_state;
+  return {
+    folderId: m.folder_id,
+    name: name(m.folder_id),
+    source: m.folder_source as "rule" | "address" | "you" | null,
+    state: state as "pending" | "filed" | "unsure" | "none" | "failed" | null,
+    suggestId: m.folder_suggest,
+    suggestName: name(m.folder_suggest),
+    confidence: m.folder_confidence,
+    probs: m.folder_probs ? (JSON.parse(m.folder_probs) as Record<string, number>) : null,
+    label: m.label,
+  };
+}
+export type FolderView = ReturnType<typeof folderView>;

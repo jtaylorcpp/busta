@@ -1,0 +1,105 @@
+---
+/**
+ * Create or edit a folder: name, plain-English rule, optional +address, and
+ * whether to re-sort recent mail on save (window: days + cap, 7 / 100 by
+ * default). Posts to /folders/save; Delete posts to /folders/<id>/delete.
+ */
+import { Button, Icon } from "../ui";
+import RuleTester from "../islands/RuleTester";
+
+interface Props {
+  base: string;
+  address: string;
+  folder?: { id: string; name: string; rule: string; plus_label: string | null } | null;
+}
+const { base, address, folder } = Astro.props;
+const [local, domain] = address.split("@");
+const slug = (folder?.plus_label ?? folder?.name ?? "").toLowerCase().replace(/[^a-z0-9._-]+/g, "").slice(0, 30);
+---
+<form class="editor" method="post" action={`${base}/folders/save`}>
+  {folder && <input type="hidden" name="id" value={folder.id} />}
+
+  <div class="field">
+    <label for="fname">Name</label>
+    <input id="fname" name="name" type="text" value={folder?.name ?? ""} placeholder="Bank" maxlength="60" required autofocus={!folder} />
+  </div>
+
+  <div class="field">
+    <label for="frule">Rule</label>
+    <textarea id="frule" name="rule" rows="6" maxlength="2000" placeholder="Any email to me from my bank Golden1 about transfers, balances, statements, etc. All emails from my bank around new credit products and marketing do not go in this folder.">{folder?.rule ?? ""}</textarea>
+    <p class="hint">Write it the way you'd explain it to a person. Say what belongs <b>and</b> what doesn't: that's what keeps marketing out of your Bank folder.</p>
+  </div>
+
+  <RuleTester client:visible endpoint={`${base}/folders/test`} nameField="fname" ruleField="frule" />
+
+  <fieldset class="plus">
+    <label class="switch">
+      <input type="checkbox" name="use_plus" value="1" checked={!!folder?.plus_label} />
+      <span>Also file mail sent to <code>{local}+<input name="plus" type="text" value={slug} placeholder="bank" aria-label="Plus address" size="10" />@{domain}</code></span>
+    </label>
+    <p class="hint">Mail to that address is filed here instantly, without asking the model.</p>
+  </fieldset>
+
+  <fieldset class="apply">
+    <label class="switch">
+      <input type="checkbox" name="apply" value="1" checked />
+      <span>Sort recent mail when I save: the last <input name="days" type="number" min="1" max="365" value="7" aria-label="Days" /> days, up to <input name="limit" type="number" min="1" max="500" value="100" aria-label="Messages" /> messages</span>
+    </label>
+    <p class="hint">Mail you filed by hand is never moved.</p>
+  </fieldset>
+
+  <div class="actions">
+    {folder && (
+      <Button variant="danger" type="submit" formaction={`${base}/folders/${folder.id}/delete`} formnovalidate>Delete folder</Button>
+    )}
+    <span class="grow"></span>
+    <Button variant="ghost" href={folder ? `${base}?folder=${folder.id}` : `${base}/folders`}>Cancel</Button>
+    <Button variant="primary" type="submit"><Icon name="check" size={15} />{folder ? "Save" : "Create folder"}</Button>
+  </div>
+</form>
+
+<style>
+  .editor { display: grid; gap: var(--space-5); padding: var(--space-5); max-width: 760px; }
+  .field { display: grid; gap: 6px; }
+  label, legend { font-size: var(--text-sm); font-weight: 600; color: var(--text); }
+  input[type="text"], textarea {
+    width: 100%; padding: 9px 12px; border-radius: var(--radius-md); border: 1.5px solid var(--border);
+    background: var(--bg); color: var(--text); font: var(--text-md)/1.5 var(--font-sans);
+  }
+  textarea { resize: vertical; min-height: 130px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); background: var(--surface); }
+  .hint { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .switch { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; cursor: pointer; }
+  .switch > input { margin-top: 3px; accent-color: var(--primary); }
+  .switch input[type="number"], .switch code input {
+    width: 64px; padding: 2px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font: inherit;
+  }
+  .switch code input { width: auto; font-family: var(--font-mono); }
+  code { font-family: var(--font-mono); font-size: .95em; }
+  .actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: var(--space-4); }
+  .grow { flex: 1; }
+
+  .editor :global(.tester) { display: grid; gap: var(--space-2); background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-3); }
+  .editor :global(.tester .bar) { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+  .editor :global(.tester button) {
+    font: 600 var(--text-sm) var(--font-sans); padding: 6px 14px; border-radius: var(--radius-pill);
+    border: 1px solid var(--border); background: var(--surface); color: var(--primary); cursor: pointer;
+  }
+  .editor :global(.tester button:disabled) { opacity: .6; cursor: progress; }
+  .editor :global(.tester .hint) { font-size: var(--text-xs); color: var(--muted); }
+  .editor :global(.tester .rows) { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .editor :global(.tester li) { display: flex; gap: var(--space-3); align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-sm); }
+  .editor :global(.tester .who) { display: grid; min-width: 0; }
+  .editor :global(.tester .who > *) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .editor :global(.tester .who span) { color: var(--muted); font-size: var(--text-xs); }
+  .editor :global(.verdict) { font-weight: 600; font-size: var(--text-xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .editor :global(.verdict.in) { color: var(--success); }
+  .editor :global(.verdict.out) { color: var(--muted); }
+  .editor :global(.verdict.fail) { color: var(--warn); }
+  .editor :global(.tester .err) { margin: 0; color: var(--error); font-size: var(--text-sm); }
+  .editor :global(.skeleton span) { display: block; height: 10px; border-radius: 5px; background: var(--surface-2); width: 55%; }
+  .editor :global(.skeleton span + span) { width: 18%; }
+  .editor :global(.empty) { color: var(--muted); }
+</style>

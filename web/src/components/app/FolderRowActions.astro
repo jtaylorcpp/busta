@@ -1,0 +1,30 @@
+---
+/**
+ * One-click decisions next to a row, outside its link: file an unsure
+ * message where the model leaned (or refuse), or retry a failed sort.
+ * Filing by hand locks the choice; rules never change it afterwards.
+ */
+import type { FolderView } from "../../lib/mail-data";
+
+interface Props { view: FolderView; action: string; retry: string }
+const { view: v, action, retry } = Astro.props;
+---
+{v.state === "unsure" && v.suggestId && v.suggestName && (
+  <Fragment>
+    <form method="post" action={action}><input type="hidden" name="folder" value={v.suggestId} /><button type="submit" class="yes">File in {v.suggestName}</button></form>
+    <form method="post" action={action}><input type="hidden" name="folder" value="" /><button type="submit">Not {v.suggestName}</button></form>
+  </Fragment>
+)}
+{v.state === "failed" && (
+  <form method="post" action={retry}><button type="submit">Retry</button></form>
+)}
+
+<style>
+  form { display: contents; }
+  button {
+    font: 600 var(--text-xs) var(--font-sans); padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap;
+    border: 1px solid var(--border); background: var(--surface); color: var(--secondary); cursor: pointer;
+  }
+  button:hover { color: var(--text); background: var(--surface-2); }
+  .yes { color: var(--primary); border-color: var(--primary); }
+</style>

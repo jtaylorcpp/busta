@@ -1,15 +1,18 @@
 ---
 /**
- * GET /mb/<address> — the mailbox list. Reads the same Durable Objects as
- * the original router; every row action posts to the original handlers,
- * which redirect back here with ?ok= / ?error=.
+ * GET /mb/<address> — a bin (Messages, Sent, Trash) or a folder
+ * (?folder=<id>), with All/Unread and a "Starred first" sort. Row actions
+ * post to the original handlers; folder decisions post to
+ * /mb/<address>/<id>/folder.
  */
 import { env } from "cloudflare:workers";
 import AppShell from "../../../layouts/AppShell.astro";
-import { Banner, ListFooter, MailList, MailRow } from "../../../components/ui";
+import { Banner, Icon, ListFooter, MailList, MailRow } from "../../../components/ui";
 import MailboxNav from "../../../components/app/MailboxNav.astro";
 import AccountMenu from "../../../components/app/AccountMenu.astro";
-import { base, deliveryStatus, formatListDate, loadInbox, openMailbox, INBOX_PAGE_SIZE } from "../../../lib/mail-data";
+import FolderChip from "../../../components/app/FolderChip.astro";
+import FolderRowActions from "../../../components/app/FolderRowActions.astro";
+import { base, deliveryStatus, folderView, formatListDate, loadInbox, openMailbox } from "../../../lib/mail-data";
 
 const { userId, orgId } = Astro.locals.auth();
 if (!userId) return Astro.redirect("/sign-in");
@@ -27,19 +30,23 @@ const ok = url.searchParams.get("ok");
 const error = url.searchParams.get("error");
 const warn = url.searchParams.get("warn");
 
-const keep = (extra: Record<string, string>) => {
-  const q = new URLSearchParams();
-  if (data.view !== "inbox") q.set("view", data.view);
-  if (data.label) q.set("tag", data.label);
-  for (const [k, v] of Object.entries(extra)) q.set(k, v);
-  return `${b}?${q}`;
+/** Link to this same view with some params changed (null removes one). */
+const withParams = (changes: Record<string, string | null>) => {
+  const q = new URLSearchParams(url.searchParams);
+  for (const k of ["ok", "error", "warn", "before"]) q.delete(k);
+  for (const [k, v] of Object.entries(changes)) (v === null ? q.delete(k) : q.set(k, v));
+  const s = q.toString();
+  return `${b}${s ? `?${s}` : ""}`;
 };
-const heading = data.label ? `+${data.label}` : data.view === "trash" ? "Trash" : data.view === "starred" ? "Starred" : "Inbox";
+const heading = data.activeFolder?.name ?? (data.label ? `+${data.label}` : data.view === "trash" ? "Trash" : data.view === "sent" ? "Sent" : "Messages");
+const bin = data.view === "messages" ? "messages" : data.view;
+const unreadCount = data.activeFolder ? data.activeFolder.unread : data.view === "messages" ? data.messages.filter((m) => !m.read).length : 0;
 const [local, domain] = address.split("@");
+const back = url.pathname + url.search;
 ---
 <AppShell title={`${heading} — ${address}`} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
   <AccountMenu slot="account" current={address} />
-  <MailboxNav slot="nav" base={b} view={data.label ? null : data.view} activeLabel={data.label} stats={data.stats} labels={data.labels} />
+  <MailboxNav slot="nav" address={address} bin={bin} folderId={data.activeFolder?.id ?? null} />
 
   {ok && <Banner tone="success">{ok}</Banner>}
   {error && <Banner tone="error">{error}</Banner>}
@@ -49,53 +56,95 @@ const [local, domain] = address.split("@");
   )}
 
   <header class="head">
-    <h1>{heading}</h1>
-    <span class="muted">{data.stats.unread > 0 ? `${data.stats.unread} unread · ` : ""}{data.stats.threads} threads</span>
+    <div class="title">
+      <h1>{heading}</h1>
+      {data.activeFolder && (
+        <a class="edit" href={`${b}/folders/${data.activeFolder.id}`}><Icon name="pen" size={13} />Edit rule</a>
+      )}
+    </div>
+    {data.view !== "trash" && (
+      <nav class="filters" aria-label="Filter and sort">
+        <a class:list={["chip", { on: !data.unread }]} href={withParams({ unread: null })} aria-current={!data.unread ? "true" : undefined}>All</a>
+        <a class:list={["chip", { on: data.unread }]} href={withParams({ unread: "1" })} aria-current={data.unread ? "true" : undefined}>Unread{unreadCount > 0 && !data.unread ? ` · ${unreadCount}` : ""}</a>
+        <span class="sep" aria-hidden="true"></span>
+        <a class:list={["chip", "sort", { on: data.starredFirst }]} href={withParams({ sort: data.starredFirst ? null : "starred", view: data.view === "messages" ? null : data.view })} aria-pressed={data.starredFirst ? "true" : "false"} title="Pin starred mail to the top">
+          <Icon name="star" size={13} filled={data.starredFirst} />Starred first
+        </a>
+      </nav>
+    )}
   </header>
 
   <MailList empty={data.messages.length === 0}>
-    {data.messages.map((m) => {
+    {data.messages.map((m, i) => {
       const status = deliveryStatus(m);
       const to = `${b}/${m.id}`;
+      const fv = folderView(m, data.folders);
+      const showChip = m.direction === "in" && !(data.activeFolder && fv.folderId === data.activeFolder.id && fv.source === "rule");
       return (
-        <MailRow
-          href={to}
-          from={m.direction === "out" ? m.recipient : m.from_name ? `${m.from_name}` : m.sender}
-          subject={m.subject || "(no subject)"}
-          snippet={m.snippet}
-          date={formatListDate(m.received_at)}
-          unread={!m.read}
-          starred={!!m.starred}
-          outbound={m.direction === "out"}
-          tags={m.label ? [m.label] : []}
-          status={status && status.label !== "Sent" ? status : undefined}
-          attachments={m.attachment_count}
-          unverified={m.grafted === 1}
-          starAction={data.view === "trash" ? undefined : `${to}/${m.starred ? "unstar" : "star"}`}
-          trashAction={data.view === "trash" ? undefined : `${to}/trash`}
-          restoreAction={data.view === "trash" ? `${to}/restore` : undefined}
-          purgeAction={data.view === "trash" ? `${to}/purge` : undefined}
-        />
+        <Fragment>
+          {data.starredFirst && i === data.pinnedCount && data.pinnedCount > 0 && <li class="divider" aria-hidden="true"></li>}
+          <MailRow
+            href={to}
+            from={m.direction === "out" ? m.recipient : m.from_name ? `${m.from_name}` : m.sender}
+            subject={m.subject || "(no subject)"}
+            snippet={m.snippet}
+            date={formatListDate(m.received_at)}
+            unread={!m.read}
+            starred={!!m.starred}
+            outbound={m.direction === "out"}
+            status={status && status.label !== "Sent" ? status : undefined}
+            attachments={m.attachment_count}
+            unverified={m.grafted === 1}
+            starAction={data.view === "trash" ? undefined : `${to}/${m.starred ? "unstar" : "star"}`}
+            trashAction={data.view === "trash" ? undefined : `${to}/trash`}
+            restoreAction={data.view === "trash" ? `${to}/restore` : undefined}
+            purgeAction={data.view === "trash" ? `${to}/purge` : undefined}
+          >
+            {showChip && <FolderChip slot="chip" view={fv} />}
+            {m.direction === "in" && (fv.state === "unsure" || fv.state === "failed") && (
+              <FolderRowActions slot="actions" view={fv} action={`${to}/folder?back=${encodeURIComponent(back)}`} retry={`${to}/folder/retry?back=${encodeURIComponent(back)}`} />
+            )}
+          </MailRow>
+        </Fragment>
       );
     })}
     <Fragment slot="empty">
-      {data.view === "trash" ? "Trash is empty." : data.view === "starred" ? "Nothing starred yet." : "No messages yet."}
+      {data.activeFolder
+        ? `Nothing in ${data.activeFolder.name} yet.`
+        : data.unread
+          ? "No unread messages."
+          : data.view === "trash" ? "Trash is empty." : data.view === "sent" ? "Nothing sent yet." : "No messages yet."}
     </Fragment>
   </MailList>
 
   <ListFooter
     from={data.messages.length ? 1 : 0}
     to={data.messages.length}
-    total={data.label ? data.messages.length : data.view === "trash" ? data.stats.trashed : data.view === "starred" ? data.stats.starred : data.stats.total}
+    total={data.messages.length}
     mailbox={address}
-    nextHref={data.nextBefore !== null ? keep({ before: String(data.nextBefore) }) : undefined}
+    nextHref={data.nextBefore !== null ? withParams({ before: String(data.nextBefore) }) : undefined}
   />
-  <p class="hint">Hand out <code>{local}+anything@{domain}</code>. Mail to it lands here in its own folder.</p>
+  {!data.activeFolder && data.view === "messages" && (
+    <p class="hint">Hand out <code>{local}+anything@{domain}</code>. A folder can catch mail sent to its own +address.</p>
+  )}
 </AppShell>
 
 <style>
-  .head { display: flex; align-items: baseline; gap: var(--space-3); padding: 16px var(--space-4) 10px; border-bottom: 1px solid var(--border); }
+  .head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); padding: 14px var(--space-4) 10px; border-bottom: 1px solid var(--border); }
+  .title { display: flex; align-items: baseline; gap: var(--space-3); }
   h1 { font-size: var(--text-xl); font-weight: 600; }
+  .edit { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--muted); text-decoration: none; }
+  .edit:hover { color: var(--primary); }
+  .filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: var(--radius-pill);
+    font-size: var(--text-sm); font-weight: 500; color: var(--muted); text-decoration: none; border: 1px solid var(--border);
+  }
+  .chip:hover { color: var(--text); background: var(--surface-2); }
+  .chip.on { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
+  .sort.on { --icon-fill: var(--star); }
+  .sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+  .divider { list-style: none; height: 0; border-top: 2px solid var(--border); }
   .hint { padding: 0 var(--space-4) var(--space-4); font-size: var(--text-xs); color: var(--muted); }
   code { font-family: var(--font-mono); }
 </style>

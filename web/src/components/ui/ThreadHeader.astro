@@ -25,7 +25,7 @@ const { backHref, subject, tags = [], people, starred = false, starAction, unrea
   <a class="back" href={backHref} aria-label="Back to inbox" title="Back to inbox"><Icon name="back" size={18} /></a>
   <div class="title">
     <h1>{subject}</h1>
-    <div class="sub">{tags.map((t) => <Tag name={t} />)}<AvatarStack people={people} /></div>
+    <div class="sub"><slot name="folder" />{tags.map((t) => <Tag name={t} />)}<AvatarStack people={people} /></div>
   </div>
   <div class="acts">
     {starAction && <form method="post" action={starAction}><IconButton icon="star" tone="star" label={starred ? "Unstar" : "Star"} pressed={starred} type="submit" /></form>}

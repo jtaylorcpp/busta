@@ -1,0 +1,18 @@
+---
+/** GET /mb/<address>/folders/new */
+import { env } from "cloudflare:workers";
+import FolderPageShell from "../../../../components/app/FolderPageShell.astro";
+import FolderEditor from "../../../../components/app/FolderEditor.astro";
+import { openMailbox } from "../../../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+Astro.response.headers.set("cache-control", "no-store");
+const b = `/mb/${encodeURIComponent(access.address)}`;
+---
+<FolderPageShell title="New folder" address={access.address} backHref={`${b}/folders`} backLabel="Folders">
+  <FolderEditor base={b} address={access.address} />
+</FolderPageShell>

@@ -17,7 +17,11 @@ import legacy from "../../src/index";
 export { MailboxDO, MailboxProvisionWorkflow, TenantDO, ThreadDO } from "../../src/index";
 
 /** Paths Astro owns in every environment, for any method. */
-const ASTRO_ROUTES: RegExp[] = [/^\/sign-in\/?$/];
+const ASTRO_ROUTES: RegExp[] = [
+  /^\/sign-in\/?$/,
+  /^\/mb\/[^/]+\/folders(\/.*)?$/, // folders: list, editor, save/delete/move/test
+  /^\/mb\/[^/]+\/[0-9a-f-]{36}\/folder(\/retry)?\/?$/i, // file a message by hand / retry sorting
+];
 
 /**
  * Paths Astro renders for GET only. Their form posts (star, trash, reply, …)

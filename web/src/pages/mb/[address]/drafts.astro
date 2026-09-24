@@ -25,7 +25,7 @@ const error = url.searchParams.get("error");
 ---
 <AppShell title={`Drafts — ${address}`} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
   <AccountMenu slot="account" current={address} />
-  <MailboxNav slot="nav" base={b} view={"drafts"} activeLabel={null} stats={stats} labels={labels} />
+  <MailboxNav slot="nav" address={address} bin="drafts" />
   {ok && <Banner tone="success">{ok}</Banner>}
   {error && <Banner tone="error">{error}</Banner>}
   <header class="head">

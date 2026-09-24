@@ -17,7 +17,7 @@ const { title, address, base, stats, labels, flash } = Astro.props;
 ---
 <AppShell title={title} mailbox={address} composeHref={`${base}/compose`} searchAction={`${base}/search`}>
   <AccountMenu slot="account" current={address} />
-  <MailboxNav slot="nav" base={base} view={null} activeLabel={null} stats={stats} labels={labels} />
+  <MailboxNav slot="nav" address={address} bin={null} />
   <header class="head">
     <a class="back" href={base} aria-label="Back to inbox">←</a>
     <h1>{title}</h1>

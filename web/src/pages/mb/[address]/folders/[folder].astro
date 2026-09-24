@@ -1,0 +1,21 @@
+---
+/** GET /mb/<address>/folders/<id> — edit a folder. */
+import { env } from "cloudflare:workers";
+import FolderPageShell from "../../../../components/app/FolderPageShell.astro";
+import FolderEditor from "../../../../components/app/FolderEditor.astro";
+import { openMailbox } from "../../../../lib/mail-data";
+import type { Folder } from "../../../../../../src/mailbox-do";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+const access = await openMailbox(env, { userId, orgId }, Astro.params.address!);
+if (!access.ok) return new Response(access.message, { status: access.status });
+Astro.response.headers.set("cache-control", "no-store");
+const folder = (await access.stub.getFolder(Astro.params.folder!)) as Folder | null;
+if (!folder) return new Response("Folder not found", { status: 404 });
+const b = `/mb/${encodeURIComponent(access.address)}`;
+---
+<FolderPageShell title={`Edit ${folder.name}`} address={access.address} backHref={`${b}/folders`} backLabel="Folders">
+  <FolderEditor base={b} address={access.address} folder={folder} />
+</FolderPageShell>

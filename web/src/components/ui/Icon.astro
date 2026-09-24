@@ -7,7 +7,7 @@
 export type IconName =
   | "inbox" | "star" | "file" | "send" | "trash" | "pen" | "spark" | "alert"
   | "search" | "mail" | "clip" | "archive" | "reply" | "check" | "clock" | "tag"
-  | "users" | "back" | "more" | "shield" | "forward" | "replyAll";
+  | "users" | "back" | "more" | "shield" | "forward" | "replyAll" | "gear" | "lock" | "sort";
 
 interface Props {
   name: IconName;
@@ -40,6 +40,9 @@ const paths: Record<IconName, string> = {
   back: "M15 5l-7 7 7 7",
   more: "M6 12h.01 M12 12h.01 M18 12h.01",
   shield: "M12 3.5l7 2.5v5.5c0 4.3-3 7.8-7 9-4-1.2-7-4.7-7-9V6z",
+  gear: "M12 9a3 3 0 110 6 3 3 0 010-6z M12 3v2.2 M12 18.8V21 M4.2 7.5l1.9 1.1 M17.9 15.4l1.9 1.1 M4.2 16.5l1.9-1.1 M17.9 8.6l1.9-1.1",
+  lock: "M6.5 11h11v8.5h-11z M9 11V8a3 3 0 016 0v3",
+  sort: "M7 5v14 M4 16l3 3 3-3 M17 19V5 M14 8l3-3 3 3",
   forward: "M14 6l6 6-6 6 M20 12H10a6 6 0 00-6 6",
   replyAll: "M11 6l-6 6 6 6 M7 6l-6 6 6 6 M5 12h9a6 6 0 016 6",
 };

@@ -1,28 +1,94 @@
 ---
-import { NavItem } from "../ui";
-import type { View } from "../../lib/mail-data";
+/**
+ * Sidebar: the four bins — Messages (with your folders nested under it),
+ * Sent, Drafts, Trash. There is no Inbox: everything received is Messages,
+ * and a folder is a filter over it. Loads its own counts; the page has
+ * already authorized the mailbox.
+ */
+import { env } from "cloudflare:workers";
+import { mailboxStub } from "../../../../src/mail";
+import { Count, Icon } from "../ui";
+import { loadNav, type Bin } from "../../lib/mail-data";
 
-/** Sidebar for a real mailbox: views, then one folder per +label. */
 interface Props {
-  base: string;
-  view: View | "search" | "drafts" | null;
-  activeLabel: string | null;
-  stats: { unread: number; total: number; trashed: number; starred: number };
-  labels: { label: string; total: number; unread: number }[];
+  address: string;
+  bin: Bin | null;
+  folderId?: string | null;
 }
-const { base, view, activeLabel, stats, labels } = Astro.props;
-const inboxActive = view === "inbox" && !activeLabel;
+const { address, bin, folderId = null } = Astro.props;
+const b = `/mb/${encodeURIComponent(address)}`;
+const nav = await loadNav(mailboxStub(env, address));
+const messagesActive = bin === "messages" && !folderId;
 ---
-<NavItem href={base} icon="inbox" label="Inbox" unread={stats.unread} total={stats.total} active={inboxActive} />
-<NavItem href={`${base}?view=starred`} icon="star" label="Starred" total={stats.starred} active={view === "starred"} />
-<NavItem href={`${base}/search`} icon="search" label="Search" active={view === "search"} />
-<NavItem href={`${base}/drafts`} icon="file" label="Drafts" active={view === "drafts"} />
-<NavItem href={`${base}?view=trash`} icon="trash" label="Trash" total={stats.trashed} active={view === "trash"} />
-{labels.length > 0 && <span class="grp">Folders</span>}
-{labels.map((l) => (
-  <NavItem href={`${base}?tag=${encodeURIComponent(l.label)}`} tag label={`+${l.label}`} unread={l.unread} total={l.total} active={activeLabel === l.label} />
-))}
+<div class="nav">
+  <div class:list={["bin-row", { active: messagesActive }]}>
+    <a class="bin" href={b} aria-current={messagesActive ? "page" : undefined}>
+      <Icon name="inbox" size={18} />
+      <span class="lbl">Messages</span>
+      <Count value={nav.messagesUnread} />
+    </a>
+    <a class="gear" href={`${b}/folders`} aria-label="Manage folders" title="Manage folders"><Icon name="gear" size={15} /></a>
+  </div>
+
+  {nav.folders.length > 0 && (
+    <ul class="folders" aria-label="Folders">
+      {nav.folders.map((f) => {
+        const active = folderId === f.id;
+        return (
+          <li class:list={["folder-row", { active }]}>
+            <a class="folder" href={`${b}?folder=${f.id}`} aria-current={active ? "page" : undefined}>
+              <span class="sq" aria-hidden="true"></span>
+              <span class="lbl">{f.name}</span>
+              {f.unread > 0 ? <Count value={f.unread} /> : <span class="muted-n">{f.total || ""}</span>}
+            </a>
+            <a class="edit" href={`${b}/folders/${f.id}`} aria-label={`Edit ${f.name}`} title={`Edit ${f.name}`}><Icon name="pen" size={13} /></a>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+  <div class="folder-links">
+    <a href={`${b}/folders/new`}>+ New folder</a>
+    <span aria-hidden="true">·</span>
+    <a href={`${b}/folders`} aria-current={bin === "folders" ? "page" : undefined}>Manage folders</a>
+  </div>
+
+  <a class:list={["bin", { active: bin === "sent" }]} href={`${b}?view=sent`} aria-current={bin === "sent" ? "page" : undefined}>
+    <Icon name="send" size={18} /><span class="lbl">Sent</span><span class="muted-n">{nav.sent || ""}</span>
+  </a>
+  <a class:list={["bin", { active: bin === "drafts" }]} href={`${b}/drafts`} aria-current={bin === "drafts" ? "page" : undefined}>
+    <Icon name="file" size={18} /><span class="lbl">Drafts</span><span class="muted-n">{nav.drafts || ""}</span>
+  </a>
+  <a class:list={["bin", { active: bin === "trash" }]} href={`${b}?view=trash`} aria-current={bin === "trash" ? "page" : undefined}>
+    <Icon name="trash" size={18} /><span class="lbl">Trash</span><span class="muted-n">{nav.trashed || ""}</span>
+  </a>
+</div>
 
 <style>
-  .grp { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 16px 16px 6px; }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .bin, .folder {
+    display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
+    padding: 7px 14px 7px 16px; border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+    color: var(--text); text-decoration: none; font-size: var(--text-md);
+  }
+  .bin:hover, .folder:hover { background: var(--surface-2); }
+  .bin.active, .bin-row.active .bin, .folder-row.active .folder { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+  .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .muted-n { font-size: var(--text-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .bin-row, .folder-row { position: relative; display: flex; align-items: center; }
+  .gear, .edit {
+    position: absolute; right: 8px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%;
+    color: var(--muted); background: var(--surface-2); opacity: 0; transition: opacity .12s;
+  }
+  .bin-row:hover .gear, .gear:focus-visible, .folder-row:hover .edit, .edit:focus-visible { opacity: 1; }
+  .bin-row:hover :global(.count), .folder-row:hover :global(.count), .folder-row:hover .muted-n { visibility: hidden; }
+  @media (hover: none) { .gear, .edit { display: none; } }
+
+  .folders { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+  .folder { padding-left: 42px; font-size: var(--text-sm); gap: 10px; }
+  .sq { width: 8px; height: 8px; border-radius: 2px; background: var(--secondary); opacity: .7; flex-shrink: 0; }
+  .folder-links { display: flex; gap: 6px; align-items: center; padding: 4px 14px 8px 42px; font-size: var(--text-xs); color: var(--muted); white-space: nowrap; }
+  .folder-links a { color: var(--muted); text-decoration: none; }
+  .folder-links a:hover, .folder-links a[aria-current] { color: var(--primary); text-decoration: underline; }
 </style>
