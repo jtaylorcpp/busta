@@ -12,7 +12,7 @@ import type { EmailForClassify } from "./classify";
 /** Text model with a JSON mode. One place to change it. */
 export const TEXT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 /** Bump when the prompts change, so cached explanations are asked again. */
-export const PROMPT_VERSION = "2";
+export const PROMPT_VERSION = "3";
 
 /** Words that usually start a new condition, used when a period is missing. */
 const OPENERS = "Anything|Any|All|Messages|Mail|Emails?|Bills|Nothing|Not|Never|Only|Also";
@@ -222,15 +222,30 @@ export async function tidyRule(env: Env, folder: { name: string; rule: string })
     "Every qualifier must survive: names, \"including ...\", \"not a company\", \"or needs a reply\", \"from my bank\". Dropping one changes what gets filed. If a sentence has two conditions, keep both, as two items if that reads better.",
     "An exclusion that belongs to one condition (like \"from my bank, not its marketing\") stays inside that item; only rule-wide exclusions go in leavesOut, and leavesOut is often empty.",
     "Fix spelling and grammar, merge exact repeats, keep names and specific words, and keep the owner's voice (\"my\", \"I\").",
-    "Each item is a short phrase starting with a capital letter, without a trailing period. At most 10 items per list.",
+    "Each item is a short phrase in sentence case (capitalize only the first word and names), without a trailing period.",
+    "Drop filler openers like \"Anything from\" or \"Messages about\" when the list heading already says it: \"From Liz, Tim or Cathy Taylor\", \"My doctor or pharmacy\". Group names and repeats. At most 14 items per list.",
   ].join("\n");
   const raw = (await askJson(env, system, `Folder: ${folder.name}\nRule:\n${folder.rule}`, TIDY_SCHEMA, 700)) as Record<string, unknown>;
+  // Sentence case, keeping capitals only where the owner used them mid-sentence (names, "I").
+  const proper = new Set(["I"]);
+  for (const sentence of ruleSentences(folder.rule)) {
+    for (const w of sentence.split(/\s+/).slice(1)) {
+      const t = w.replace(/[^A-Za-z'-]/g, "");
+      if (/^[A-Z]/.test(t)) proper.add(t);
+    }
+  }
+  const sentenceCase = (x: string) =>
+    x.split(" ").map((w, i) => {
+      const t = w.replace(/[^A-Za-z'-]/g, "");
+      if (i === 0) return w.charAt(0).toUpperCase() + w.slice(1);
+      return proper.has(t) ? w : w.toLowerCase();
+    }).join(" ");
   const clean = (v: unknown) =>
     (Array.isArray(v) ? v : [])
       .map((x) => str(x, 200).replace(/[.;]+$/, ""))
       .filter(Boolean)
-      .map((x) => x.charAt(0).toUpperCase() + x.slice(1))
-      .slice(0, 10);
+      .map(sentenceCase)
+      .slice(0, 14);
   const goesIn = clean(raw.goesIn);
   const leavesOut = clean(raw.leavesOut);
   if (goesIn.length === 0) throw new Error("The rewrite came back empty. Try again.");
