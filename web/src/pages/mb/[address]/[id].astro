@@ -106,13 +106,12 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
       const day = formatDay(e.message.received_at);
       const newDay = !prev || formatDay(prev.message.received_at) !== day;
       const first = !prev || prev.envelope.from !== e.envelope.from || newDay || changes[i]!.length > 0;
-      const text = e.message.body_text;
+      // HTML wins whenever there is any, as on the old page: most senders
+      // (Gmail included) attach a plain-text copy that loses the formatting.
+      const hasHtml = !!e.message.body_html;
+      const text = hasHtml ? null : e.message.body_text;
       const split = text ? splitQuoted(text) : null;
-      const htmlOnly = !text && !!e.message.body_html;
       const bodyUrl = `${b}/${e.row.id}/body${showImages ? "?images=1" : ""}`;
-      const more = [
-        ...(text && e.message.body_html ? [{ label: "View formatted version", href: bodyUrl }] : []),
-      ];
       return (
         <Fragment>
           {newDay && <DayDivider label={day} />}
@@ -127,16 +126,15 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
             status={deliveryStatus(e.row)}
             unverified={e.envelope.unverified}
             fromArchive={e.bodySource !== "hot"}
-            htmlSrc={htmlOnly ? bodyUrl : undefined}
-            remoteImages={htmlOnly && !showImages ? "?images=1" : undefined}
+            htmlSrc={hasHtml ? bodyUrl : undefined}
+            remoteImages={hasHtml && !showImages ? "?images=1" : undefined}
             actions={{
               reply: modeHref("reply", e.row.id),
               replyAll: modeHref("replyAll", e.row.id),
               forward: `${b}/compose?forward=${e.row.id}`,
-              more: more.length ? more : undefined,
             }}
           >
-            {split ? split.fresh || split.quoted : htmlOnly ? "" : "(no body)"}
+            {split ? split.fresh || split.quoted : hasHtml ? "" : "(no body)"}
             {split && split.fresh && split.quoted && <Fragment slot="quoted">{split.quoted}</Fragment>}
             {e.attachments.length > 0 && (
               <Fragment slot="attachments">
