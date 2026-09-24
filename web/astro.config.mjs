@@ -20,6 +20,10 @@ export default defineConfig({
     persistState: { path: '../.wrangler/state' },
     // No Cloudflare Images binding: images are served as-is.
     imageService: 'passthrough',
+    // Local dev never opens a remote session. Workers AI (the AI binding) can
+    // only run remotely, so locally a classify call fails and the message is
+    // recorded as "Couldn't sort"; everything else runs fully local.
+    remoteBindings: false,
   }),
   integrations: [
     // Clerk's components and middleware. Reads PUBLIC_CLERK_PUBLISHABLE_KEY

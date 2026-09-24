@@ -105,6 +105,10 @@
     "ADMIN_USER_IDS": "user_3JkKu2PUY014lpSGMtUASlecP6X"
   },
 
+  // Workers AI. Files incoming mail into the user's folders by their
+  // plain-English rules (model typesafe/jev; see src/folders.ts).
+  "ai": { "binding": "AI" },
+
   // Outbound. No restriction attributes => may send to any recipient
   // once MAIL_DOMAIN is onboarded to Email Sending.
   "send_email": [{ "name": "EMAIL" }],

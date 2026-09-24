@@ -23,6 +23,7 @@ import {
   threadStub,
 } from "./mail";
 import { errorPage } from "./ui/pages";
+import { fileMessage as fileIncoming } from "./folders";
 import { CLERK_BOOTSTRAP, clerkScripts, MULTI_MAILBOX } from "./ui/layout";
 
 export { MailboxProvisionWorkflow } from "./provision";
@@ -144,7 +145,7 @@ export default {
   },
 
   /** Inbound mail from Email Routing. */
-  async email(message, env, _ctx): Promise<void> {
+  async email(message, env, ctx): Promise<void> {
     // Reject oversize mail at the envelope, before buffering it. A 25 MiB
     // message read into memory to then be refused is wasted work.
     const maxInbound = Number(env.MAX_INBOUND_BYTES ?? 26_214_400);
@@ -174,6 +175,15 @@ export default {
 
     if (result.status === "rejected") {
       message.setReject(result.reason ?? "Mailbox unavailable");
+      return;
+    }
+
+    // File it into a folder after the fact. The message is already stored
+    // and accepted; sorting can fail or be slow without affecting delivery.
+    if (result.status === "stored" && result.messageId && result.threadId) {
+      const address = parseRecipient(message.to).mailbox;
+      const label = result.tag?.kind === "label" ? result.tag.value : null;
+      ctx.waitUntil(fileIncoming(env, address, { id: result.messageId, threadId: result.threadId, label }));
     }
   },
 } satisfies ExportedHandler<Env>;
@@ -862,6 +872,17 @@ async function handleDev(request: Request, env: Env, path: string): Promise<Resp
 
   if (path === "/__dev/inbound") return handleDevInbound(request, env);
 
+  // Create a folder (name + plain-English rule, optional +label), or list them.
+  if (path === "/__dev/folders") {
+    const { address, name, rule, plusLabel } = (await request.json()) as {
+      address?: string; name?: string; rule?: string; plusLabel?: string;
+    };
+    if (!address) return Response.json({ error: "address required" }, { status: 400 });
+    const stub = mailboxStub(env, address);
+    const id = name ? await stub.saveFolder({ name, rule: rule ?? "", plusLabel: plusLabel ?? null }) : null;
+    return Response.json({ id, folders: await stub.listFolders() });
+  }
+
   if (path === "/__dev/get") {
     const { address, id } = (await request.json()) as { address?: string; id?: string };
     if (!address || !id) return Response.json({ error: "address and id required" }, { status: 400 });
@@ -1454,5 +1475,14 @@ async function handleDevInbound(request: Request, env: Env): Promise<Response> {
   const buffer = new TextEncoder().encode(raw).buffer as ArrayBuffer;
   const result = await ingest(env, { from, to, rawSize: buffer.byteLength }, buffer);
 
-  return Response.json(result, { status: result.status === "stored" ? 201 : 422 });
+  // Same folder filing as real mail, awaited so tests can read the outcome.
+  const folder =
+    result.status === "stored" && result.messageId && result.threadId
+      ? await fileIncoming(env, parseRecipient(to).mailbox, {
+          id: result.messageId,
+          threadId: result.threadId,
+          label: result.tag?.kind === "label" ? result.tag.value : null,
+        })
+      : null;
+  return Response.json({ ...result, folder }, { status: result.status === "stored" ? 201 : 422 });
 }

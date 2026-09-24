@@ -44,6 +44,40 @@ export interface IndexedMessage {
   delivery_status: string | null;
   delivery_code: string | null;
   delivery_detail: string | null;
+  folder_id: string | null;
+  /** rule | address | you */
+  folder_source: string | null;
+  /** pending | filed | unsure | none | failed */
+  folder_state: string | null;
+  folder_suggest: string | null;
+  folder_confidence: number | null;
+  folder_probs: string | null;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  rule: string;
+  plus_label: string | null;
+  position: number;
+  created_at: number;
+  updated_at: number;
+  sorted_at: number | null;
+}
+
+export interface FolderWithCounts extends Folder {
+  total: number;
+  unread: number;
+}
+
+/** What a classifier (or a person) decided for one message. */
+export interface FolderDecision {
+  folderId: string | null;
+  source: "rule" | "address" | "you";
+  state: "filed" | "unsure" | "none" | "failed";
+  suggest?: string | null;
+  confidence?: number | null;
+  probs?: Record<string, number> | null;
 }
 
 export interface IndexInput {
@@ -301,6 +335,17 @@ export class MailboxDO extends DurableObject<Env> {
       ["delivery_status", "TEXT"],
       ["delivery_code", "TEXT"],
       ["delivery_detail", "TEXT"],
+      // Folder filing. folder_state: pending (being sorted) | filed | unsure
+      // (best guess below the threshold, kept in folder_suggest) | none (no
+      // folder fits) | failed (the model call errored). folder_source says who
+      // filed it: rule | address | you. "you" is never overwritten by a rule.
+      ["folder_id", "TEXT"],
+      ["folder_source", "TEXT"],
+      ["folder_state", "TEXT"],
+      ["folder_suggest", "TEXT"],
+      ["folder_confidence", "REAL"],
+      /** JSON {folderId|"none": probability} for the top few options. */
+      ["folder_probs", "TEXT"],
     ] as const) {
       this.#addColumn("messages", column, type);
     }
@@ -322,6 +367,24 @@ export class MailboxDO extends DurableObject<Env> {
     `);
 
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_label ON messages(label, received_at DESC);`);
+
+    // User folders under Messages. A folder is a filter over the index, not a
+    // location: a message has at most one folder_id and never leaves Messages.
+    // `rule` is plain English for the classifier; `plus_label` optionally
+    // catches mail sent to local+plus_label@ without asking the model.
+    sql.exec(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id          TEXT PRIMARY KEY,
+        name        TEXT NOT NULL,
+        rule        TEXT NOT NULL DEFAULT '',
+        plus_label  TEXT,
+        position    INTEGER NOT NULL DEFAULT 0,
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL,
+        sorted_at   INTEGER
+      );
+    `);
+    sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_folder ON messages(folder_id, seq DESC);`);
     // Partial index: most mail carries no List-Id, so this stays small while
     // making "all newsletters" a cheap query.
     sql.exec(
@@ -846,10 +909,27 @@ export class MailboxDO extends DurableObject<Env> {
   list(
     limit = 50,
     offset = 0,
-    filter?: { label?: string; before?: number; trash?: boolean; starred?: boolean },
+    filter?: {
+      label?: string;
+      before?: number;
+      trash?: boolean;
+      starred?: boolean;
+      /** Exclude starred rows (the second half of a "starred first" listing). */
+      unstarred?: boolean;
+      /** messages = received mail, sent = our own. Ignored in Trash. */
+      box?: "messages" | "sent";
+      folder?: string;
+    },
   ): IndexedMessage[] {
     const where: string[] = [filter?.trash ? "deleted_at IS NOT NULL" : "deleted_at IS NULL"];
     const bindings: SqlStorageValue[] = [];
+
+    if (!filter?.trash && filter?.box) where.push(filter.box === "sent" ? "direction = 'out'" : "direction = 'in'");
+    if (filter?.folder) {
+      where.push("folder_id = ?");
+      bindings.push(filter.folder);
+    }
+    if (filter?.unstarred) where.push("starred = 0");
 
     if (filter?.label) {
       where.push("label = ?");
@@ -1104,6 +1184,145 @@ export class MailboxDO extends DurableObject<Env> {
    * Labels actually seen on delivered mail, with counts. Nothing is
    * pre-registered — a label exists because someone mailed it.
    */
+  // ---- folders ----------------------------------------------------------
+
+  listFolders(): FolderWithCounts[] {
+    return this.ctx.storage.sql
+      .exec<Row<FolderWithCounts>>(
+        `SELECT f.*,
+                COALESCE(SUM(CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END), 0) AS total,
+                COALESCE(SUM(CASE WHEN m.read = 0 THEN 1 ELSE 0 END), 0) AS unread
+           FROM folders f
+           LEFT JOIN messages m ON m.folder_id = f.id AND m.deleted_at IS NULL
+          GROUP BY f.id
+          ORDER BY f.position ASC, f.created_at ASC`,
+      )
+      .toArray() as FolderWithCounts[];
+  }
+
+  getFolder(id: string): Folder | null {
+    const rows = this.ctx.storage.sql.exec<Row<Folder>>(`SELECT * FROM folders WHERE id = ?`, id).toArray();
+    return (rows[0] as Folder | undefined) ?? null;
+  }
+
+  /** Create (no id) or update a folder. Returns its id. */
+  saveFolder(input: { id?: string; name: string; rule: string; plusLabel?: string | null }): string {
+    const sql = this.ctx.storage.sql;
+    const now = Date.now();
+    const plus = input.plusLabel?.trim().toLowerCase() || null;
+    if (input.id && this.getFolder(input.id)) {
+      sql.exec(
+        `UPDATE folders SET name = ?, rule = ?, plus_label = ?, updated_at = ? WHERE id = ?`,
+        input.name.trim(), input.rule.trim(), plus, now, input.id,
+      );
+      return input.id;
+    }
+    const id = crypto.randomUUID();
+    const next = sql.exec<{ p: number }>(`SELECT COALESCE(MAX(position), -1) + 1 AS p FROM folders`).toArray()[0]?.p ?? 0;
+    sql.exec(
+      `INSERT INTO folders (id, name, rule, plus_label, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      id, input.name.trim(), input.rule.trim(), plus, next, now, now,
+    );
+    return id;
+  }
+
+  /** Delete a folder. Its mail stays in Messages, unfiled. */
+  deleteFolder(id: string): void {
+    const sql = this.ctx.storage.sql;
+    sql.exec(
+      `UPDATE messages SET folder_id = NULL, folder_source = NULL, folder_state = NULL,
+              folder_suggest = NULL, folder_confidence = NULL, folder_probs = NULL
+        WHERE folder_id = ? OR folder_suggest = ?`,
+      id, id,
+    );
+    sql.exec(`DELETE FROM folders WHERE id = ?`, id);
+  }
+
+  /** Move a folder one place up or down. Order only breaks ties between rules. */
+  moveFolder(id: string, direction: "up" | "down"): void {
+    const list = this.listFolders();
+    const i = list.findIndex((f) => f.id === id);
+    const j = direction === "up" ? i - 1 : i + 1;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j]!, list[i]!];
+    list.forEach((f, pos) => this.ctx.storage.sql.exec(`UPDATE folders SET position = ? WHERE id = ?`, pos, f.id));
+  }
+
+  markFoldersSorted(ids: string[]): void {
+    const now = Date.now();
+    for (const id of ids) this.ctx.storage.sql.exec(`UPDATE folders SET sorted_at = ? WHERE id = ?`, now, id);
+  }
+
+  /** Mark a message as being sorted, unless a person already filed it. */
+  markSorting(id: string): boolean {
+    const cur = this.lookup(id);
+    if (!cur || cur.folder_source === "you") return false;
+    this.ctx.storage.sql.exec(`UPDATE messages SET folder_state = 'pending' WHERE id = ?`, id);
+    return true;
+  }
+
+  /**
+   * Record a filing decision. A rule or +address never overrides a folder a
+   * person chose; a person's choice always wins.
+   */
+  fileMessage(id: string, d: FolderDecision): boolean {
+    const cur = this.lookup(id);
+    if (!cur) return false;
+    if (d.source !== "you" && cur.folder_source === "you") return false;
+    this.ctx.storage.sql.exec(
+      `UPDATE messages SET folder_id = ?, folder_source = ?, folder_state = ?, folder_suggest = ?,
+              folder_confidence = ?, folder_probs = ? WHERE id = ?`,
+      d.folderId,
+      d.source,
+      d.state,
+      d.suggest ?? null,
+      d.confidence ?? null,
+      d.probs ? JSON.stringify(d.probs) : null,
+      id,
+    );
+    return true;
+  }
+
+  /**
+   * Received mail to re-sort: within the window, newest first, never trashed
+   * or already filed by hand. Ids only; the caller classifies each.
+   */
+  recentForSorting(input: { days: number; limit: number }): { id: string; thread_id: string; label: string | null }[] {
+    const since = Date.now() - Math.max(0, input.days) * 86_400_000;
+    return this.ctx.storage.sql
+      .exec<{ id: string; thread_id: string; label: string | null }>(
+        `SELECT id, thread_id, label FROM messages
+          WHERE direction = 'in' AND deleted_at IS NULL AND received_at >= ?
+            AND (folder_source IS NULL OR folder_source != 'you')
+          ORDER BY seq DESC LIMIT ?`,
+        since,
+        Math.max(1, Math.min(input.limit, 1000)),
+      )
+      .toArray();
+  }
+
+  /** Received mail for a rule preview: the newest few, filed or not. */
+  recentReceived(limit: number): IndexedMessage[] {
+    return this.ctx.storage.sql
+      .exec<Row<IndexedMessage>>(
+        `SELECT * FROM messages WHERE direction = 'in' AND deleted_at IS NULL ORDER BY seq DESC LIMIT ?`,
+        Math.max(1, Math.min(limit, 50)),
+      )
+      .toArray() as IndexedMessage[];
+  }
+
+  boxCounts(): { messages: number; messagesUnread: number; sent: number } {
+    const row = this.ctx.storage.sql
+      .exec<{ messages: number; messagesUnread: number; sent: number }>(
+        `SELECT COALESCE(SUM(CASE WHEN direction = 'in' THEN 1 ELSE 0 END), 0) AS messages,
+                COALESCE(SUM(CASE WHEN direction = 'in' AND read = 0 THEN 1 ELSE 0 END), 0) AS messagesUnread,
+                COALESCE(SUM(CASE WHEN direction = 'out' THEN 1 ELSE 0 END), 0) AS sent
+           FROM messages WHERE deleted_at IS NULL`,
+      )
+      .toArray()[0];
+    return { messages: row?.messages ?? 0, messagesUnread: row?.messagesUnread ?? 0, sent: row?.sent ?? 0 };
+  }
+
   labels(): { label: string; total: number; unread: number }[] {
     return this.ctx.storage.sql
       .exec<{ label: string; total: number; unread: number }>(

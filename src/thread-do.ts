@@ -306,6 +306,71 @@ export class ThreadDO extends DurableObject<Env> {
       .toArray();
   }
 
+  /**
+   * Ask Workers AI which of the given folders a message belongs in.
+   *
+   * Runs here, beside the message, so the body never has to be shipped to the
+   * caller. Uses typesafe/jev's `choice` question: each folder's plain-English
+   * rule is the description of its option, plus a "none" option. Returns the
+   * chosen folder id (null for none), its probability, and the probability of
+   * every option so the UI can show a match percentage.
+   */
+  async classify(
+    id: string,
+    folders: { id: string; name: string; rule: string }[],
+  ): Promise<{ folderId: string | null; probability: number; confidence: number; probabilities: Record<string, number> }> {
+    const view = await this.get(id);
+    if (!view) throw new Error(`classify: message ${id} not found`);
+    const m = view.message;
+    const envelope = m.envelope_json ? (JSON.parse(m.envelope_json) as Record<string, unknown>) : {};
+    const addrs = (list: unknown) =>
+      Array.isArray(list)
+        ? list.map((a) => (typeof a === "string" ? a : (a as { address?: string })?.address ?? "")).filter(Boolean)
+        : [];
+    const text = m.body_text ?? (m.body_html ? m.body_html.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ") : "");
+
+    // Option keys are positional so they are always valid identifiers; the
+    // model sees the folder's name and rule as the description.
+    const criteria: Record<string, string> = {};
+    folders.forEach((f, i) => {
+      criteria[`f${i}`] = f.rule ? `${f.name}: ${f.rule}` : f.name;
+    });
+    criteria.none = "Does not clearly belong in any of the other folders.";
+
+    const response = (await this.env.AI.run("typesafe/jev" as never, {
+      state: {
+        from: m.sender,
+        to: addrs(envelope.to).join(", ") || m.recipient,
+        cc: addrs(envelope.cc).join(", "),
+        subject: m.subject,
+        // A bounded excerpt: enough to judge, and a predictable cost per message.
+        body: text.replace(/\s+/g, " ").trim().slice(0, 4000),
+      },
+      questions: {
+        folder: {
+          type: "choice",
+          instructions: "Which folder does this email belong in? Pick none unless it clearly fits a folder's description.",
+          criteria,
+        },
+      },
+    } as never)) as {
+      answers?: { folder?: { choice?: string; confidence?: number; probabilities?: Record<string, number> } };
+    };
+
+    const answer = response.answers?.folder;
+    if (!answer?.choice) throw new Error("classify: model returned no choice");
+    const keyToId = (key: string) => (key === "none" ? "none" : folders[Number(key.slice(1))]?.id ?? "none");
+    const probabilities: Record<string, number> = {};
+    for (const [key, p] of Object.entries(answer.probabilities ?? {})) probabilities[keyToId(key)] = p;
+    const chosen = keyToId(answer.choice);
+    return {
+      folderId: chosen === "none" ? null : chosen,
+      probability: answer.probabilities?.[answer.choice] ?? answer.confidence ?? 0,
+      confidence: answer.confidence ?? 0,
+      probabilities,
+    };
+  }
+
   async get(id: string): Promise<MessageView | null> {
     const rows = this.ctx.storage.sql
       .exec<Row<ThreadMessage>>(`SELECT * FROM messages WHERE id = ?`, id)
