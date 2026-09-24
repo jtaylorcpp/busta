@@ -94,6 +94,15 @@ const RELIEF_BUDGET = 2_000;
  * Bodies are hot in SQLite while recent and tier out to R2 on the alarm;
  * reads hydrate them back. Attachment content is always in R2.
  */
+/** typesafe/jev's answer to our single "folder" choice question. */
+interface JevResult {
+  answers?: { folder?: { choice?: string; confidence?: number; probabilities?: Record<string, number> } };
+}
+interface JevEnvelope {
+  state?: string;
+  result?: JevResult;
+}
+
 export class ThreadDO extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -356,12 +365,19 @@ export class ThreadDO extends DurableObject<Env> {
     } as never, {
       // Third-party models must run through an AI Gateway (Unified Billing).
       gateway: { id: String(this.env.AI_GATEWAY_ID ?? "default") },
-    } as never)) as {
-      answers?: { folder?: { choice?: string; confidence?: number; probabilities?: Record<string, number> } };
-    };
+    } as never)) as JevEnvelope | JevResult;
 
-    const answer = response.answers?.folder;
-    if (!answer?.choice) throw new Error("classify: model returned no choice");
+    // Through the AI binding the answer arrives wrapped as
+    // { state: "Completed", result: { answers } }; the docs show the bare
+    // { answers }. Accept both, and refuse anything that didn't complete.
+    const wrapped = response as JevEnvelope;
+    if (wrapped.state && wrapped.state !== "Completed") {
+      throw new Error(`classify: model state ${wrapped.state}`);
+    }
+    const answer = (wrapped.result ?? (response as JevResult)).answers?.folder;
+    if (!answer?.choice) {
+      throw new Error(`classify: model returned no choice: ${JSON.stringify(response).slice(0, 600)}`);
+    }
     const keyToId = (key: string) => (key === "none" ? "none" : folders[Number(key.slice(1))]?.id ?? "none");
     const probabilities: Record<string, number> = {};
     for (const [key, p] of Object.entries(answer.probabilities ?? {})) probabilities[keyToId(key)] = p;
