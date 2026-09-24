@@ -1,0 +1,118 @@
+/*
+ * "Why not this folder?" and "Tidy up" (islands/WhyNot, RuleTidy, TidyPanel).
+ * Global because islands can't carry Astro-scoped styles; every rule is
+ * under .why-panel, .tidy-panel or .nudge.
+ */
+.why-panel, .tidy-panel { display: grid; font-size: var(--text-md); }
+.why-panel { margin: var(--space-3) var(--space-4) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-1); overflow: hidden; }
+.why-panel .pad { padding: 14px 16px; }
+.why-panel .why-head, .tidy-panel .tp-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 14px 16px 12px; border-bottom: 1px solid var(--border); }
+.why-panel .why-head h3, .tidy-panel .tp-head h3 { flex: 1; min-width: 16ch; font-size: var(--text-lg); font-weight: 600; margin: 0; }
+.why-panel .why-head h3 span { color: var(--muted); font-weight: 500; }
+.why-panel .summary { padding: 10px 16px 0; color: var(--text); max-width: 80ch; }
+.why-panel .h4, .tidy-panel .h4 { margin: 0; font: 500 10.5px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.why-panel .fine, .tidy-panel .fine, .nudge { font-size: var(--text-xs); color: var(--muted); }
+.why-panel .fine b, .tidy-panel .fine b { color: var(--text); font-weight: 600; }
+.why-panel .err, .tidy-panel .err { color: var(--error); font-size: var(--text-sm); }
+.why-panel .grow, .tidy-panel .grow { flex: 1; }
+
+.why-panel .linkish, .tidy-panel .linkish { font: 600 var(--text-sm) var(--font-sans); color: var(--primary); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; }
+.why-panel .small, .tidy-panel .small, .nudge .small {
+  font: 600 var(--text-xs) var(--font-sans); padding: 4px 11px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: var(--surface); color: var(--primary); cursor: pointer;
+}
+.why-panel .btn-p, .why-panel .btn-s, .why-panel .btn-g, .tidy-panel .btn-p, .tidy-panel .btn-g {
+  display: inline-flex; align-items: center; gap: 6px; font: 600 var(--text-sm) var(--font-sans);
+  padding: 7px 14px; border-radius: var(--radius-pill); border: 1px solid transparent; cursor: pointer;
+}
+.why-panel .btn-p, .tidy-panel .btn-p { background: var(--primary); color: var(--on-primary); }
+.why-panel .btn-s { background: transparent; color: var(--secondary); border-color: var(--border); }
+.why-panel .btn-g, .tidy-panel .btn-g { background: transparent; color: var(--muted); }
+.why-panel button:disabled, .tidy-panel button:disabled { opacity: .55; cursor: default; }
+.why-panel form { display: contents; }
+
+.why-panel .meter { display: grid; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.why-panel .meter .line { position: relative; height: 10px; border-radius: 6px; background: var(--surface-2); }
+.why-panel .meter .fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--secondary); opacity: .75; }
+.why-panel .meter .fill.after { background: var(--secondary); opacity: .35; }
+.why-panel .meter .fill.after.ok { background: var(--success); opacity: 1; }
+.why-panel .meter .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; }
+.why-panel .meter .labels { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.why-panel .meter .labels b { color: var(--text); font-weight: 600; }
+
+.why-panel .why-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.why-panel .why-body > section { padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+.why-panel .why-body > section + section { border-left: 1px solid var(--border); }
+@media (max-width: 1100px) {
+  .why-panel .why-body { grid-template-columns: 1fr; }
+  .why-panel .why-body > section + section { border-left: 0; border-top: 1px solid var(--border); }
+}
+.why-panel .reasons { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.why-panel .reason { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+.why-panel .reason .v { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; margin-top: 1px; }
+.why-panel .reason .v.near { background: var(--warn-soft); color: var(--warn); }
+.why-panel .reason .v.no { background: var(--secondary-soft); color: var(--muted); }
+.why-panel .reason .v.match { background: var(--success-soft); color: var(--success); }
+.why-panel .reason q { display: block; quotes: none; font-weight: 600; }
+.why-panel .reason p { color: var(--muted); font-size: var(--text-sm); }
+.why-panel .mail { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.why-panel .mail .hdr { display: grid; gap: 2px; padding: 8px 12px; background: var(--surface-2); font-size: var(--text-sm); color: var(--muted); overflow-wrap: anywhere; }
+.why-panel .mail .hdr b { color: var(--text); font-weight: 600; }
+.why-panel .mail .txt { padding: 10px 12px; line-height: 1.6; overflow-wrap: anywhere; max-height: 220px; overflow: auto; }
+.why-panel mark.kw { background: var(--primary-soft); color: var(--primary); border-radius: 4px; padding: 0 3px; font-weight: 600; }
+.why-panel mark.me { background: var(--warn-soft); color: var(--warn); border-radius: 4px; padding: 0 3px; font-weight: 600; }
+.why-panel .rule-full, .why-panel .rule-preview { font-size: var(--text-sm); color: var(--muted); line-height: 1.7; white-space: pre-line; overflow-wrap: anywhere; }
+.why-panel .rule-full .s.near { color: var(--text); text-decoration: underline 2px dashed var(--warn-fill); text-underline-offset: 3px; }
+.why-panel .rule-preview ins { text-decoration: none; background: var(--success-soft); color: var(--success); border-radius: 3px; padding: 0 2px; font-weight: 600; }
+.why-panel .rule-tidied, .tidy-panel pre { margin: 0; font: var(--text-sm)/1.6 var(--font-sans); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.why-panel .kws { display: flex; flex-wrap: wrap; gap: 6px; }
+.why-panel .kwc { display: inline-flex; align-items: center; gap: 5px; font: 600 12px var(--font-sans); padding: 5px 11px; border-radius: var(--radius-pill); border: 1px dashed var(--border); background: transparent; color: var(--secondary); cursor: pointer; }
+.why-panel .kwc.on { border-style: solid; border-color: transparent; background: var(--primary-soft); color: var(--primary); }
+.why-panel .kwc:disabled { opacity: 1; cursor: default; }
+.why-panel .kwc .src { font: 500 9.5px/1 var(--font-mono); letter-spacing: .05em; text-transform: uppercase; opacity: .7; }
+.why-panel .addition, .tidy-panel textarea {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius-md); border: 1.5px solid var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft); background: var(--surface); color: var(--text); font: var(--text-md)/1.55 var(--font-sans); resize: vertical;
+}
+
+.why-panel .cb-head, .tidy-panel .cb-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border-radius: var(--radius-md); background: var(--surface-2); }
+.why-panel .cb-head b, .tidy-panel .cb-head b { font-weight: 600; }
+.why-panel .ck-list, .tidy-panel .ck-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.why-panel .ck-list li, .tidy-panel .ck-list li { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--border); font-size: var(--text-sm); }
+.why-panel .ck-list li:first-child, .tidy-panel .ck-list li:first-child { border-top: 0; }
+.why-panel .ck-list li.this { background: var(--primary-soft); }
+.why-panel .ck-list .m, .tidy-panel .ck-list .m { display: grid; min-width: 0; }
+.why-panel .ck-list .m b, .tidy-panel .ck-list .m b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.why-panel .ck-list .m span, .tidy-panel .ck-list .m span { font-size: var(--text-xs); color: var(--muted); }
+.why-panel .move, .tidy-panel .move { font-size: var(--text-xs); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.why-panel .move s { color: var(--muted); font-weight: 500; margin-right: 4px; }
+.why-panel .move.in, .tidy-panel .move.in { color: var(--success); }
+.why-panel .move.out, .tidy-panel .move.out { color: var(--muted); }
+.why-panel .same, .tidy-panel .same { padding: 8px 12px; border-radius: var(--radius-md); background: var(--success-soft); color: var(--success); font-size: var(--text-sm); }
+.tidy-panel .same.warn, .why-panel .warnline { background: var(--warn-soft); color: var(--warn); }
+.why-panel .warnline { padding: 8px 10px; border-radius: var(--radius-md); font-size: var(--text-sm); }
+.why-panel .loading, .tidy-panel .loading { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--text-sm); }
+.why-panel .spin, .tidy-panel .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--primary); animation: why-spin .8s linear infinite; }
+@keyframes why-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .why-panel .spin, .tidy-panel .spin { animation: none; } }
+.why-panel .skeleton { display: grid; gap: 10px; }
+.why-panel .skeleton span { height: 12px; border-radius: 6px; background: var(--surface-2); width: 70%; }
+.why-panel .skeleton span:nth-child(2) { width: 90%; }
+.why-panel .skeleton span:nth-child(3) { width: 45%; }
+.why-panel .why-foot, .tidy-panel .tp-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--border); }
+.nudge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; }
+
+/* Tidy up */
+.tidy-panel { gap: 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
+.tidy-panel > .fine, .tidy-panel > .err, .tidy-panel > .tidy, .tidy-panel > .checkbox { margin: 0 16px; }
+.tidy-panel .tidy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 900px) { .tidy-panel .tidy { grid-template-columns: 1fr; } }
+.tidy-panel .ver { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: grid; align-content: start; }
+.tidy-panel .ver .vh { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface-2); font-size: var(--text-sm); }
+.tidy-panel .ver .vh b { font-weight: 600; }
+.tidy-panel .ver .vb { padding: 10px 12px; font-size: var(--text-sm); line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; }
+.tidy-panel .ver.mine .vb { color: var(--muted); }
+.tidy-panel .ver.new { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.tidy-panel .wc { font: 500 11px/1 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.tidy-panel .checkbox { display: grid; gap: 8px; }

@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import PostalMime from "postal-mime";
-import { classifyEmail, type ClassifyResult } from "./classify";
+import { classifyEmail, type ClassifyResult, type EmailForClassify } from "./classify";
+import { explainFolder, ruleHash, type Explanation } from "./explain";
 
 export type Direction = "in" | "out";
 
@@ -104,6 +105,17 @@ export class ThreadDO extends DurableObject<Env> {
   #migrate(): void {
     const sql = this.ctx.storage.sql;
     sql.exec(`CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);`);
+    // "Why not this folder?" answers, kept until the folder's rule changes.
+    sql.exec(`
+      CREATE TABLE IF NOT EXISTS explanations (
+        message_id TEXT NOT NULL,
+        folder_id  TEXT NOT NULL,
+        rule_hash  TEXT NOT NULL,
+        json       TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (message_id, folder_id)
+      );
+    `);
 
     // Additive and idempotent, so it runs every construction rather than only
     // on a version change — see the note on MailboxDO#migrate.
@@ -307,6 +319,26 @@ export class ThreadDO extends DurableObject<Env> {
       .toArray();
   }
 
+  /** A stored message as the folder models read it: headers and plain text. */
+  async #emailFor(id: string): Promise<EmailForClassify> {
+    const view = await this.get(id);
+    if (!view) throw new Error(`message ${id} not found`);
+    const m = view.message;
+    const envelope = m.envelope_json ? (JSON.parse(m.envelope_json) as Record<string, unknown>) : {};
+    const addrs = (list: unknown) =>
+      Array.isArray(list)
+        ? list.map((a) => (typeof a === "string" ? a : (a as { address?: string })?.address ?? "")).filter(Boolean)
+        : [];
+    const text = m.body_text ?? (m.body_html ? m.body_html.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ") : "");
+    return {
+      from: m.sender,
+      to: addrs(envelope.to).join(", ") || m.recipient,
+      cc: addrs(envelope.cc).join(", "),
+      subject: m.subject,
+      body: text,
+    };
+  }
+
   /**
    * Ask Workers AI which of the given folders a message belongs in.
    *
@@ -316,31 +348,39 @@ export class ThreadDO extends DurableObject<Env> {
    * chosen folder id (null for none), its probability, and the probability of
    * every option so the UI can show a match percentage.
    */
-  async classify(
-    id: string,
-    folders: { id: string; name: string; rule: string }[],
-  ): Promise<ClassifyResult> {
-    const view = await this.get(id);
-    if (!view) throw new Error(`classify: message ${id} not found`);
-    const m = view.message;
-    const envelope = m.envelope_json ? (JSON.parse(m.envelope_json) as Record<string, unknown>) : {};
-    const addrs = (list: unknown) =>
-      Array.isArray(list)
-        ? list.map((a) => (typeof a === "string" ? a : (a as { address?: string })?.address ?? "")).filter(Boolean)
-        : [];
-    const text = m.body_text ?? (m.body_html ? m.body_html.replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ") : "");
+  async classify(id: string, folders: { id: string; name: string; rule: string }[]): Promise<ClassifyResult> {
+    return classifyEmail(this.env, await this.#emailFor(id), folders);
+  }
 
-    return classifyEmail(
-      this.env,
-      {
-        from: m.sender,
-        to: addrs(envelope.to).join(", ") || m.recipient,
-        cc: addrs(envelope.cc).join(", "),
-        subject: m.subject,
-        body: text,
-      },
-      folders,
+  /**
+   * Why this message didn't land in a folder, in words, plus the part of the
+   * email it was judged on. Cached per message and folder until the rule
+   * changes; `fresh` asks again anyway.
+   */
+  async explain(
+    id: string,
+    mailbox: string,
+    folder: { id: string; name: string; rule: string },
+    score: number | null,
+    fresh = false,
+  ): Promise<{ explanation: Explanation; email: { from: string; subject: string; text: string } }> {
+    const email = await this.#emailFor(id);
+    const excerpt = { from: email.from, subject: email.subject, text: email.body.replace(/\s+/g, " ").trim().slice(0, 700) };
+    const sql = this.ctx.storage.sql;
+    const hash = ruleHash(folder.rule);
+    if (!fresh) {
+      const hit = sql
+        .exec<{ json: string }>(`SELECT json FROM explanations WHERE message_id = ? AND folder_id = ? AND rule_hash = ?`, id, folder.id, hash)
+        .toArray()[0];
+      if (hit) return { explanation: JSON.parse(hit.json) as Explanation, email: excerpt };
+    }
+    const explanation = await explainFolder(this.env, { ...email, mailbox }, folder, score);
+    sql.exec(
+      `INSERT INTO explanations (message_id, folder_id, rule_hash, json, created_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(message_id, folder_id) DO UPDATE SET rule_hash = excluded.rule_hash, json = excluded.json, created_at = excluded.created_at`,
+      id, folder.id, hash, JSON.stringify(explanation), Date.now(),
     );
+    return { explanation, email: excerpt };
   }
 
   async get(id: string): Promise<MessageView | null> {

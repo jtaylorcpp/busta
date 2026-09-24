@@ -1,18 +1,26 @@
 ---
 /**
  * One-click decisions next to a row, outside its link: file an unsure
- * message where the model leaned (or refuse), or retry a failed sort.
+ * message where the model leaned (or refuse), ask why it wasn't filed, or
+ * retry a failed sort.
  * Filing by hand locks the choice; rules never change it afterwards.
  */
 import type { FolderView } from "../../lib/mail-data";
 
-interface Props { view: FolderView; action: string; retry: string }
-const { view: v, action, retry } = Astro.props;
+interface Props {
+  view: FolderView;
+  action: string;
+  retry: string;
+  /** The message's thread URL; "Why?" opens the explanation there. */
+  href?: string;
+}
+const { view: v, action, retry, href } = Astro.props;
 ---
 {v.state === "unsure" && v.suggestId && v.suggestName && (
   <Fragment>
     <form method="post" action={action}><input type="hidden" name="folder" value={v.suggestId} /><button type="submit" class="yes">File in {v.suggestName}</button></form>
     <form method="post" action={action}><input type="hidden" name="folder" value="" /><button type="submit">Not {v.suggestName}</button></form>
+    {href && <a class="why" href={`${href}?why=${v.suggestId}`}>Why?</a>}
   </Fragment>
 )}
 {v.state === "failed" && (
@@ -21,10 +29,11 @@ const { view: v, action, retry } = Astro.props;
 
 <style>
   form { display: contents; }
-  button {
+  button, .why {
     font: 600 var(--text-xs) var(--font-sans); padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap;
     border: 1px solid var(--border); background: var(--surface); color: var(--secondary); cursor: pointer;
   }
-  button:hover { color: var(--text); background: var(--surface-2); }
+  .why { text-decoration: none; }
+  button:hover, .why:hover { color: var(--text); background: var(--surface-2); }
   .yes { color: var(--primary); border-color: var(--primary); }
 </style>

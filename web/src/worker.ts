@@ -23,6 +23,7 @@ const ASTRO_ROUTES: RegExp[] = [
   /^\/mb\/[^/]+\/folders(\/.*)?$/, // folders: list, editor, save/delete/move/test
   /^\/mb\/[^/]+\/start(\/.*)?$/, // Getting started guide: steps + progress actions
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/folder(\/retry)?\/?$/i, // file a message by hand / retry sorting
+  /^\/mb\/[^/]+\/[0-9a-f-]{36}\/why(\/save)?\/?$/i, // why not this folder: explain, save the new rule
 ];
 
 /**

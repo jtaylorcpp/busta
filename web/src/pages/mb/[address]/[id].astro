@@ -15,6 +15,8 @@ import {
 } from "../../../components/ui";
 import MailboxNav from "../../../components/app/MailboxNav.astro";
 import ThreadFolder from "../../../components/app/ThreadFolder.astro";
+import WhyNot from "../../../components/islands/WhyNot";
+import "../../../styles/why.css";
 import AccountMenu from "../../../components/app/AccountMenu.astro";
 import { audienceChanges } from "../../../lib/audience";
 import {
@@ -56,6 +58,10 @@ for (const e of entries) {
 }
 const people = [...everyone.values()].sort((x, y) => Number(!!x.self) - Number(!!y.self));
 const tags = [...new Set(entries.map((e) => e.row.label).filter((l): l is string => !!l))];
+// ?why=<folder id>: open "Why not this folder?" for this message.
+const whyFolder = focus.direction === "in" ? folders.find((f) => f.id === url.searchParams.get("why")) ?? null : null;
+// ?undo=<folder id>: offer to undo a rule change just made from here.
+const undoFolder = folders.find((f) => f.id === url.searchParams.get("undo")) ?? null;
 const focusEntry = entries.find((e) => e.row.id === id) ?? entries[entries.length - 1]!;
 const subject = focusEntry.message.subject || "(no subject)";
 
@@ -93,10 +99,18 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
     trashAction={focus.deleted_at === null ? `${b}/${id}/trash` : undefined}
   >
     {focus.direction === "in" && (
-      <ThreadFolder slot="folder" view={folderView(focus, folders)} folders={folders} action={`${b}/${id}/folder?back=${encodeURIComponent(url.pathname)}`} />
+      <ThreadFolder slot="folder" view={folderView(focus, folders)} folders={folders} action={`${b}/${id}/folder?back=${encodeURIComponent(url.pathname)}`} threadHref={url.pathname} />
     )}
   </ThreadHeader>
-  {ok && <Banner tone="success">{ok}</Banner>}
+  {ok && (
+    <Banner tone="success">
+      {ok}
+      {undoFolder && (
+        <form class="undo" method="post" action={`${b}/folders/${undoFolder.id}/undo?back=${encodeURIComponent(url.pathname)}`}><button type="submit">Undo</button></form>
+      )}
+    </Banner>
+  )}
+  {whyFolder && <WhyNot client:load base={b} messageId={focus.id} folderId={whyFolder.id} closeHref={url.pathname} />}
   {error && <Banner tone="error">{error}</Banner>}
   {warn && <Banner tone="warn" icon="alert">{warn}</Banner>}
   {bounced.map((e) => (
@@ -174,4 +188,6 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
 
 <style>
   .chat-log { padding-bottom: var(--space-2); }
+  .undo { display: inline; margin-left: var(--space-2); }
+  .undo button { font: 600 var(--text-sm) var(--font-sans); color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 </style>

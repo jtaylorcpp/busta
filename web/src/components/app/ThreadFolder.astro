@@ -2,7 +2,8 @@
 /**
  * The folder control in a thread's header. Shows how the message was filed
  * (rule + match %, +address, or by you) and opens a small panel with the
- * model's top probabilities, "Move to…" every folder, and "Not this folder".
+ * model's top probabilities, "Why not …?" (opens the explanation on the
+ * thread page), "Move to…" every folder, and "Not this folder".
  * Anything chosen here is a manual choice that rules never override.
  */
 import { Icon } from "../ui";
@@ -13,8 +14,10 @@ interface Props {
   folders: { id: string; name: string }[];
   /** POST target: /mb/<addr>/<id>/folder (field `folder`, "" for none). */
   action: string;
+  /** The thread's own URL; "Why not …?" adds ?why=<folder id>. */
+  threadHref?: string;
 }
-const { view: v, folders, action } = Astro.props;
+const { view: v, folders, action, threadHref } = Astro.props;
 const pct = (n: number | null | undefined) => (typeof n === "number" ? `${Math.round(n * 100)}%` : "");
 const nameOf = (id: string) => (id === "none" ? "No folder" : folders.find((f) => f.id === id)?.name ?? "Deleted folder");
 const summary =
@@ -26,6 +29,9 @@ const summary =
     : v.source === "you" ? "No folder · by you"
     : "No folder";
 const probs = v.probs ? Object.entries(v.probs).sort((a, b) => b[1] - a[1]) : [];
+// "Why not …?" asks about folders it isn't in; default to the closest one.
+const others = folders.filter((f) => f.id !== v.folderId);
+const closest = v.suggestId ?? probs.map(([id]) => id).find((id) => id !== "none" && id !== v.folderId && others.some((f) => f.id === id)) ?? others[0]?.id;
 ---
 <details class="tf" data-thread-folder data-live="thread-folder">
   <summary class:list={[v.state === "filed" ? "filed" : v.state === "pending" ? "sorting" : "plain"]}>
@@ -42,6 +48,18 @@ const probs = v.probs ? Object.entries(v.probs).sort((a, b) => b[1] - a[1]) : []
             <li><span class="n">{nameOf(id)}</span><span class="bar"><i style={`width:${Math.round(p * 100)}%`}></i></span><span class="p">{pct(p)}</span></li>
           ))}
         </ul>
+      </section>
+    )}
+    {threadHref && others.length > 0 && (
+      <section>
+        <form class="why" method="get" action={threadHref}>
+          <button type="submit">Why not</button>
+          <label class="visually-hidden" for="why-folder">Folder</label>
+          <select id="why-folder" name="why">
+            {others.map((f) => <option value={f.id} selected={f.id === closest}>{f.name}</option>)}
+          </select>
+          <span aria-hidden="true">?</span>
+        </form>
       </section>
     )}
     <section>
@@ -117,5 +135,8 @@ const probs = v.probs ? Object.entries(v.probs).sort((a, b) => b[1] - a[1]) : []
   .check { width: 14px; display: inline-grid; }
   .not { color: var(--secondary); }
   .none { font-size: var(--text-sm); color: var(--muted); padding: 4px 8px; }
+  .why { display: flex; align-items: center; gap: 4px; padding: 4px 6px 4px 4px; border-radius: var(--radius-sm); background: var(--primary-soft); color: var(--primary); font-size: var(--text-sm); font-weight: 600; }
+  .why button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 4px; }
+  .why select { font: inherit; color: inherit; background: transparent; border: 0; border-bottom: 1px dashed currentColor; cursor: pointer; max-width: 150px; }
   .note { margin: 0; font-size: var(--text-xs); color: var(--muted); padding: 0 8px; }
 </style>

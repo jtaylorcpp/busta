@@ -108,7 +108,7 @@ const back = url.pathname + url.search;
           >
             {showChip && <FolderChip slot="chip" view={fv} />}
             {m.direction === "in" && (fv.state === "unsure" || fv.state === "failed") && (
-              <FolderRowActions slot="actions" view={fv} action={`${to}/folder?back=${encodeURIComponent(back)}`} retry={`${to}/folder/retry?back=${encodeURIComponent(back)}`} />
+              <FolderRowActions slot="actions" view={fv} href={to} action={`${to}/folder?back=${encodeURIComponent(back)}`} retry={`${to}/folder/retry?back=${encodeURIComponent(back)}`} />
             )}
           </MailRow>
         </Fragment>

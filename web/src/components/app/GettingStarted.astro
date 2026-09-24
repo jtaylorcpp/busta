@@ -34,7 +34,7 @@ const view = g.landed ? folderView(g.landed, folders) : null;
 const pct = (n: number | null | undefined) => `${Math.round((n ?? 0) * 100)}%`;
 const mine = g.folderName ?? "Must read";
 type Tone = "ok" | "wait" | "info";
-let win: { tone: Tone; title: string; body: string; edit?: boolean };
+let win: { tone: Tone; title: string; body: string; edit?: boolean; why?: string };
 if (!view) {
   win = { tone: "info", title: "Here's how to read your mail.", body: "Each message shows where it went, so you can tell at a glance what Busta did." };
 } else if (view.state === "pending") {
@@ -44,11 +44,11 @@ if (!view) {
 } else if (view.state === "filed") {
   win = { tone: "ok", title: `It arrived and went into ${view.name ?? "another folder"}.`, body: `That folder's rule fit it better than ${mine}. Every message goes to the single best folder.` };
 } else if (view.state === "unsure") {
-  win = { tone: "info", title: `Busta wasn't sure: ${view.suggestName ?? mine} ${pct(view.confidence)}.`, body: "Below 75% it stays in Messages for you to decide. Choose on the message, and rules won't change your choice.", edit: true };
+  win = { tone: "info", title: `Busta wasn't sure: ${view.suggestName ?? mine} ${pct(view.confidence)}.`, body: "Below 75% it stays in Messages for you to decide. Choose on the message, and rules won't change your choice.", why: view.suggestId ?? g.folderId ?? undefined };
 } else if (view.state === "failed") {
   win = { tone: "info", title: "It arrived, but Busta couldn't sort it.", body: "Use Retry on the message. Nothing is lost; it's in Messages." };
 } else if (g.folderId) {
-  win = { tone: "info", title: "It arrived and stayed in Messages.", body: `Busta didn't think it matched ${mine}. If it should have, add that to your description.`, edit: true };
+  win = { tone: "info", title: "It arrived and stayed in Messages.", body: `Busta didn't think it matched ${mine}.`, why: g.folderId };
 } else {
   win = { tone: "info", title: "It arrived in Messages.", body: "Without a folder rule, mail simply lands in Messages. Make a folder any time from New folder." };
 }
@@ -114,7 +114,7 @@ const idea = ([name, rule]: [string, string]) => `${b}/folders/new?${new URLSear
         <span class:list={["mark", win.tone]} data-live-pending={win.tone === "wait" ? "" : undefined}>{win.tone === "wait" ? <i class="ring" aria-hidden="true"></i> : <Icon name={win.tone === "ok" ? "check" : "spark"} size={16} />}</span>
         <div class="win-t">
           <h2>{win.title}</h2>
-          <p>{win.body}{win.edit && g.folderId && <Fragment> <a href={`${b}/start`}>Edit your description</a></Fragment>}</p>
+          <p>{win.body}{win.why && g.landed && <Fragment> <a href={`${b}/${g.landed.id}?why=${win.why}`}>See why</a> · <a href={`${b}/start`}>Edit your description</a></Fragment>}</p>
         </div>
       </div>
       <dl class="legend">
