@@ -23,7 +23,6 @@ import {
   sanitizeFilename,
   SYSTEM_LOCAL_PARTS,
   SYSTEM_ORG_ID,
-  SuppressedRecipientError,
   send,
   tenantStub,
   threadStub,
@@ -57,13 +56,13 @@ function html(body: string, status = 200): Response {
   });
 }
 
-function redirect(location: string, flash?: { kind: "ok" | "error"; text: string }): Response {
+function redirect(location: string, flash?: { kind: "ok" | "warn" | "error"; text: string }): Response {
   const url = flash ? `${location}${location.includes("?") ? "&" : "?"}${flash.kind}=${encodeURIComponent(flash.text)}` : location;
   return new Response(null, { status: 303, headers: { location: url } });
 }
 
 function flashFrom(url: URL): { kind: "ok" | "error"; text: string } | undefined {
-  const ok = url.searchParams.get("ok");
+  const ok = url.searchParams.get("ok") ?? url.searchParams.get("warn");
   if (ok) return { kind: "ok", text: ok };
   const error = url.searchParams.get("error");
   if (error) return { kind: "error", text: error };
@@ -993,22 +992,30 @@ async function sendFromForm(
     }
 
     const recipients = to.length + cc.length + bcc.length;
-    return redirect(backTo, {
-      kind: "ok",
-      text:
-        `Sent to ${recipients} recipient(s)` +
-        (result.attachments > 0 ? ` with ${result.attachments} attachment(s)` : "") +
-        (result.linked.length > 0 ? `, ${result.linked.length} as download link(s)` : "") +
-        ".",
-    });
+    const sent =
+      `Sent to ${recipients} recipient(s)` +
+      (result.attachments > 0 ? ` with ${result.attachments} attachment(s)` : "") +
+      (result.linked.length > 0 ? `, ${result.linked.length} as download link(s)` : "") +
+      ".";
+    const bounced = result.previouslyBounced;
+    return redirect(
+      backTo,
+      bounced.length > 0
+        ? {
+            kind: "warn",
+            text: `${sent} ${bounced.join(", ")} previously bounced, so ${
+              bounced.length > 1 ? "they" : "it"
+            } may bounce again.`,
+          }
+        : { kind: "ok", text: sent },
+    );
   } catch (err) {
     // A bad recipient or oversize attachment is the user's problem to fix,
     // not a system failure — say exactly what is wrong instead of a generic
     // error that sends them to the logs.
     if (
       err instanceof AttachmentError ||
-      err instanceof RecipientError ||
-      err instanceof SuppressedRecipientError
+      err instanceof RecipientError
     ) {
       return redirect(backTo, { kind: "error", text: err.message });
     }
@@ -1418,15 +1425,13 @@ async function handleDev(request: Request, env: Env, path: string): Promise<Resp
               ? "attachment"
               : err instanceof RecipientError
                 ? "recipient"
-                : err instanceof SuppressedRecipientError
-                  ? "suppressed"
-                  : "send",
+                : "send",
         },
         {
           status:
             err instanceof AttachmentError
               ? 413
-              : err instanceof RecipientError || err instanceof SuppressedRecipientError
+              : err instanceof RecipientError
                 ? 400
                 : 502,
         },

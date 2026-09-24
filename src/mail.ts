@@ -486,8 +486,6 @@ export interface SendInput {
   inReplyTo?: ThreadMessage | null;
 }
 
-export class SuppressedRecipientError extends Error {}
-
 export interface SendResult {
   messageId: string;
   storedId: string;
@@ -499,6 +497,8 @@ export interface SendResult {
   attachments: number;
   /** Files delivered as expiring links rather than MIME parts. */
   linked: { filename: string; size: number; url: string; expiresAt: number }[];
+  /** Recipients on this mailbox's suppression list (sent to anyway). */
+  previouslyBounced: string[];
 }
 
 /**
@@ -516,15 +516,12 @@ export async function send(env: Env, input: SendInput): Promise<SendResult> {
   validateRecipients(to, cc, bcc);
   const mailbox = mailboxStub(env, from);
 
-  // Refuse locally known-bad addresses before spending a send. Cloudflare
-  // would reject with E_RECIPIENT_SUPPRESSED anyway; catching it here gives a
-  // better message and does not consume quota.
-  const blocked = await mailbox.suppressed([...to, ...cc, ...bcc]);
-  if (blocked.length > 0) {
-    throw new SuppressedRecipientError(
-      `Will not send to ${blocked.join(", ")} — ${blocked.length > 1 ? "these addresses" : "this address"} previously hard-bounced or complained.`,
-    );
-  }
+  // Addresses that previously hard-bounced or complained are a warning, not a
+  // refusal: the sender decides. They are reported back so the UI can say so.
+  // Cloudflare keeps its own suppression list, so a send to an address it has
+  // suppressed can still fail there (E_RECIPIENT_SUPPRESSED) and is recorded
+  // as a failed delivery like any other.
+  const previouslyBounced = await mailbox.suppressed([...to, ...cc, ...bcc]);
 
   const resolution = input.threadId
     ? { threadId: input.threadId }
@@ -714,6 +711,7 @@ export async function send(env: Env, input: SendInput): Promise<SendResult> {
     remedy: delivery.remedy,
     attachments: storedAttachments.length,
     linked: links,
+    previouslyBounced,
   };
 }
 

@@ -25,6 +25,7 @@ const data = await loadInbox(stub, url.searchParams);
 const b = base(address);
 const ok = url.searchParams.get("ok");
 const error = url.searchParams.get("error");
+const warn = url.searchParams.get("warn");
 
 const keep = (extra: Record<string, string>) => {
   const q = new URLSearchParams();
@@ -42,6 +43,7 @@ const [local, domain] = address.split("@");
 
   {ok && <Banner tone="success">{ok}</Banner>}
   {error && <Banner tone="error">{error}</Banner>}
+  {warn && <Banner tone="warn" icon="alert">{warn}</Banner>}
   {data.agent.enabled && (
     <Banner tone="agent"><b>Agent on</b> · acting on {data.agent.labels.length ? data.agent.labels.map((l) => `+${l}`).join(", ") : "all mail"} · {data.agent.autoSend ? "auto-send" : "drafts held for review"}</Banner>
   )}

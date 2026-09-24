@@ -41,6 +41,7 @@ const url = Astro.url;
 const showImages = url.searchParams.get("images") === "1";
 const ok = url.searchParams.get("ok");
 const error = url.searchParams.get("error");
+const warn = url.searchParams.get("warn");
 const displayName = (a: string) => (a === self ? "You" : names[a] ?? a);
 
 const changes = audienceChanges(entries.map((e) => e.envelope), self);
@@ -92,6 +93,7 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
   />
   {ok && <Banner tone="success">{ok}</Banner>}
   {error && <Banner tone="error">{error}</Banner>}
+  {warn && <Banner tone="warn" icon="alert">{warn}</Banner>}
   {bounced.map((e) => (
     <Banner tone="error">
       Your message to {e.message.recipient} {e.row.delivery_status === "bounced" ? "bounced" : "was not delivered"}
