@@ -37,7 +37,6 @@ import {
   mailboxesPage,
   messagePage,
   searchPage,
-  signInPage,
 } from "./ui/pages";
 import { CLERK_BOOTSTRAP, clerkScripts, MULTI_MAILBOX } from "./ui/layout";
 
@@ -133,7 +132,7 @@ export default {
 
     if (path.startsWith("/__dev/")) return handleDev(request, env, path);
 
-    if (path === "/sign-in") return html(signInPage(env.CLERK_PUBLISHABLE_KEY));
+    // /sign-in is rendered by Astro (web/src/pages/sign-in.astro).
     if (path === "/sign-out") return handleSignOut(env);
 
     let auth;

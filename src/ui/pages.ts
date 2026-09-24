@@ -24,33 +24,6 @@ function clerkHead(publishableKey: string): string {
 ${CLERK_BOOTSTRAP}`;
 }
 
-/** Signed-out landing. Clerk mounts its own sign-in widget into the bevel. */
-export function signInPage(publishableKey: string): string {
-  return layout(
-    {
-      title: "CloudMail 95 — Sign In",
-      head: clerkHead(publishableKey),
-      status: ["Not connected", "Secure"],
-    },
-    `<p style="margin-top:0">Welcome to <b>CloudMail&nbsp;95</b>. Sign in to read your organization's mail.</p>
-<hr>
-<div id="clerk-signin" class="sunken" style="padding:10px;min-height:420px"></div>
-<script>
-  ${clerkFallback("clerk-signin")}
-  window.addEventListener("load", async () => {
-    try {
-      const clerk = await loadClerk();
-      if (clerk.user) { window.location.href = "/"; return; }
-      clerk.mountSignIn(document.getElementById("clerk-signin"), {
-        forceRedirectUrl: "/",
-        signUpForceRedirectUrl: "/",
-      });
-    } catch (e) { clerkFailed(e); }
-  });
-</script>`,
-  );
-}
-
 /**
  * Signed in, but no organization is active. Tenancy is org-scoped, so there is
  * nothing to show until one is selected or created.
