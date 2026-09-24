@@ -338,12 +338,14 @@ async function route(
         if (!row) return html(errorPage(404, "Message not found"), 404);
         const backTo = `${base(address)}${row.deleted_at !== null ? "?view=trash" : ""}`;
 
+        // Every write is awaited before responding: an un-awaited Durable Object
+        // call can be dropped once the Worker returns, which silently lost stars.
         switch (action) {
           case "trash":
-            stub.trash(messageId);
+            await stub.trash(messageId);
             return redirect(backTo, { kind: "ok", text: "Moved to Trash." });
           case "restore":
-            stub.restore(messageId);
+            await stub.restore(messageId);
             return redirect(base(address), { kind: "ok", text: "Restored from Trash." });
           case "purge": {
             if (row.deleted_at === null) {
@@ -356,7 +358,7 @@ async function route(
             }
             const keys = await threadStub(env, address, row.thread_id).remove(messageId);
             await Promise.all(keys.map((key) => env.MAIL_ARCHIVE.delete(key)));
-            stub.unindex(messageId);
+            await stub.unindex(messageId);
             return redirect(`${base(address)}?view=trash`, {
               kind: "ok",
               text: `Permanently deleted, including ${keys.length} stored file(s).`,
@@ -364,11 +366,11 @@ async function route(
           }
           case "star":
           case "unstar":
-            stub.setStarred(messageId, action === "star");
+            await stub.setStarred(messageId, action === "star");
             return redirect(backTo);
           case "read":
           case "unread":
-            stub.setRead(messageId, action === "read");
+            await stub.setRead(messageId, action === "read");
             return redirect(backTo);
         }
       }
