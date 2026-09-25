@@ -1,0 +1,85 @@
+---
+/**
+ * GET /privacy — the privacy policy. Public (no sign-in), and the URL
+ * registered on Busta's Google sign-in screen. A first, plain version written
+ * to match what the code does today; revisit before opening Busta to others.
+ */
+import Base from "../layouts/Base.astro";
+import { Brand } from "../components/ui";
+
+const updated = "September 24, 2026";
+const contact = "jtaylorcpp@busta.app";
+Astro.response.headers.set("cache-control", "public, max-age=3600");
+---
+<Base title="Privacy policy" description="What Busta stores, what it uses it for, and how to remove it.">
+  <div class="wrap">
+    <header class="top"><Brand href="/" /></header>
+    <article>
+      <h1>Privacy policy</h1>
+      <p class="meta">Last updated {updated}</p>
+
+      <p>Busta (busta.app) is an email service. It holds your mail so you can read, sort and send it, and it uses AI models to sort mail into the folders you describe. This page says what Busta stores, what it does with it, who else touches it, and how to remove it.</p>
+
+      <h2>What Busta stores</h2>
+      <ul>
+        <li><b>Your account.</b> Your sign-in (name, email address, organization), handled by our sign-in provider, Clerk.</li>
+        <li><b>Your mail.</b> Messages sent to your busta.app addresses, messages you send, drafts, attachments, and the folders and rules you write.</li>
+        <li><b>A connected Gmail account, if you connect one.</b> Copies of the messages Busta brings in from it (your Inbox, Sent and archived mail, not Spam or Drafts), their read, starred, archived and trashed state, and a Google access token so Busta can keep them in step. The token is encrypted before it is stored.</li>
+      </ul>
+
+      <h2>What Busta uses it for</h2>
+      <p>Only to run the features you use: showing your mail, searching it, sorting it into your folders, explaining why a message was or wasn't filed, sending mail you write, and keeping a connected Gmail account in step with Busta. Busta does not sell your data, does not show ads, and does not use your mail to train AI models.</p>
+
+      <h2>Google user data</h2>
+      <p>When you connect Gmail, Busta asks Google for permission to read, organize and send your email (<code>gmail.modify</code>) and to see your email address. With it, Busta:</p>
+      <ul>
+        <li>copies messages into your Busta mailbox and follows new mail as it arrives;</li>
+        <li>marks messages read or unread, starred, archived (leaving Gmail's Inbox) or trashed when you do that in Busta, and the other way round;</li>
+        <li>sends mail you write in Busta from your Gmail address, through Google.</li>
+      </ul>
+      <p>Busta never deletes anything from Gmail permanently, and never changes your Gmail labels other than Inbox, Unread, Starred and Trash.</p>
+      <p class="limited">Busta's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+      <p>Gmail data is used only to provide the features above. It is not used for advertising, not sold, not used to train AI models, and not read by people except with your permission, to investigate abuse or a security problem, or where the law requires it.</p>
+
+      <h2>AI processing</h2>
+      <p>To sort a message, Busta sends its sender, recipients, subject and text, with your folder rules, to an AI model running on Cloudflare (Workers AI, through Cloudflare's AI Gateway), and stores the result on the message. When you ask why a message wasn't filed, or to tidy a rule, the same kind of request goes to a text model on Workers AI. These requests are made only to serve you, and the answers are kept only on your messages and folders.</p>
+
+      <h2>Who else handles your data</h2>
+      <ul>
+        <li><b>Cloudflare</b> hosts Busta and stores your mail (Workers, Durable Objects, R2), receives and sends busta.app email, and runs the AI models.</li>
+        <li><b>Clerk</b> handles sign-in.</li>
+        <li><b>Google</b>, only if you connect Gmail, for the Gmail access described above.</li>
+      </ul>
+      <p>No one else receives your data.</p>
+
+      <h2>Keeping it safe</h2>
+      <p>Everything travels over HTTPS. Each mailbox is stored separately and can only be opened by the organization that owns it. Google tokens are encrypted at rest.</p>
+
+      <h2>Keeping and deleting</h2>
+      <ul>
+        <li>Your mail stays until you delete it. Deleting from Trash removes the message and its stored files.</li>
+        <li>Disconnecting Gmail (Accounts → Disconnect) stops syncing and revokes Busta's access at Google. You choose whether Busta keeps its copies, read-only, or deletes them. Your Gmail is never touched either way.</li>
+        <li>You can also remove Busta's access to Google at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+        <li>To delete your whole account and everything in it, email <a href={`mailto:${contact}`}>{contact}</a>.</li>
+      </ul>
+
+      <h2>Changes and contact</h2>
+      <p>If this policy changes, the date at the top changes too, and anything that affects how your Google data is used will be announced in Busta before it takes effect. Questions: <a href={`mailto:${contact}`}>{contact}</a>.</p>
+    </article>
+  </div>
+</Base>
+
+<style>
+  .wrap { max-width: 760px; margin: 0 auto; padding-inline: var(--space-4); padding-block: var(--space-4) 64px; }
+  .top { padding-block: 8px 24px; }
+  article { display: grid; gap: 14px; line-height: 1.65; }
+  h1 { font-size: 32px; font-weight: 700; letter-spacing: -.01em; }
+  h2 { font-size: 19px; font-weight: 600; margin-top: 14px; }
+  .meta { color: var(--muted); font-size: var(--text-sm); margin-top: -6px; }
+  p, ul { margin: 0; max-width: 68ch; }
+  ul { padding-left: 20px; display: grid; gap: 6px; }
+  b { font-weight: 600; }
+  a { color: var(--primary); }
+  code { font-family: var(--font-mono); font-size: .92em; }
+  .limited { padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface-2); }
+</style>

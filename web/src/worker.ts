@@ -37,6 +37,7 @@ const ASTRO_ROUTES: RegExp[] = [
 const ASTRO_GET_ROUTES: RegExp[] = [
   /^\/$/, // home: landing page when signed out; else your mailbox / setup / org picker
   /^\/llms\.txt$/, // the site as Markdown for language models
+  /^\/privacy\/?$/, // privacy policy (public; registered with Google)
   /^\/mail\/?$/, // every shown account in one list
   /^\/mb\/[^/]+\/?$/, // mailbox list
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/?$/i, // thread
