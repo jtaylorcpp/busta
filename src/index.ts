@@ -30,8 +30,9 @@ import { provisionMailbox } from "./provision";
 export { MailboxDO } from "./mailbox-do";
 export { ThreadDO } from "./thread-do";
 export { TenantDO } from "./tenant-do";
+export { ImportDO } from "./import-do";
 
-const MESSAGE_ACTIONS = new Set(["trash", "restore", "purge", "star", "unstar", "read", "unread"]);
+const MESSAGE_ACTIONS = new Set(["trash", "restore", "purge", "star", "unstar", "read", "unread", "archive", "unarchive"]);
 
 function html(body: string, status = 200): Response {
   return new Response(body, {
@@ -324,7 +325,7 @@ async function route(
     }
 
     const msgMatch = rest.match(
-      /^([0-9a-f-]{36})(?:\/(body|reply|forward|trash|restore|purge|star|unstar|read|unread|att\/([^/]+)))?$/i,
+      /^([0-9a-f-]{36})(?:\/(body|reply|forward|trash|restore|purge|star|unstar|read|unread|archive|unarchive|att\/([^/]+)))?$/i,
     );
     if (msgMatch) {
       const messageId = msgMatch[1]!;
@@ -336,9 +337,11 @@ async function route(
       if (request.method === "POST" && action && MESSAGE_ACTIONS.has(action)) {
         const row = await indexed;
         if (!row) return html(errorPage(404, "Message not found"), 404);
-        // The combined view (/mail) sends ?back= so star/trash return there.
+        // Row actions send ?back= (the combined view, or a folder / bin of this
+        // mailbox) so star, trash and archive return to where you were.
         const backParam = url.searchParams.get("back") ?? "";
-        const backTo = /^\/mail(\/|\?|$)/.test(backParam)
+        const mine = base(address);
+        const backTo = /^\/mail(\/|\?|$)/.test(backParam) || backParam === mine || backParam.startsWith(`${mine}?`)
           ? backParam
           : `${base(address)}${row.deleted_at !== null ? "?view=trash" : ""}`;
 
@@ -376,6 +379,17 @@ async function route(
           case "unread":
             await stub.setRead(messageId, action === "read");
             return redirect(backTo);
+          case "archive": {
+            await stub.setArchived(messageId, true);
+            // The page shows "Archived … Undo" from these two parameters.
+            const u = new URL(backTo, url);
+            for (const k of ["ok", "error", "archived"]) u.searchParams.delete(k);
+            u.searchParams.set("archived", `${address}:${messageId}`);
+            return redirect(u.pathname + u.search, { kind: "ok", text: `Archived "${row.subject || "(no subject)"}".` });
+          }
+          case "unarchive":
+            await stub.setArchived(messageId, false);
+            return redirect(backTo, { kind: "ok", text: "Moved back to Messages." });
         }
       }
 

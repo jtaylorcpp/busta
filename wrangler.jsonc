@@ -122,7 +122,9 @@
     "bindings": [
       { "name": "MAILBOX", "class_name": "MailboxDO" },
       { "name": "THREAD", "class_name": "ThreadDO" },
-      { "name": "TENANT", "class_name": "TenantDO" }
+      { "name": "TENANT", "class_name": "TenantDO" },
+      // One import queue per connected Gmail account (src/import-do.ts).
+      { "name": "IMPORT", "class_name": "ImportDO" }
     ]
   },
 
@@ -134,6 +136,10 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["ThreadDO"]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": ["ImportDO"]
     }
   ],
 

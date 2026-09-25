@@ -155,6 +155,11 @@ export function threadStub(env: Env, mailbox: string, threadId: string) {
   return env.THREAD.get(env.THREAD.idFromName(`${normalizeAddress(mailbox)}|${threadId}`));
 }
 
+/** A Gmail account's import queue (src/import-do.ts). */
+export function importStub(env: Env, address: string) {
+  return env.IMPORT.get(env.IMPORT.idFromName(normalizeAddress(address)));
+}
+
 export function tenantStub(env: Env, orgId: string) {
   return env.TENANT.get(env.TENANT.idFromName(orgId));
 }
@@ -566,7 +571,11 @@ export async function send(env: Env, input: SendInput): Promise<SendResult> {
 
   // A connected Gmail account sends through Gmail, as itself: no signed
   // Reply-To (that is a busta.app sub-address), and in the parent's Gmail thread.
-  const viaGmail = await mailbox.isGmail();
+  const sendingAs = await mailbox.sendingAs();
+  if (sendingAs === "gmail-off") {
+    throw new RecipientError(`${from} is a disconnected Gmail account. Reconnect it in Accounts to send from it.`);
+  }
+  const viaGmail = sendingAs === "gmail";
   const tag = await signThreadTag(env.THREAD_SECRET, from, threadId);
   const replyTo = viaGmail ? "" : replyToAddress(from, tag);
   const gmailThread = viaGmail && parent ? await mailbox.gmailThreadOf(parent.id) : null;

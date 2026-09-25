@@ -3,10 +3,11 @@ import { newThreadId } from "./addressing";
 import { classify, deliver, nextAttemptDelay, type OutboundPayload } from "./delivery";
 import type { MessageMetadata } from "./metadata";
 import type { ThreadAttachment } from "./thread-do";
-import { gmailTick, type GmailHost, type GmailState } from "./sources/gmail-sync";
+import { gmailTick, labelState, type GmailHost, type GmailState } from "./sources/gmail-sync";
 import { refreshAccess } from "./sources/google";
 import { unseal } from "./sources/seal";
 import { stopWatch } from "./sources/gmail";
+import { tenantStub, threadStub } from "./mail";
 
 export type Direction = "in" | "out";
 
@@ -43,6 +44,8 @@ export interface IndexedMessage {
   seq: number;
   /** Set when moved to Trash. Purging is a separate, explicit step. */
   deleted_at: number | null;
+  /** Set when archived: out of Messages and folders, in the Archive bin. */
+  archived_at: number | null;
   starred: number;
   /** sent | queued | failed | bounced — outbound only. */
   delivery_status: string | null;
@@ -439,6 +442,9 @@ export class MailboxDO extends DurableObject<Env> {
       ["folder_confidence", "REAL"],
       /** JSON {folderId|"none": probability} for the top few options. */
       ["folder_probs", "TEXT"],
+      // Archived: done, but kept. Out of Messages and folders, in the Archive
+      // bin, still searchable. For Gmail it mirrors leaving Gmail's Inbox.
+      ["archived_at", "INTEGER"],
     ] as const) {
       this.#addColumn("messages", column, type);
     }
@@ -480,6 +486,10 @@ export class MailboxDO extends DurableObject<Env> {
     // The rule before its last change, so "Undo" can put it back.
     this.#addColumn("folders", "prev_rule", "TEXT");
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_folder ON messages(folder_id, seq DESC);`);
+    // The list runs in each message's own time (arrival order breaks ties), so
+    // imported mail can arrive in any order and still land where it belongs.
+    sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_time ON messages(received_at DESC, seq DESC);`);
+    sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_folder_time ON messages(folder_id, received_at DESC, seq DESC);`);
     // Partial index: most mail carries no List-Id, so this stays small while
     // making "all newsletters" a cheap query.
     sql.exec(
@@ -490,7 +500,7 @@ export class MailboxDO extends DurableObject<Env> {
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_subject_key ON messages(subject_key);`);
 
     // Connected Gmail (src/sources/gmail-sync.ts): Gmail id ↔ Busta message,
-    // the queue of ids still to bring in, and changes waiting to go to Gmail.
+    // and changes waiting to go to Gmail. Imports queue in ImportDO.
     sql.exec(`
       CREATE TABLE IF NOT EXISTS gmail_ext (
         gmail_id     TEXT PRIMARY KEY,
@@ -499,7 +509,6 @@ export class MailboxDO extends DurableObject<Env> {
       );
     `);
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_gmail_ext_msg ON gmail_ext(message_id);`);
-    sql.exec(`CREATE TABLE IF NOT EXISTS gmail_queue (gmail_id TEXT PRIMARY KEY, ord INTEGER NOT NULL);`);
     sql.exec(`
       CREATE TABLE IF NOT EXISTS gmail_outbox (
         seq      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -751,6 +760,13 @@ export class MailboxDO extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const drained = await this.drainOutbox();
     const relief = await this.relieve();
+    if (this.#meta("purge")) {
+      // Deleting this mailbox's copies: nothing else runs, and the last step
+      // wipes this object entirely.
+      const more = await this.#purgeStep();
+      if (more) await this.ctx.storage.setAlarm(Date.now() + 100);
+      return;
+    }
     const gmailNext = this.#meta("gmail") ? await gmailTick(this.#gmailHost()) : null;
 
     // Whichever wants attention sooner wins the next alarm slot.
@@ -803,25 +819,25 @@ export class MailboxDO extends DurableObject<Env> {
   }
 
   /** Start (or, with a new token, resume) syncing a Gmail account into this mailbox. */
-  async connectGmail(input: { account: string; sealedRefresh: string; days: number }): Promise<void> {
+  async connectGmail(input: { account: string; sealedRefresh: string }): Promise<void> {
     const cur = this.#gmail();
     this.#access = null;
+    // Remembered after a disconnect, so this address never sends as busta.app.
+    this.#setMeta("source_kind", "gmail");
     const next: GmailState = cur
-      ? { ...cur, sealedRefresh: input.sealedRefresh, status: cur.backfill.listed && this.#queueSize() === 0 ? "live" : "backfill", pending: true, lastError: null, watchRenewAt: 0 }
+      ? { ...cur, sealedRefresh: input.sealedRefresh, status: "live", pending: true, lastError: null, watchRenewAt: 0 }
       : {
           account: input.account,
           sealedRefresh: input.sealedRefresh,
-          status: "backfill",
-          days: input.days,
+          status: "live",
           connectedAt: Date.now(),
           historyId: null,
           watchRenewAt: 0,
           watchExpires: null,
-          backfill: { listed: false, pageToken: null, total: 0, done: 0, skipped: 0 },
           lastSyncAt: null,
           lastMailAt: null,
           lastError: null,
-          pending: false,
+          pending: true,
         };
     this.#setMeta("gmail", JSON.stringify(next));
     await this.#wake();
@@ -837,12 +853,32 @@ export class MailboxDO extends DurableObject<Env> {
   }
 
   /** What the Accounts page shows. No secrets. */
-  gmailStatus(): (Omit<GmailState, "sealedRefresh"> & { queued: number; changesWaiting: number }) | null {
+  gmailStatus(): (Omit<GmailState, "sealedRefresh"> & { changesWaiting: number }) | null {
     const st = this.#gmail();
     if (!st) return null;
     const { sealedRefresh: _secret, ...rest } = st;
     const waiting = this.ctx.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM gmail_outbox`).toArray()[0]?.n ?? 0;
-    return { ...rest, queued: this.#queueSize(), changesWaiting: waiting };
+    return { ...rest, changesWaiting: waiting };
+  }
+
+  /**
+   * How this address sends: busta (Email Sending), gmail (connected), or
+   * gmail-off (a Gmail account that was disconnected: it must not send at all,
+   * least of all as itself through Busta).
+   */
+  sendingAs(): "busta" | "gmail" | "gmail-off" {
+    if (this.#gmail()?.status === "live") return "gmail";
+    return this.#meta("source_kind") === "gmail" ? "gmail-off" : "busta";
+  }
+
+  /** Already brought in? */
+  gmailKnown(gmailId: string): boolean {
+    return this.ctx.storage.sql.exec(`SELECT 1 FROM gmail_ext WHERE gmail_id = ? LIMIT 1`, gmailId).toArray().length > 0;
+  }
+
+  /** Set read, star, archive and trash from Gmail's labels, without echoing back. */
+  applyGmailLabels(messageId: string, labels: string[]): void {
+    this.#gmailHost().applyRemote(messageId, labelState(labels));
   }
 
   /** Stop syncing. Returns the sealed refresh token so the caller can revoke it; mail already here stays. */
@@ -851,11 +887,59 @@ export class MailboxDO extends DurableObject<Env> {
     if (!st) return null;
     try { await stopWatch(() => this.gmailAccessToken()); } catch { /* token may already be dead */ }
     this.ctx.storage.sql.exec(`DELETE FROM meta WHERE k = 'gmail'`);
-    this.ctx.storage.sql.exec(`DELETE FROM gmail_queue`);
     this.ctx.storage.sql.exec(`DELETE FROM gmail_outbox`);
     this.#access = null;
     this.#emit({ t: "nav" });
     return st.sealedRefresh;
+  }
+
+  // ---- deleting this mailbox's copies ------------------------------------
+
+  /**
+   * Delete everything this mailbox holds (Disconnect → "Delete it from
+   * Busta"): messages, their bodies and files in R2, drafts, folders. Runs in
+   * batches from the alarm; when done the org forgets the address and this
+   * object is wiped. The source (Gmail) is never touched.
+   */
+  async startPurge(): Promise<{ total: number }> {
+    const total = this.ctx.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM messages`).toArray()[0]?.n ?? 0;
+    if (!this.#meta("purge")) this.#setMeta("purge", JSON.stringify({ total, done: 0, startedAt: Date.now() }));
+    this.#emit({ t: "nav" });
+    await this.ctx.storage.setAlarm(Date.now());
+    return { total };
+  }
+
+  purgeStatus(): { total: number; done: number } | null {
+    const raw = this.#meta("purge");
+    return raw ? (JSON.parse(raw) as { total: number; done: number }) : null;
+  }
+
+  async #purgeStep(): Promise<boolean> {
+    const sql = this.ctx.storage.sql;
+    const address = this.#meta("address") ?? "";
+    const rows = sql.exec<{ id: string; thread_id: string }>(`SELECT id, thread_id FROM messages LIMIT 50`).toArray();
+    for (const r of rows) {
+      const keys = await threadStub(this.env, address, r.thread_id).remove(r.id).catch(() => [] as string[]);
+      if (keys.length) await this.env.MAIL_ARCHIVE.delete(keys);
+      this.unindex(r.id);
+    }
+    if (rows.length > 0) {
+      const st = this.purgeStatus()!;
+      this.#setMeta("purge", JSON.stringify({ ...st, done: st.done + rows.length }));
+      return true;
+    }
+    // Drafts' staged files, then the org's record, then everything here.
+    for (const d of this.listDrafts(500)) for (const key of this.deleteDraft(d.id)) await this.env.MAIL_ARCHIVE.delete(key).catch(() => undefined);
+    const org = this.#meta("owner_org_id");
+    if (org) await tenantStub(this.env, org).removeMailbox(address);
+    this.#emit({ t: "list" });
+    await this.ctx.storage.deleteAlarm();
+    await this.ctx.storage.deleteAll();
+    // This instance stays loaded; give it empty tables so the next request
+    // sees an unowned mailbox (404) rather than a missing schema.
+    this.#access = null;
+    this.#migrate();
+    return false;
   }
 
   /** The Gmail thread a Busta message belongs to, for replying in the same Gmail thread. */
@@ -875,10 +959,6 @@ export class MailboxDO extends DurableObject<Env> {
 
   isGmail(): boolean {
     return this.#gmail() !== null;
-  }
-
-  #queueSize(): number {
-    return this.ctx.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM gmail_queue`).toArray()[0]?.n ?? 0;
   }
 
   /** Record a Busta-side change for Gmail, if this message came from Gmail. */
@@ -903,17 +983,9 @@ export class MailboxDO extends DurableObject<Env> {
       token: () => this.gmailAccessToken(),
       state: () => this.#gmail(),
       update: (patch) => this.#setGmail(patch),
-      queuePush: (ids) => {
-        for (const x of ids) sql.exec(`INSERT OR IGNORE INTO gmail_queue (gmail_id, ord) VALUES (?, ?)`, x.id, x.order);
-      },
-      queueTake: (n) => sql.exec<{ g: string }>(`SELECT gmail_id AS g FROM gmail_queue ORDER BY ord ASC LIMIT ?`, n).toArray().map((r) => r.g),
-      queueDrop: (id) => { sql.exec(`DELETE FROM gmail_queue WHERE gmail_id = ?`, id); },
-      queueSize: () => this.#queueSize(),
       local: (gmailId) => sql
-        .exec<Row<{ id: string; read: number; starred: number; deleted_at: number | null }>>(
-          `SELECT m.id, m.read, m.starred, m.deleted_at FROM gmail_ext e JOIN messages m ON m.id = e.message_id WHERE e.gmail_id = ?`, gmailId,
-        ).toArray()[0] ?? null,
-      link: (g, m, t) => this.linkGmail(g, m, t),
+        .exec<Row<{ id: string }>>(`SELECT m.id FROM gmail_ext e JOIN messages m ON m.id = e.message_id WHERE e.gmail_id = ?`, gmailId)
+        .toArray()[0] ?? null,
       applyRemote: (id, c) => {
         this.#applyingRemote = true;
         try {
@@ -921,6 +993,7 @@ export class MailboxDO extends DurableObject<Env> {
           if (c.starred !== undefined) this.setStarred(id, c.starred);
           if (c.trashed === true) this.trash(id);
           if (c.trashed === false) this.restore(id);
+          if (c.archived !== undefined) this.setArchived(id, c.archived);
         } finally {
           this.#applyingRemote = false;
         }
@@ -1284,10 +1357,17 @@ export class MailboxDO extends DurableObject<Env> {
       box?: "messages" | "sent";
       folder?: string;
       unread?: boolean;
+      /** Page cursor: the (received_at, seq) of the last row shown. */
+      after?: { at: number; seq: number };
+      /** The Archive bin. */
+      archived?: boolean;
     },
   ): IndexedMessage[] {
     const where: string[] = [filter?.trash ? "deleted_at IS NOT NULL" : "deleted_at IS NULL"];
     const bindings: SqlStorageValue[] = [];
+    // Archived mail is only in the Archive bin (and Sent keeps what you sent).
+    if (filter?.archived) where.push("archived_at IS NOT NULL");
+    else if (!filter?.trash && (filter?.box === "messages" || filter?.folder)) where.push("archived_at IS NULL");
 
     if (!filter?.trash && filter?.box) where.push(filter.box === "sent" ? "direction = 'out'" : "direction = 'in'");
     if (filter?.folder) {
@@ -1308,11 +1388,16 @@ export class MailboxDO extends DurableObject<Env> {
       where.push("seq < ?");
       bindings.push(filter.before);
     }
+    const after = filter?.after;
+    if (after && Number.isFinite(after.at) && Number.isFinite(after.seq)) {
+      where.push("(received_at < ? OR (received_at = ? AND seq < ?))");
+      bindings.push(after.at, after.at, after.seq);
+    }
 
     return this.ctx.storage.sql
       .exec<Row<IndexedMessage>>(
         `SELECT * FROM messages WHERE ${where.join(" AND ")}
-          ORDER BY seq DESC LIMIT ? OFFSET ?`,
+          ORDER BY received_at DESC, seq DESC LIMIT ? OFFSET ?`,
         ...bindings,
         limit,
         offset,
@@ -1351,6 +1436,14 @@ export class MailboxDO extends DurableObject<Env> {
     this.ctx.storage.sql.exec(`UPDATE messages SET read = ? WHERE id = ?`, read ? 1 : 0, id);
       this.#emit({ t: "row", id });
     this.#toGmail(id, read ? "read" : "unread");
+  }
+
+  /** Archive or bring back. For Gmail, the same as leaving or rejoining the Inbox. */
+  setArchived(id: string, archived: boolean): void {
+    if (archived) this.ctx.storage.sql.exec(`UPDATE messages SET archived_at = ? WHERE id = ? AND archived_at IS NULL`, Date.now(), id);
+    else this.ctx.storage.sql.exec(`UPDATE messages SET archived_at = NULL WHERE id = ?`, id);
+    this.#emit({ t: "row", id });
+    this.#toGmail(id, archived ? "archive" : "unarchive");
   }
 
   /**
@@ -1567,7 +1660,7 @@ export class MailboxDO extends DurableObject<Env> {
                 COALESCE(SUM(CASE WHEN m.id IS NOT NULL THEN 1 ELSE 0 END), 0) AS total,
                 COALESCE(SUM(CASE WHEN m.read = 0 THEN 1 ELSE 0 END), 0) AS unread
            FROM folders f
-           LEFT JOIN messages m ON m.folder_id = f.id AND m.deleted_at IS NULL
+           LEFT JOIN messages m ON m.folder_id = f.id AND m.deleted_at IS NULL AND m.archived_at IS NULL
           GROUP BY f.id
           ORDER BY f.position ASC, f.created_at ASC`,
       )
@@ -1706,16 +1799,17 @@ export class MailboxDO extends DurableObject<Env> {
       .toArray() as IndexedMessage[];
   }
 
-  boxCounts(): { messages: number; messagesUnread: number; sent: number } {
+  boxCounts(): { messages: number; messagesUnread: number; sent: number; archived: number } {
     const row = this.ctx.storage.sql
-      .exec<{ messages: number; messagesUnread: number; sent: number }>(
-        `SELECT COALESCE(SUM(CASE WHEN direction = 'in' THEN 1 ELSE 0 END), 0) AS messages,
-                COALESCE(SUM(CASE WHEN direction = 'in' AND read = 0 THEN 1 ELSE 0 END), 0) AS messagesUnread,
-                COALESCE(SUM(CASE WHEN direction = 'out' THEN 1 ELSE 0 END), 0) AS sent
+      .exec<{ messages: number; messagesUnread: number; sent: number; archived: number }>(
+        `SELECT COALESCE(SUM(CASE WHEN direction = 'in' AND archived_at IS NULL THEN 1 ELSE 0 END), 0) AS messages,
+                COALESCE(SUM(CASE WHEN direction = 'in' AND archived_at IS NULL AND read = 0 THEN 1 ELSE 0 END), 0) AS messagesUnread,
+                COALESCE(SUM(CASE WHEN direction = 'out' THEN 1 ELSE 0 END), 0) AS sent,
+                COALESCE(SUM(CASE WHEN archived_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS archived
            FROM messages WHERE deleted_at IS NULL`,
       )
       .toArray()[0];
-    return { messages: row?.messages ?? 0, messagesUnread: row?.messagesUnread ?? 0, sent: row?.sent ?? 0 };
+    return { messages: row?.messages ?? 0, messagesUnread: row?.messagesUnread ?? 0, sent: row?.sent ?? 0, archived: row?.archived ?? 0 };
   }
 
   labels(): { label: string; total: number; unread: number }[] {
@@ -1771,7 +1865,7 @@ export class MailboxDO extends DurableObject<Env> {
     const row = sql
       .exec<{ total: number; unread: number; trashed: number; starred: number }>(
         `SELECT COALESCE(SUM(CASE WHEN deleted_at IS NULL THEN 1 ELSE 0 END), 0) AS total,
-                COALESCE(SUM(CASE WHEN read = 0 AND deleted_at IS NULL THEN 1 ELSE 0 END), 0) AS unread,
+                COALESCE(SUM(CASE WHEN read = 0 AND deleted_at IS NULL AND archived_at IS NULL THEN 1 ELSE 0 END), 0) AS unread,
                 COALESCE(SUM(CASE WHEN deleted_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS trashed,
                 COALESCE(SUM(CASE WHEN starred = 1 AND deleted_at IS NULL THEN 1 ELSE 0 END), 0) AS starred
            FROM messages`,
