@@ -67,7 +67,7 @@ export function labelState(labels: string[]): GmailChange {
   return { read: !l.has("UNREAD"), starred: l.has("STARRED"), trashed: l.has("TRASH"), archived: !outbound && !l.has("INBOX") };
 }
 
-export type ImportOutcome = "stored" | "known" | "duplicate" | "skipped";
+export type ImportOutcome = "stored" | "known" | "duplicate" | "skipped" | "too_large";
 
 /**
  * Fetch one Gmail message and store it in the account's mailbox: received, or
@@ -91,9 +91,15 @@ export async function importGmailMessage(
 ): Promise<ImportOutcome> {
   const mailbox = mailboxStub(env, address);
   if (await mailbox.gmailKnown(gmailId)) return "known";
-  const { meta: m, bytes } = await api.getRawBytes(gmailId);
+  // The same ceiling as mail delivered to busta.app (MAX_INBOUND_BYTES).
+  const maxBytes = Number(env.MAX_INBOUND_BYTES ?? 26_214_400);
+  const { meta: m, bytes } = await api.getRawBytes(gmailId, maxBytes);
   const labels = m.labelIds ?? [];
   if (labels.includes("DRAFT") || labels.includes("SPAM") || labels.includes("CHAT")) return "skipped";
+  if (!bytes) {
+    console.warn("gmail import: too large, skipped", address, gmailId, m.sizeEstimate);
+    return "too_large";
+  }
   const outbound = labels.includes("SENT") && !labels.includes("INBOX");
   const store = async () => {
     const r = await ingest(

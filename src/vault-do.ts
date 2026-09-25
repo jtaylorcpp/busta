@@ -87,18 +87,14 @@ export class GmailVaultDO extends DurableObject<Env> {
    * ~33% bigger as Gmail's base64 than as bytes, and over RPC's 32 MiB limit
    * as a plain value; a stream isn't held to that limit.
    */
-  async getRawStream(id: string): Promise<VaultResult<{ meta: Omit<gmail.RawMessage, "raw">; body: ReadableStream<Uint8Array> }>> {
-    const r = await this.#run((t) => gmail.getRaw(t, id));
-    if (!r.ok) return r;
-    const { raw, ...meta } = r.value;
-    const bytes = gmail.fromB64url(raw);
-    const body = new ReadableStream<Uint8Array>({
-      start(controller) {
-        for (let i = 0; i < bytes.length; i += 1 << 20) controller.enqueue(bytes.subarray(i, i + (1 << 20)));
-        controller.close();
-      },
-    });
-    return { ok: true, value: { meta, body } };
+  async getRawStream(id: string, maxBytes: number): Promise<VaultResult<{ meta: Omit<gmail.RawMessage, "raw">; body: ReadableStream<Uint8Array> | null }>> {
+    // Size first (a tiny call): too big is skipped without downloading it.
+    const meta = await this.#run((t) => gmail.getMinimal(t, id));
+    if (!meta.ok) return meta;
+    if (meta.value.sizeEstimate > maxBytes) return { ok: true, value: { meta: meta.value, body: null } };
+    const raw = await this.#run((t) => gmail.getRawBase64(t, id));
+    if (!raw.ok) return raw;
+    return { ok: true, value: { meta: meta.value, body: gmail.b64urlChunks(raw.value) } };
   }
   getHeaders(id: string, names: string[]) { return this.#run((t) => gmail.getHeaders(t, id, names)); }
   listHistory(startHistoryId: string, pageToken?: string) { return this.#run((t) => gmail.listHistory(t, startHistoryId, pageToken)); }

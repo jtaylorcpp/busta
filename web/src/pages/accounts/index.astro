@@ -72,7 +72,7 @@ const when = (ms: number | null | undefined) => (ms ? formatListDate(ms) : "not 
                 {a.queue && (a.queue.phase === "done"
                   ? <Fragment>{a.queue.done} messages{a.queue.coveredAfter ? ` back to ${formatListDate(a.queue.coveredAfter * 1000)}` : ", everything"}</Fragment>
                   : <span class="live wait"><i></i>{a.queue.phase === "paused" ? "Paused until Gmail is reconnected" : `Bringing in · ${a.queue.done} of about ${a.queue.total || "…"}`}</span>)}
-                {a.queue?.lastError && a.queue.phase !== "done" && <span class="muted"> · last problem: {a.queue.lastError} (retrying)</span>}
+                {a.queue?.lastError && <span class="muted"> · {a.queue.lastError.startsWith("Skipped") ? a.queue.lastError : `last problem: ${a.queue.lastError} (retrying)`}</span>}
               </dd>
               <dt>Stays in step</dt><dd>Read, star, archive and trash, both ways{a.gmail.changesWaiting ? ` · ${a.gmail.changesWaiting} change${a.gmail.changesWaiting > 1 ? "s" : ""} waiting to reach Gmail` : ""}. Folders stay in Busta.</dd>
               <dt>Stays connected</dt><dd>Busta renews Gmail's alerts every day{a.gmail.watchExpires ? `; the current one lasts until ${formatListDate(a.gmail.watchExpires)}` : ""}.</dd>

@@ -172,6 +172,7 @@ export class ImportDO extends DurableObject<Env> {
           try {
             const outcome = await importGmailMessage(this.env, st.address, api, item.gmail_id, { sort: st.sorted < st.sortBudget, exclusive });
             if (outcome === "stored") { st.done++; st.sorted++; } else st.skipped++;
+            if (outcome === "too_large") st.lastError = "Skipped a message over 25 MB (Busta's size limit); it's still in Gmail.";
           } catch (e) {
             if (isAuthFailure(e)) { authFailure = e; return; }
             const gone = e instanceof GmailError && e.status === 404; // deleted in Gmail since it was listed

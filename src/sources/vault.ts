@@ -29,10 +29,13 @@ export function gmailFor(env: Env, account: string) {
     listMessages: async (q: string, pageToken?: string) =>
       unwrap(await v.listMessages(q, pageToken)) as { messages?: { id: string; threadId: string }[]; nextPageToken?: string },
     getRaw: async (id: string) => unwrap(await v.getRaw(id)) as RawMessage,
-    /** Metadata plus the raw bytes (streamed from the vault, so size isn't capped by RPC). */
-    getRawBytes: async (id: string) => {
-      const r = unwrap(await v.getRawStream(id)) as { meta: Omit<RawMessage, "raw">; body: ReadableStream<Uint8Array> };
-      return { meta: r.meta, bytes: await new Response(r.body).arrayBuffer() };
+    /**
+     * Metadata plus the raw bytes, streamed from the vault (so RPC's size cap
+     * doesn't apply). `bytes` is null when the message is over `maxBytes`.
+     */
+    getRawBytes: async (id: string, maxBytes: number) => {
+      const r = unwrap(await v.getRawStream(id, maxBytes)) as { meta: Omit<RawMessage, "raw">; body: ReadableStream<Uint8Array> | null };
+      return { meta: r.meta, bytes: r.body ? await new Response(r.body).arrayBuffer() : null };
     },
     getHeaders: async (id: string, names: string[]) =>
       unwrap(await v.getHeaders(id, names)) as { id: string; threadId: string; payload?: { headers?: { name: string; value: string }[] } },

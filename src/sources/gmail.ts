@@ -57,6 +57,40 @@ export interface RawMessage {
 
 export const getRaw = (t: TokenSource, id: string) => call<RawMessage>(t, `/messages/${id}?format=raw`);
 
+/** Labels, time and size, without the message. */
+export const getMinimal = (t: TokenSource, id: string) => call<Omit<RawMessage, "raw">>(t, `/messages/${id}?format=minimal`);
+
+/**
+ * Just the base64url `raw` field of a message, pulled out of the response
+ * text without JSON-parsing a string that can be tens of megabytes.
+ */
+export async function getRawBase64(t: TokenSource, id: string): Promise<string> {
+  const res = await fetch(`${API}/messages/${id}?format=raw&fields=raw`, { headers: { authorization: `Bearer ${await t()}` } });
+  const text = await res.text();
+  if (!res.ok) {
+    const err = (() => { try { return JSON.parse(text) as { error?: { message?: string; errors?: { reason?: string }[] } }; } catch { return {}; } })();
+    throw new GmailError(err.error?.message ?? `Gmail ${res.status}`, res.status, err.error?.errors?.[0]?.reason ?? null);
+  }
+  const key = text.indexOf('"raw"');
+  const start = text.indexOf('"', text.indexOf(":", key) + 1) + 1;
+  const end = text.indexOf('"', start);
+  if (key < 0 || start <= 0 || end < start) throw new GmailError("Gmail returned no raw message", 502, null);
+  return text.slice(start, end);
+}
+
+/** Decode base64url a slice at a time, so a big message is never held twice. */
+export function b64urlChunks(s: string, chunkChars = 4 << 20): ReadableStream<Uint8Array> {
+  let at = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (at >= s.length) { controller.close(); return; }
+      const end = Math.min(s.length, at + chunkChars - (chunkChars % 4));
+      controller.enqueue(fromB64url(s.slice(at, end)));
+      at = end;
+    },
+  });
+}
+
 export const getHeaders = (t: TokenSource, id: string, names: string[]) =>
   call<{ id: string; threadId: string; payload?: { headers?: { name: string; value: string }[] } }>(
     t, `/messages/${id}?format=metadata&${names.map((n) => `metadataHeaders=${encodeURIComponent(n)}`).join("&")}`,
