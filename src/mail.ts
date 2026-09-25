@@ -155,6 +155,11 @@ export function threadStub(env: Env, mailbox: string, threadId: string) {
   return env.THREAD.get(env.THREAD.idFromName(`${normalizeAddress(mailbox)}|${threadId}`));
 }
 
+/** Who a phone number belongs to (src/phone-do.ts), by E.164 number. */
+export function phoneStub(env: Env, e164: string) {
+  return env.PHONE.get(env.PHONE.idFromName(e164));
+}
+
 /** A Gmail account's import queue (src/import-do.ts). */
 export function importStub(env: Env, address: string) {
   return env.IMPORT.get(env.IMPORT.idFromName(normalizeAddress(address)));

@@ -14,3 +14,21 @@ interface Env extends GoogleSourceEnv {}
 declare namespace Cloudflare {
   interface Env extends GoogleSourceEnv {}
 }
+
+/** Texting (src/sms). The account SID and auth token are secrets; TWILIO_FROM is Busta's number. */
+interface TwilioEnv {
+  TWILIO_ACCOUNT_SID?: string;
+  /** Also signs incoming webhooks. Secret. */
+  TWILIO_AUTH_TOKEN?: string;
+  /** Optional scoped API key for sending and Verify. Secret. */
+  TWILIO_API_KEY_SID?: string;
+  TWILIO_API_KEY_SECRET?: string;
+  /** Twilio Verify Service SID. Secret. */
+  TWILIO_VERIFY_SID?: string;
+  /** Busta's texting number, E.164. */
+  TWILIO_FROM?: string;
+}
+interface Env extends TwilioEnv {}
+declare namespace Cloudflare {
+  interface Env extends TwilioEnv {}
+}

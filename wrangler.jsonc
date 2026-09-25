@@ -136,7 +136,9 @@
       { "name": "IMPORT", "class_name": "ImportDO" },
       // Holds each connected Gmail account's Google tokens and makes every
       // Gmail call; nothing can read a token out of it (src/vault-do.ts).
-      { "name": "VAULT", "class_name": "GmailVaultDO" }
+      { "name": "VAULT", "class_name": "GmailVaultDO" },
+      // One per phone number: which user and org an incoming text belongs to.
+      { "name": "PHONE", "class_name": "PhoneDO" }
     ]
   },
 
@@ -156,6 +158,10 @@
     {
       "tag": "v4",
       "new_sqlite_classes": ["GmailVaultDO"]
+    },
+    {
+      "tag": "v5",
+      "new_sqlite_classes": ["PhoneDO"]
     }
   ],
 

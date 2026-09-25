@@ -16,7 +16,7 @@ import legacy from "../../src/index";
 import { liveSocket } from "../../src/live";
 import { gmailPush } from "../../src/sources/push";
 
-export { GmailVaultDO, ImportDO, MailboxDO, TenantDO, ThreadDO } from "../../src/index";
+export { GmailVaultDO, ImportDO, MailboxDO, PhoneDO, TenantDO, ThreadDO } from "../../src/index";
 
 /** Paths Astro owns in every environment, for any method. */
 const ASTRO_ROUTES: RegExp[] = [
@@ -24,6 +24,7 @@ const ASTRO_ROUTES: RegExp[] = [
   /^\/accounts(\/[a-z]+)?\/?$/, // accounts: settings page, show / hide, color, disconnect
   /^\/connect\/(gmail|google)\/?$/, // Connect Gmail: the page, then off to Google
   /^\/oauth\/google\/callback\/?$/, // back from Google
+  /^\/texting\/?$/, // Texting settings: phone, code, PIN, features
   /^\/mb\/[^/]+\/folders(\/.*)?$/, // folders: list, editor, save/delete/move/test
   /^\/mb\/[^/]+\/start(\/.*)?$/, // Getting started guide: steps + progress actions
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/folder(\/retry)?\/?$/i, // file a message by hand / retry sorting

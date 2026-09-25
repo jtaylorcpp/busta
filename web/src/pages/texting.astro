@@ -1,0 +1,269 @@
+---
+/**
+ * /texting — Texting settings (designs/2026-09-25-text-busta, screen 4).
+ *
+ * Steps: add a phone → enter the Twilio Verify code → set a 4-digit PIN →
+ * turn on features one by one. Every feature is off until the user turns it
+ * on and ticks that they understand its risks; texts go only for folders the
+ * user picks (none are picked for them). Forms post back here, so it works
+ * without JavaScript.
+ */
+import { env } from "cloudflare:workers";
+import FolderPageShell from "../components/app/FolderPageShell.astro";
+import { Button, Icon } from "../components/ui";
+import { phoneStub, tenantStub } from "../../../src/mail";
+import { TEXTING_FEATURES, type TextingFeature, type TextingView } from "../../../src/tenant-do";
+import { bustaNumber, checkVerify, formatPhone, lookupLine, maskPhone, startVerify, toE164, twilioFake, twilioMissing } from "../../../src/sms/twilio";
+import { hashPin, validPin } from "../../../src/sms/pin";
+import { ALL, folderKey, listAccounts, mergeFolders, openShown } from "../lib/accounts";
+import type { FolderWithCounts } from "../../../src/mailbox-do";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+Astro.response.headers.set("cache-control", "no-store");
+const tenant = tenantStub(env, orgId);
+
+// The features, in order, with what each one risks (shown before it turns on).
+const FEATURES: Record<TextingFeature, { name: string; what: string; risks: string[] }> = {
+  notify: {
+    name: "Texts about new mail",
+    what: "One text per email filed into a folder you choose, as it's filed. By default it says only \"New email in <folder>\" and a link.",
+    risks: ["Texts pass through your carrier and Twilio, which keep records of them.", "Codes, reset links and security alerts are never texted."],
+  },
+  subject: {
+    name: "Include sender and subject",
+    what: "Adds who it's from and the subject line to each text.",
+    risks: ["Sender and subject show on your phone's lock screen to anyone holding it, and on any device your texts sync to.", "Carrier and Twilio records then include them too."],
+  },
+  links: {
+    name: "Open emails from a link",
+    what: "Each text includes a link that opens that one email in a browser, with your PIN, once, for 12 hours. Leave it off if your phone has no browser.",
+    risks: ["Anyone with the text and your PIN can open that email until the link is used or expires, including someone you forward it to.", "If someone takes over your number (SIM swap), they get the links; the PIN still stops them."],
+  },
+  ask: {
+    name: "Ask by text (search your mail)",
+    what: "Text a question; Busta searches all your accounts and texts back a short answer, with a PIN link for details.",
+    risks: ["The short answer arrives as plain text: whoever holds your phone or number can ask and read it, without a PIN.", "It searches every connected account. Security mail is always left out.", "Busta emails you each time a question is asked, and pauses Ask if your SIM or carrier changes."],
+  },
+};
+
+let error: string | null = null;
+let ok: string | null = Astro.url.searchParams.get("ok");
+const done = (text: string) => Astro.redirect(`/texting?ok=${encodeURIComponent(text)}`, 303);
+
+if (Astro.request.method === "POST") {
+  const f = await Astro.request.formData();
+  const act = String(f.get("do") ?? "");
+  const v = (await tenant.texting(userId)) as TextingView;
+  if (act === "phone") {
+    const phone = toE164(String(f.get("phone") ?? ""));
+    if (!phone) error = "Enter a 10-digit US or Canadian mobile number.";
+    else if (!(await tenant.startPhoneVerify(userId, phone))) error = "That's 3 codes today. Try again tomorrow.";
+    else {
+      try { await startVerify(env, phone); return done(`Code sent to ${formatPhone(phone)}.`); }
+      catch (e) { error = `Couldn't send the code: ${(e as Error).message}`; }
+    }
+  } else if (act === "verify") {
+    const code = String(f.get("code") ?? "").replace(/\D/g, "");
+    if (!v.pendingPhone) error = "Send a code first.";
+    else if (!(await checkVerify(env, v.pendingPhone, code))) error = "That code didn't match, or it expired. Check it, or send a new one.";
+    else {
+      const phone = v.pendingPhone;
+      const line = await lookupLine(env, phone).catch(() => null);
+      const old = (await tenant.confirmPhone(userId, phone, line?.carrier ?? null)) as string | null;
+      if (old) await phoneStub(env, old).release(userId);
+      // Newest verification wins: switch texting off for whoever had this number before.
+      const prev = await phoneStub(env, phone).claim({ userId, orgId, verifiedAt: Date.now() });
+      if (prev) await tenantStub(env, prev.orgId).removePhone(prev.userId);
+      return done(`Verified ${formatPhone(phone)}. Everything is still off: set a PIN, then choose what to turn on.`);
+    }
+  } else if (act === "pin") {
+    const pin = String(f.get("pin") ?? "");
+    if (!validPin(pin)) error = "The PIN is 4 digits.";
+    else if (pin !== String(f.get("pin2") ?? "")) error = "The two PINs didn't match.";
+    else { await tenant.setTextingPin(userId, await hashPin(pin)); return done("PIN saved."); }
+  } else if (act === "feature") {
+    const feature = String(f.get("feature")) as TextingFeature;
+    const on = f.get("on") === "1";
+    if (!TEXTING_FEATURES.includes(feature)) error = "Unknown feature.";
+    else if (!on) { await tenant.setTextingFeature(userId, feature, false); return done(`${FEATURES[feature].name}: off.`); }
+    else if (!v.phone || v.paused) error = "Verify your phone first.";
+    else if (!v.hasPin) error = "Set a PIN first.";
+    else if (f.get("ack") !== "1") error = `Tick "I understand these risks" to turn on ${FEATURES[feature].name}.`;
+    else if (feature === "subject" && !v.features.notify) error = "Turn on texts about new mail first.";
+    else if (feature === "notify" && f.getAll("folder").length === 0) error = "Choose at least one folder that texts you.";
+    else {
+      if (feature === "notify") await tenant.setTextingFolders(userId, f.getAll("folder").map(String));
+      await tenant.setTextingFeature(userId, feature, true);
+      return done(`${FEATURES[feature].name}: on.`);
+    }
+  } else if (act === "folders") {
+    const picked = f.getAll("folder").map(String);
+    if (picked.length === 0) error = "Choose at least one folder, or turn texts off.";
+    else { await tenant.setTextingFolders(userId, picked); return done("Folders saved."); }
+  } else if (act === "remove") {
+    const old = (await tenant.removePhone(userId)) as string | null;
+    if (old) await phoneStub(env, old).release(userId);
+    return done("Phone removed. Every texting feature is off.");
+  }
+}
+
+const v = (await tenant.texting(userId)) as TextingView;
+const accounts = await listAccounts(env, orgId);
+const opened = await openShown(env, { userId, orgId }, accounts.map((a) => ({ ...a, shown: true })));
+const folders = mergeFolders(await Promise.all(opened.map(async (a) => ({ account: a, folders: (await a.stub.listFolders()) as FolderWithCounts[] }))));
+const home = accounts[0]?.address;
+if (!home) return Astro.redirect("/");
+const missing = twilioMissing(env);
+const fake = twilioFake(env);
+const busta = bustaNumber(env);
+const verified = !!v.phone;
+const when = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+---
+<FolderPageShell title="Texting" address={home} backHref={accounts.length > 1 ? ALL : `/mb/${encodeURIComponent(home)}`} backLabel="Back to your mail" bin={null} current={accounts.length > 1 ? null : home}>
+  <div class="page">
+    {ok && <p class="flash ok">{ok}</p>}
+    {error && <p class="flash err" role="alert">{error}</p>}
+    {missing.length > 0 && !fake && <p class="flash warn">Texting isn't set up on this server yet. Missing: <code>{missing.join(", ")}</code>.</p>}
+    {fake && <p class="flash warn">Local test mode: no texts are sent (they're logged), and the code is always 123456.</p>}
+    {v.paused && <p class="flash warn"><b>Texting is paused.</b> {v.paused} Re-verify your phone below to resume.</p>}
+
+    {verified ? (
+      <section class="panel">
+        <div class="ph"><Icon name="lock" size={15} /><b>Your phone</b><span class="grow"></span><span class="pill">Verified {when(v.verifiedAt!)}</span></div>
+        <dl class="kv">
+          <dt>Texts go to</dt><dd class="mono">{maskPhone(v.phone!)}</dd>
+          {busta && (<Fragment><dt>Busta's number</dt><dd><span class="mono">{busta}</span> · save it as "Busta"</dd></Fragment>)}
+          <dt>Verified by</dt><dd>A code from Twilio Verify. Only this number can get texts or ask questions.</dd>
+          <dt>PIN</dt><dd>{v.hasPin ? "Set · needed to open any link" : "Not set yet"}</dd>
+          <dt>Protection</dt><dd>SIM and carrier checked before each question and link; re-verify every 90 days (next: {when(v.reverifyBy!)})</dd>
+        </dl>
+        <form method="post" class="row-end"><input type="hidden" name="do" value="remove" /><Button variant="danger" size="sm" type="submit">Remove phone</Button></form>
+      </section>
+    ) : null}
+
+    <section class="panel">
+      <div class="ph"><b>{verified ? "Change or re-verify your phone" : "1 · Add your phone"}</b>{v.pendingPhone && <span class="pill wait">Code sent</span>}</div>
+      <form method="post" class="step">
+        <input type="hidden" name="do" value="phone" />
+        <label for="phone">Your mobile number</label>
+        <div class="phin"><span>+1</span><input id="phone" name="phone" inputmode="tel" autocomplete="tel-national" placeholder="916 555 0142" value={v.pendingPhone ? v.pendingPhone.slice(2) : ""} /></div>
+        <p class="hint">US and Canada. Twilio Verify texts a 6-digit code; up to 3 codes a day.</p>
+        <Button size="sm" type="submit">Text me a code</Button>
+      </form>
+      {v.pendingPhone && (
+        <form method="post" class="step">
+          <input type="hidden" name="do" value="verify" />
+          <label for="code">Enter the code sent to {formatPhone(v.pendingPhone)}</label>
+          <input id="code" name="code" class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" />
+          <p class="hint">It expires in 10 minutes. A new number starts with every feature off.</p>
+          <Button variant="primary" size="sm" type="submit">Verify</Button>
+        </form>
+      )}
+    </section>
+
+    {verified && (
+      <section class="panel">
+        <div class="ph"><b>{v.hasPin ? "Change your PIN" : "2 · Set a 4-digit PIN"}</b></div>
+        <form method="post" class="step">
+          <input type="hidden" name="do" value="pin" />
+          <div class="pins">
+            <label>PIN <input name="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" class="code sm" /></label>
+            <label>Again <input name="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" class="code sm" /></label>
+          </div>
+          <p class="hint">Needed to open any link Busta texts you. Not your phone's PIN; don't reuse one.</p>
+          <Button size="sm" type="submit">Save PIN</Button>
+        </form>
+      </section>
+    )}
+
+    {verified && (
+      <section class="panel">
+        <div class="ph"><b>3 · Texting features</b><span class="grow"></span><span class="hint">each one is off until you turn it on</span></div>
+        {TEXTING_FEATURES.map((key) => {
+          const feat = FEATURES[key];
+          const on = v.features[key];
+          return (
+            <form method="post" class:list={["feat", { on }]}>
+              <input type="hidden" name="do" value="feature" />
+              <input type="hidden" name="feature" value={key} />
+              <input type="hidden" name="on" value={on ? "0" : "1"} />
+              <div class="fh"><span class:list={["state", { on }]}>{on ? "On" : "Off"}</span><b>{feat.name}</b></div>
+              <p class="what">{feat.what}</p>
+              {key === "notify" && (
+                <fieldset class="fpick">
+                  <legend>Which folders text you</legend>
+                  {folders.length === 0 && <p class="hint">You have no folders yet. Make one first.</p>}
+                  {folders.map((fo) => (
+                    <label><input type="checkbox" name="folder" value={fo.key} checked={v.folders.includes(fo.key)} disabled={on} />{fo.name}</label>
+                  ))}
+                  <p class="hint">None are picked for you. Only mail a folder's rule files (not mail you move there).</p>
+                </fieldset>
+              )}
+              {!on && (
+                <div class="risks"><span>What this risks</span><ul>{feat.risks.map((r) => <li>{r}</li>)}</ul></div>
+              )}
+              {!on && <label class="ack"><input type="checkbox" name="ack" value="1" />I understand these risks</label>}
+              <div><Button variant={on ? "secondary" : "primary"} size="sm" type="submit">{on ? "Turn off" : "Turn on"}</Button></div>
+            </form>
+          );
+        })}
+        {v.features.notify && (
+          <form method="post" class="feat">
+            <input type="hidden" name="do" value="folders" />
+            <b>Change which folders text you</b>
+            <fieldset class="fpick">{folders.map((fo) => <label><input type="checkbox" name="folder" value={fo.key} checked={v.folders.includes(fo.key)} />{fo.name}</label>)}</fieldset>
+            <div><Button size="sm" type="submit">Save folders</Button></div>
+          </form>
+        )}
+      </section>
+    )}
+    {busta && <p class="hint">Reply STOP to {busta} at any time to stop all texts; START to resume.</p>}
+  </div>
+</FolderPageShell>
+
+<style>
+  .page { display: grid; gap: var(--space-4); padding: var(--space-5); max-width: 760px; }
+  .flash { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); font-size: var(--text-sm); }
+  .flash.ok { background: var(--success-soft); color: var(--success); }
+  .flash.err { background: var(--error-soft); color: var(--error); }
+  .flash.warn { background: var(--warn-soft); color: var(--warn); }
+  .flash code { font-family: var(--font-mono); }
+  .panel { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .ph { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface-2); flex-wrap: wrap; }
+  .ph b { font-weight: 600; }
+  .grow { flex: 1; }
+  .pill { font-size: var(--text-xs); font-weight: 600; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--success-soft); color: var(--success); }
+  .pill.wait { background: var(--warn-soft); color: var(--warn); }
+  .kv { display: grid; grid-template-columns: 150px 1fr; margin: 0; }
+  .kv dt, .kv dd { margin: 0; padding: 9px 14px; border-top: 1px solid var(--border); font-size: var(--text-sm); }
+  .kv dt { color: var(--muted); }
+  @media (max-width: 640px) { .kv { grid-template-columns: 1fr; } .kv dd { border-top: 0; padding-top: 0; } }
+  .mono { font-family: var(--font-mono); }
+  .row-end { display: flex; justify-content: flex-end; padding: 10px 14px; border-top: 1px solid var(--border); }
+  .step { display: grid; gap: 8px; justify-items: start; padding: 14px; border-top: 1px solid var(--border); }
+  .step label, legend { font-size: var(--text-sm); font-weight: 600; }
+  .hint { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+  .phin { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--bg); font-family: var(--font-mono); }
+  .phin input { border: 0; background: transparent; color: var(--text); font: 500 var(--text-md) var(--font-mono); outline: none; width: 16ch; }
+  .phin:focus-within, .code:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .code { font: 600 18px var(--font-mono); letter-spacing: .3em; padding: 6px 10px; width: 10ch; border-radius: var(--radius-md); border: 1.5px solid var(--border); background: var(--bg); color: var(--text); outline: none; }
+  .code.sm { width: 7ch; }
+  .pins { display: flex; gap: 14px; flex-wrap: wrap; }
+  .pins label { display: grid; gap: 4px; }
+  .feat { display: grid; gap: 8px; padding: 14px; border-top: 1px solid var(--border); }
+  .feat.on { background: color-mix(in srgb, var(--primary-soft) 40%, transparent); }
+  .fh { display: flex; align-items: center; gap: 10px; }
+  .fh b { font-weight: 600; }
+  .state { font: 600 var(--text-xs) var(--font-sans); padding: 3px 9px; border-radius: var(--radius-pill); background: var(--secondary-soft); color: var(--muted); }
+  .state.on { background: var(--primary-soft); color: var(--primary); }
+  .what { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+  .fpick { border: 0; margin: 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--surface-2); display: grid; gap: 6px; }
+  .fpick label { display: flex; gap: 8px; align-items: center; font-size: var(--text-sm); }
+  .fpick input, .ack input { accent-color: var(--primary); }
+  .risks { padding: 8px 10px; border-radius: var(--radius-md); background: var(--warn-soft); }
+  .risks span { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--warn); }
+  .risks ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; font-size: var(--text-sm); color: var(--text); }
+  .ack { display: flex; gap: 8px; align-items: center; font-size: var(--text-sm); font-weight: 600; }
+</style>
