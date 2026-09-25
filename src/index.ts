@@ -31,6 +31,7 @@ export { MailboxDO } from "./mailbox-do";
 export { ThreadDO } from "./thread-do";
 export { TenantDO } from "./tenant-do";
 export { ImportDO } from "./import-do";
+export { GmailVaultDO } from "./vault-do";
 
 const MESSAGE_ACTIONS = new Set(["trash", "restore", "purge", "star", "unstar", "read", "unread", "archive", "unarchive"]);
 

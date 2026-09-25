@@ -57,4 +57,8 @@ Decided after the mockup was approved; the code is the source of truth.
 - **Disconnected Gmail, kept:** replying is off (and sending from it is
   refused), but archive, star and trash still work on Busta's copies.
 - **Undo after Archive** is a banner at the top of the list, not a dark toast.
+- **Google tokens live in a vault.** GmailVaultDO holds each account's tokens
+  and makes every Gmail call; nothing can read a token back out. No
+  application-level encryption (SOURCE_TOKEN_KEY was dropped); Cloudflare
+  encrypts storage at rest.
 

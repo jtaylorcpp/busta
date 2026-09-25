@@ -7,7 +7,7 @@
 import Base from "../layouts/Base.astro";
 import { Brand } from "../components/ui";
 
-const updated = "September 24, 2026";
+const updated = "September 25, 2026";
 const contact = "jtaylorcpp@busta.app";
 Astro.response.headers.set("cache-control", "public, max-age=3600");
 ---
@@ -24,7 +24,7 @@ Astro.response.headers.set("cache-control", "public, max-age=3600");
       <ul>
         <li><b>Your account.</b> Your sign-in (name, email address, organization), handled by our sign-in provider, Clerk.</li>
         <li><b>Your mail.</b> Messages sent to your busta.app addresses, messages you send, drafts, attachments, and the folders and rules you write.</li>
-        <li><b>A connected Gmail account, if you connect one.</b> Copies of the messages Busta brings in from it (your Inbox, Sent and archived mail, not Spam or Drafts), their read, starred, archived and trashed state, and a Google access token so Busta can keep them in step. The token is encrypted before it is stored.</li>
+        <li><b>A connected Gmail account, if you connect one.</b> Copies of the messages Busta brings in from it (your Inbox, Sent and archived mail, not Spam or Drafts), their read, starred, archived and trashed state, and Google's sign-in tokens so Busta can keep them in step. The tokens are kept in a separate store inside Busta that makes Gmail requests on your behalf and never hands the tokens out to the rest of the app.</li>
       </ul>
 
       <h2>What Busta uses it for</h2>
@@ -53,7 +53,7 @@ Astro.response.headers.set("cache-control", "public, max-age=3600");
       <p>No one else receives your data.</p>
 
       <h2>Keeping it safe</h2>
-      <p>Everything travels over HTTPS. Each mailbox is stored separately and can only be opened by the organization that owns it. Google tokens are encrypted at rest.</p>
+      <p>Everything travels over HTTPS. Each mailbox is stored separately and can only be opened by the organization that owns it. Stored data is encrypted at rest by Cloudflare, and Google tokens live in their own store that only Busta's Gmail requests can use.</p>
 
       <h2>Keeping and deleting</h2>
       <ul>

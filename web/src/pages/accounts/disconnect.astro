@@ -10,8 +10,6 @@ import { env } from "cloudflare:workers";
 import FolderPageShell from "../../components/app/FolderPageShell.astro";
 import { Button } from "../../components/ui";
 import { importStub } from "../../../../src/mail";
-import { revoke } from "../../../../src/sources/google";
-import { unseal } from "../../../../src/sources/seal";
 import type { FolderWithCounts } from "../../../../src/mailbox-do";
 import { ALL, listAccounts } from "../../lib/accounts";
 import { openMailbox } from "../../lib/mail-data";
@@ -40,12 +38,9 @@ if (post) {
   } else {
     // Stop the import queue and live sync, and hand the access back to Google.
     await importStub(env, address).cancel();
-    const sealed = (await stub.disconnectGmail()) as string | null;
-    let note = "";
-    if (sealed) {
-      const revoked = await revoke(await unseal(env, sealed)).catch(() => false);
-      if (!revoked) note = " Google didn't confirm; you can also remove Busta at myaccount.google.com/permissions.";
-    }
+    // The vault asks Google to revoke the grant, then forgets the tokens.
+    const revoked = (await stub.disconnectGmail()) as boolean | null;
+    const note = revoked === false ? " Google didn't confirm; you can also remove Busta at myaccount.google.com/permissions." : "";
     if (mode === "delete") {
       await stub.startPurge();
       return Astro.redirect(`/accounts?ok=${encodeURIComponent(`Disconnected ${address}. Deleting its mail from Busta; your Gmail isn't touched.${note}`)}`, 303);

@@ -1,7 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
-import { mailboxStub } from "./mail";
-import * as gmail from "./sources/gmail";
 import { GmailError } from "./sources/gmail";
+import { gmailFor } from "./sources/vault";
 import { importGmailMessage, isAuthFailure } from "./sources/gmail-sync";
 
 /**
@@ -127,18 +126,13 @@ export class ImportDO extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const st = this.#state();
     if (!st || st.phase === "done" || st.phase === "paused") return;
-    const mailbox = mailboxStub(this.env, st.address);
-    let access: { token: string; at: number } | null = null;
-    const token: gmail.TokenSource = async () => {
-      if (!access || Date.now() - access.at > 30 * 60_000) access = { token: await mailbox.gmailAccessToken(), at: Date.now() };
-      return access.token;
-    };
+    const api = gmailFor(this.env, st.address);
 
     try {
       if (st.phase === "listing") {
         let pageToken = st.pageToken ?? undefined;
         for (let i = 0; i < PAGES_PER_RUN; i++) {
-          const page = await gmail.listMessages(token, st.query, pageToken);
+          const page = await api.listMessages(st.query, pageToken);
           for (const m of page.messages ?? []) {
             this.ctx.storage.sql.exec(`INSERT OR IGNORE INTO queue (gmail_id) VALUES (?)`, m.id);
           }
@@ -159,7 +153,7 @@ export class ImportDO extends DurableObject<Env> {
       for (const item of batch) {
         let outcome;
         try {
-          outcome = await importGmailMessage(this.env, st.address, token, item.gmail_id, { sort: st.sorted < st.sortBudget });
+          outcome = await importGmailMessage(this.env, st.address, api, item.gmail_id, { sort: st.sorted < st.sortBudget });
         } catch (e) {
           if (!(e instanceof GmailError && e.status === 404)) throw e;
           outcome = "skipped" as const; // deleted in Gmail since it was listed
@@ -175,7 +169,7 @@ export class ImportDO extends DurableObject<Env> {
       await this.ctx.storage.setAlarm(Date.now() + 250);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      if (isAuthFailure(e) || /isn't connected/.test(message)) {
+      if (isAuthFailure(e)) {
         this.#save({ ...st, phase: "paused", lastError: "Waiting for Gmail to be reconnected." });
         return;
       }

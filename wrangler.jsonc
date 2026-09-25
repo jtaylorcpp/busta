@@ -111,7 +111,7 @@
 
     // Connected Gmail (src/sources). Gmail publishes new-mail alerts to this
     // Pub/Sub topic; its push subscription calls /hooks/gmail signed as this
-    // service account. Client id/secret and SOURCE_TOKEN_KEY are secrets.
+    // service account. The OAuth client id and secret are secrets.
     "GMAIL_PUBSUB_TOPIC": "projects/busta-509704/topics/gmail-busta",
     "PUBSUB_PUSH_SA": "busta-push@busta-509704.iam.gserviceaccount.com"
   },
@@ -130,7 +130,10 @@
       { "name": "THREAD", "class_name": "ThreadDO" },
       { "name": "TENANT", "class_name": "TenantDO" },
       // One import queue per connected Gmail account (src/import-do.ts).
-      { "name": "IMPORT", "class_name": "ImportDO" }
+      { "name": "IMPORT", "class_name": "ImportDO" },
+      // Holds each connected Gmail account's Google tokens and makes every
+      // Gmail call; nothing can read a token out of it (src/vault-do.ts).
+      { "name": "VAULT", "class_name": "GmailVaultDO" }
     ]
   },
 
@@ -146,6 +149,10 @@
     {
       "tag": "v3",
       "new_sqlite_classes": ["ImportDO"]
+    },
+    {
+      "tag": "v4",
+      "new_sqlite_classes": ["GmailVaultDO"]
     }
   ],
 

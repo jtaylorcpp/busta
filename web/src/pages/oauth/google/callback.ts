@@ -4,7 +4,8 @@
  *
  *   - The address is the email Google vouches for; that's the proof of
  *     ownership. A Gmail already connected to another org is refused.
- *   - The refresh token is sealed before it's stored.
+ *   - The refresh token goes straight into the account's vault (GmailVaultDO),
+ *     which never hands it back.
  *   - New accounts can start with the org's folders and rules (Applies to).
  *   - The account's import queue (ImportDO) brings in the chosen days, newest
  *     first, while the mailbox's own alarm follows new mail.
@@ -13,7 +14,7 @@ import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import { importStub, mailboxStub, tenantStub } from "../../../../../src/mail";
 import { exchangeCode, GoogleAuthError, revoke } from "../../../../../src/sources/google";
-import { seal } from "../../../../../src/sources/seal";
+import { vaultStub } from "../../../../../src/sources/vault";
 import type { FolderWithCounts } from "../../../../../src/mailbox-do";
 import { listAccounts, mergeFolders, openShown } from "../../../lib/accounts";
 import { redirectUri, sortBudget, takeTicket } from "../../../lib/connect";
@@ -65,7 +66,8 @@ export const GET: APIRoute = async (ctx) => {
     }
   }
 
-  await mailbox.connectGmail({ account: address, sealedRefresh: await seal(env, signedIn.refreshToken) });
+  await vaultStub(env, address).store({ account: address, refreshToken: signedIn.refreshToken });
+  await mailbox.connectGmail({ account: address });
   const queue = importStub(env, address);
   if (isNew || !(await queue.status())) await queue.start({ address, days: ticket.days, sortBudget: sortBudget(ticket.days) });
   else await queue.resume();

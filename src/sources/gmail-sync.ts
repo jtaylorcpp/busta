@@ -18,12 +18,12 @@
  */
 import { ingest, mailboxStub } from "../mail";
 import { fileMessage } from "../folders";
-import * as gmail from "./gmail";
-import { GmailError } from "./gmail";
+import type * as gmail from "./gmail";
+import { fromB64url, GmailError } from "./gmail";
+import type { GmailApi } from "./vault";
 
 export interface GmailState {
   account: string;
-  sealedRefresh: string;
   status: "live" | "needs_reconnect";
   connectedAt: number;
   /** History position to follow from; set by the first watch, advanced by each sync. */
@@ -37,11 +37,12 @@ export interface GmailState {
   pending: boolean;
 }
 
-/** What the Durable Object gives live sync: its state, its tables, and a token. */
+/** What the Durable Object gives live sync: its state, its tables, and Gmail (via the vault). */
 export interface GmailHost {
   env: Env;
   address: string;
-  token: gmail.TokenSource;
+  /** Gmail, through the account's vault (it holds the tokens, not us). */
+  api: GmailApi;
   state(): GmailState | null;
   update(patch: Partial<GmailState>): void;
   /** Busta message for a Gmail id. */
@@ -76,17 +77,17 @@ export type ImportOutcome = "stored" | "known" | "duplicate" | "skipped";
 export async function importGmailMessage(
   env: Env,
   address: string,
-  token: gmail.TokenSource,
+  api: GmailApi,
   gmailId: string,
   opts: { sort: boolean },
 ): Promise<ImportOutcome> {
   const mailbox = mailboxStub(env, address);
   if (await mailbox.gmailKnown(gmailId)) return "known";
-  const m = await gmail.getRaw(token, gmailId);
+  const m = await api.getRaw(gmailId);
   const labels = m.labelIds ?? [];
   if (labels.includes("DRAFT") || labels.includes("SPAM") || labels.includes("CHAT")) return "skipped";
   const outbound = labels.includes("SENT") && !labels.includes("INBOX");
-  const raw = gmail.fromB64url(m.raw);
+  const raw = fromB64url(m.raw);
   const result = await ingest(
     env,
     { from: "", to: address, rawSize: raw.byteLength },
@@ -119,8 +120,9 @@ export async function gmailTick(host: GmailHost): Promise<number | null> {
   }
 }
 
+/** The vault reports a revoked or missing Google grant as 401. */
 export function isAuthFailure(e: unknown): boolean {
-  return (e as { code?: string }).code === "invalid_grant" || (e instanceof GmailError && e.status === 401);
+  return e instanceof GmailError && e.status === 401;
 }
 
 function handleError(host: GmailHost, e: unknown): number | null {
@@ -137,7 +139,7 @@ function handleError(host: GmailHost, e: unknown): number | null {
 async function renewWatch(host: GmailHost) {
   const topic = host.env.GMAIL_PUBSUB_TOPIC;
   if (!topic) return;
-  const w = await gmail.watch(host.token, topic);
+  const w = await host.api.watch(topic);
   const st = host.state()!;
   host.update({
     watchRenewAt: Date.now() + DAY,
@@ -152,7 +154,7 @@ async function syncHistory(host: GmailHost) {
   const st = host.state()!;
   host.update({ pending: false });
   if (!st.historyId) {
-    const p = await gmail.profile(host.token);
+    const p = await host.api.profile();
     host.update({ historyId: p.historyId, lastSyncAt: Date.now() });
     return;
   }
@@ -160,7 +162,7 @@ async function syncHistory(host: GmailHost) {
   let latest = st.historyId;
   try {
     do {
-      const page = await gmail.listHistory(host.token, st.historyId, pageToken);
+      const page = await host.api.listHistory(st.historyId, pageToken);
       for (const h of page.history ?? []) await applyHistory(host, h);
       latest = page.historyId ?? latest;
       pageToken = page.nextPageToken;
@@ -168,8 +170,8 @@ async function syncHistory(host: GmailHost) {
   } catch (e) {
     if (e instanceof GmailError && e.status === 404) {
       // Too far behind for history: catch up on the last week instead.
-      const p = await gmail.profile(host.token);
-      const recent = await gmail.listMessages(host.token, "newer_than:7d -in:spam -in:drafts -in:chats");
+      const p = await host.api.profile();
+      const recent = await host.api.listMessages("newer_than:7d -in:spam -in:drafts -in:chats");
       for (const m of recent.messages ?? []) await bringIn(host, m.id);
       host.update({ historyId: p.historyId, lastSyncAt: Date.now(), lastError: null });
       return;
@@ -181,7 +183,7 @@ async function syncHistory(host: GmailHost) {
 
 async function bringIn(host: GmailHost, gmailId: string) {
   try {
-    if ((await importGmailMessage(host.env, host.address, host.token, gmailId, { sort: true })) === "stored") {
+    if ((await importGmailMessage(host.env, host.address, host.api, gmailId, { sort: true })) === "stored") {
       host.update({ lastMailAt: Date.now() });
     }
   } catch (e) {
@@ -214,14 +216,14 @@ async function drainOutbox(host: GmailHost) {
   for (const item of host.outboxTake(25)) {
     try {
       switch (item.op) {
-        case "read": await gmail.modify(host.token, item.gmail_id, [], ["UNREAD"]); break;
-        case "unread": await gmail.modify(host.token, item.gmail_id, ["UNREAD"], []); break;
-        case "star": await gmail.modify(host.token, item.gmail_id, ["STARRED"], []); break;
-        case "unstar": await gmail.modify(host.token, item.gmail_id, [], ["STARRED"]); break;
-        case "archive": await gmail.modify(host.token, item.gmail_id, [], ["INBOX"]); break;
-        case "unarchive": await gmail.modify(host.token, item.gmail_id, ["INBOX"], []); break;
-        case "trash": await gmail.trash(host.token, item.gmail_id); break;
-        case "untrash": await gmail.untrash(host.token, item.gmail_id); break;
+        case "read": await host.api.modify(item.gmail_id, [], ["UNREAD"]); break;
+        case "unread": await host.api.modify(item.gmail_id, ["UNREAD"], []); break;
+        case "star": await host.api.modify(item.gmail_id, ["STARRED"], []); break;
+        case "unstar": await host.api.modify(item.gmail_id, [], ["STARRED"]); break;
+        case "archive": await host.api.modify(item.gmail_id, [], ["INBOX"]); break;
+        case "unarchive": await host.api.modify(item.gmail_id, ["INBOX"], []); break;
+        case "trash": await host.api.trash(item.gmail_id); break;
+        case "untrash": await host.api.untrash(item.gmail_id); break;
       }
       host.outboxDone(item.seq);
     } catch (e) {

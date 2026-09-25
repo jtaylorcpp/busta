@@ -4,9 +4,7 @@ import { classify, deliver, nextAttemptDelay, type OutboundPayload } from "./del
 import type { MessageMetadata } from "./metadata";
 import type { ThreadAttachment } from "./thread-do";
 import { gmailTick, labelState, type GmailHost, type GmailState } from "./sources/gmail-sync";
-import { refreshAccess } from "./sources/google";
-import { unseal } from "./sources/seal";
-import { stopWatch } from "./sources/gmail";
+import { gmailFor, vaultStub } from "./sources/vault";
 import { tenantStub, threadStub } from "./mail";
 
 export type Direction = "in" | "out";
@@ -784,7 +782,8 @@ export class MailboxDO extends DurableObject<Env> {
 
   // ---- connected Gmail -------------------------------------------------
   //
-  // State lives in meta "gmail" (GmailState, with the refresh token sealed).
+  // State lives in meta "gmail" (GmailState). The Google tokens don't live
+  // here at all: GmailVaultDO holds them and makes every Gmail call.
   // The work happens in alarm() via gmailTick; everything else only records
   // what to do and asks for the alarm sooner.
 
@@ -800,18 +799,6 @@ export class MailboxDO extends DurableObject<Env> {
     this.#emit({ t: "nav" });
   }
 
-  #access: { token: string; expiresAt: number } | null = null;
-
-  /** A current access token, refreshed from the sealed refresh token when needed. */
-  async gmailAccessToken(): Promise<string> {
-    if (this.#access && this.#access.expiresAt - Date.now() > 60_000) return this.#access.token;
-    const st = this.#gmail();
-    if (!st) throw new Error("Gmail isn't connected");
-    const fresh = await refreshAccess(this.env, await unseal(this.env, st.sealedRefresh));
-    this.#access = { token: fresh.accessToken, expiresAt: fresh.expiresAt };
-    return fresh.accessToken;
-  }
-
   async #wake(delayMs = 0): Promise<void> {
     const at = Date.now() + delayMs;
     const cur = await this.ctx.storage.getAlarm();
@@ -819,16 +806,14 @@ export class MailboxDO extends DurableObject<Env> {
   }
 
   /** Start (or, with a new token, resume) syncing a Gmail account into this mailbox. */
-  async connectGmail(input: { account: string; sealedRefresh: string }): Promise<void> {
+  async connectGmail(input: { account: string }): Promise<void> {
     const cur = this.#gmail();
-    this.#access = null;
     // Remembered after a disconnect, so this address never sends as busta.app.
     this.#setMeta("source_kind", "gmail");
     const next: GmailState = cur
-      ? { ...cur, sealedRefresh: input.sealedRefresh, status: "live", pending: true, lastError: null, watchRenewAt: 0 }
+      ? { ...cur, status: "live", pending: true, lastError: null, watchRenewAt: 0 }
       : {
           account: input.account,
-          sealedRefresh: input.sealedRefresh,
           status: "live",
           connectedAt: Date.now(),
           historyId: null,
@@ -853,12 +838,11 @@ export class MailboxDO extends DurableObject<Env> {
   }
 
   /** What the Accounts page shows. No secrets. */
-  gmailStatus(): (Omit<GmailState, "sealedRefresh"> & { changesWaiting: number }) | null {
+  gmailStatus(): (GmailState & { changesWaiting: number }) | null {
     const st = this.#gmail();
     if (!st) return null;
-    const { sealedRefresh: _secret, ...rest } = st;
     const waiting = this.ctx.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM gmail_outbox`).toArray()[0]?.n ?? 0;
-    return { ...rest, changesWaiting: waiting };
+    return { ...st, changesWaiting: waiting };
   }
 
   /**
@@ -881,16 +865,22 @@ export class MailboxDO extends DurableObject<Env> {
     this.#gmailHost().applyRemote(messageId, labelState(labels));
   }
 
-  /** Stop syncing. Returns the sealed refresh token so the caller can revoke it; mail already here stays. */
-  async disconnectGmail(): Promise<string | null> {
+  /**
+   * Stop syncing and have the vault revoke Busta's access at Google and
+   * forget the tokens. Mail already here stays. Returns whether Google
+   * confirmed the revocation (null if nothing was connected).
+   */
+  async disconnectGmail(): Promise<boolean | null> {
     const st = this.#gmail();
-    if (!st) return null;
-    try { await stopWatch(() => this.gmailAccessToken()); } catch { /* token may already be dead */ }
+    const address = this.#meta("address") ?? "";
+    const vault = vaultStub(this.env, address);
+    if (!st && !(await vault.holds())) return null;
+    await gmailFor(this.env, address).stopWatch().catch(() => undefined); // the grant may already be gone
+    const revoked = await vault.revoke();
     this.ctx.storage.sql.exec(`DELETE FROM meta WHERE k = 'gmail'`);
     this.ctx.storage.sql.exec(`DELETE FROM gmail_outbox`);
-    this.#access = null;
     this.#emit({ t: "nav" });
-    return st.sealedRefresh;
+    return revoked;
   }
 
   // ---- deleting this mailbox's copies ------------------------------------
@@ -937,7 +927,6 @@ export class MailboxDO extends DurableObject<Env> {
     await this.ctx.storage.deleteAll();
     // This instance stays loaded; give it empty tables so the next request
     // sees an unowned mailbox (404) rather than a missing schema.
-    this.#access = null;
     this.#migrate();
     return false;
   }
@@ -980,7 +969,7 @@ export class MailboxDO extends DurableObject<Env> {
     return {
       env: this.env,
       address,
-      token: () => this.gmailAccessToken(),
+      api: gmailFor(this.env, address),
       state: () => this.#gmail(),
       update: (patch) => this.#setGmail(patch),
       local: (gmailId) => sql
@@ -1028,7 +1017,7 @@ export class MailboxDO extends DurableObject<Env> {
       };
 
       try {
-        const result = await deliver(this.env, payload, () => this.gmailAccessToken());
+        const result = await deliver(this.env, payload);
         if (result.gmail) this.linkGmail(result.gmail.id, storedId, result.gmail.threadId);
         this.settleOutbox(item.id, "sent");
         this.setDelivery(storedId, "sent", null, null);

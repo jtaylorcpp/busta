@@ -15,7 +15,7 @@ const CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 
 /** What is missing before Gmail can be connected; empty when ready. */
 export function googleMissing(env: Env): string[] {
-  return (["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "SOURCE_TOKEN_KEY", "GMAIL_PUBSUB_TOPIC"] as const).filter((k) => !env[k]);
+  return (["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GMAIL_PUBSUB_TOPIC"] as const).filter((k) => !env[k]);
 }
 
 export class GoogleAuthError extends Error {

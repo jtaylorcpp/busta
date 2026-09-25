@@ -16,8 +16,8 @@
  * Cloudflare at all.
  */
 
-import { mailboxStub } from "./mail";
-import { buildMime, getHeaders, GmailError, sendRaw, type TokenSource } from "./sources/gmail";
+import { buildMime, GmailError } from "./sources/gmail";
+import { gmailFor } from "./sources/vault";
 
 /** Codes that will never succeed on retry. Retrying them wastes quota. */
 const PERMANENT_CODES = new Set([
@@ -169,7 +169,7 @@ export interface Delivered {
  * success or failure means, which is what lets the same function serve both
  * the interactive path and the retry alarm.
  */
-export async function deliver(env: Env, payload: OutboundPayload, gmailToken?: TokenSource): Promise<Delivered> {
+export async function deliver(env: Env, payload: OutboundPayload): Promise<Delivered> {
   // Development-only fault injection. Every rejection path — permanent,
   // transient, retry-until-exhausted — has to be exercisable before a real
   // domain exists, because that is exactly when it is cheap to get wrong.
@@ -179,7 +179,7 @@ export async function deliver(env: Env, payload: OutboundPayload, gmailToken?: T
     });
   }
 
-  if (payload.via === "gmail") return deliverViaGmail(env, payload, gmailToken ?? (() => mailboxStub(env, payload.from).gmailAccessToken()));
+  if (payload.via === "gmail") return deliverViaGmail(env, payload);
 
   const attachments = [];
   for (const attachment of payload.attachments) {
@@ -213,7 +213,8 @@ export async function deliver(env: Env, payload: OutboundPayload, gmailToken?: T
  * Gmail's Sent. Errors are mapped onto the same codes as Email Sending, so
  * the retry and "failed" handling above apply unchanged.
  */
-async function deliverViaGmail(env: Env, payload: OutboundPayload, token: TokenSource): Promise<Delivered> {
+async function deliverViaGmail(env: Env, payload: OutboundPayload): Promise<Delivered> {
+  const gmail = gmailFor(env, payload.from);
   const attachments = [];
   for (const a of payload.attachments) {
     const object = await env.MAIL_ARCHIVE.get(a.r2Key);
@@ -222,14 +223,14 @@ async function deliverViaGmail(env: Env, payload: OutboundPayload, token: TokenS
   }
   const mime = buildMime({ ...payload, attachments });
   try {
-    const sent = await sendRaw(token, mime, payload.gmailThread);
-    const meta = await getHeaders(token, sent.id, ["Message-ID"]).catch(() => null);
+    const sent = await gmail.sendRaw(mime, payload.gmailThread);
+    const meta = await gmail.getHeaders(sent.id, ["Message-ID"]).catch(() => null);
     const messageId = meta?.payload?.headers?.find((h) => h.name.toLowerCase() === "message-id")?.value ?? `<gmail-${sent.id}@mail.gmail.com>`;
     return { messageId, gmail: { id: sent.id, threadId: sent.threadId } };
   } catch (e) {
     const code = e instanceof GmailError
       ? e.status === 401 || e.status === 403 ? "E_GMAIL_AUTH" : e.status === 429 ? "E_RATE_LIMIT_EXCEEDED" : e.status >= 500 ? "E_INTERNAL_SERVER_ERROR" : "E_VALIDATION_ERROR"
-      : (e as { code?: string }).code === "invalid_grant" ? "E_GMAIL_AUTH" : "E_INTERNAL_SERVER_ERROR";
+      : "E_INTERNAL_SERVER_ERROR";
     throw Object.assign(new Error(e instanceof Error ? e.message : String(e)), { code });
   }
 }

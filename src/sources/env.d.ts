@@ -9,8 +9,6 @@ interface GoogleSourceEnv {
   GOOGLE_CLIENT_ID?: string;
   /** Secret. */
   GOOGLE_CLIENT_SECRET?: string;
-  /** 32 random bytes, base64. Seals refresh tokens at rest. Secret. */
-  SOURCE_TOKEN_KEY?: string;
 }
 interface Env extends GoogleSourceEnv {}
 declare namespace Cloudflare {
