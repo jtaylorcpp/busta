@@ -31,11 +31,15 @@ threads and tenants in `src/`. `web/CLAUDE.md` covers Astro itself.
    - Locally: `npx astro dev --port 8787 --background` in `web/`, with
      `/__dev/claim` and `/__dev/inbound` to create mailboxes and mail. Local
      Clerk doesn't work, so tests use a **temporary** middleware override
-     (`x-test-org` header). Save the real `web/src/middleware.ts` (and
-     `src/live.ts` if touched) first and restore them before committing. A
+     (`x-test-org` header or cookie) in `web/src/middleware.ts` and, for the
+     old router, live sockets and form posts, in `authenticate()` in
+     `src/auth.ts`. Save the real files first and restore them before committing. A
      test override must never be committed: grep for `TEMPORARY` / `x-test-`
      before every commit.
    - Workers AI only runs remotely, so AI features are verified in production.
+     So does Gmail: Google's sign-in pages can't be driven from Chrome here,
+     so the user clicks through consent. Watch production with
+     `npx wrangler tail --format pretty`.
 5. **Ship it.** Make small, discrete commits (archive the design, groundwork,
    the feature, each fix). Then `npm run deploy`, verify in production in real
    Chrome against the user's mailbox, and `git push` (origin `main`). Report
