@@ -14,6 +14,7 @@ import { OrganizationSwitcher, UserButton } from "@clerk/astro/components";
 import { Count, Icon } from "../ui";
 import ThemeSwitch from "../ui/ThemeSwitch.astro";
 import { loadAccount } from "../../lib/mail-data";
+import { ALL, listAccounts } from "../../lib/accounts";
 
 interface Props {
   /** The mailbox being viewed, if any. */
@@ -23,10 +24,18 @@ const { current } = Astro.props;
 const { userId, orgId } = Astro.locals.auth();
 const { mailboxes, adoptable } =
   userId && orgId ? await loadAccount(env, { userId, orgId }) : { mailboxes: [], adoptable: [] as string[] };
+const accounts = orgId ? await listAccounts(env, orgId) : [];
+const acct = new Map(accounts.map((a) => [a.address, a]));
+// With 2+ accounts the menu picks which ones the combined list shows.
+const multi = accounts.length > 1;
+const back = Astro.url.pathname + Astro.url.search;
 const active = mailboxes.find((m) => m.address === current) ?? null;
-const shown = active?.address ?? current ?? "Your mailbox";
+const shown = active?.address ?? current ?? (multi ? "All mail" : "Your mailbox");
 const initial = shown.charAt(0).toUpperCase();
-const unreadElsewhere = mailboxes.filter((m) => m.address !== current).reduce((n, m) => n + m.unread, 0);
+const unreadElsewhere = mailboxes
+  .filter((m) => m.address !== current && !(current === null && acct.get(m.address)?.shown))
+  .reduce((n, m) => n + m.unread, 0);
+const subline = active?.label ?? (multi && current === null ? `${accounts.filter((a) => a.shown).length} of ${accounts.length} accounts` : "Mailboxes & organization");
 ---
 <details class="acct" data-account-menu>
   <summary aria-label={`Account and mailboxes. Current mailbox: ${shown}`}>
@@ -36,7 +45,7 @@ const unreadElsewhere = mailboxes.filter((m) => m.address !== current).reduce((n
     </span>
     <span class="who">
       <span class="addr">{shown}</span>
-      <span class="sub">{active?.label ?? "Mailboxes & organization"}</span>
+      <span class="sub">{subline}</span>
     </span>
     <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 9l4-4 4 4 M8 15l4 4 4-4" /></svg>
   </summary>
@@ -46,7 +55,35 @@ const unreadElsewhere = mailboxes.filter((m) => m.address !== current).reduce((n
       <UserButton showName />
     </section>
 
-    <section>
+    {multi && (
+      <section>
+        <h3>Show mail from</h3>
+        <ul class="list">
+          {accounts.map((a) => {
+            const m = mailboxes.find((x) => x.address === a.address);
+            return (
+              <li class="pick">
+                <form method="post" action="/accounts/show">
+                  <input type="hidden" name="address" value={a.address} />
+                  <input type="hidden" name="shown" value={a.shown ? "0" : "1"} />
+                  <input type="hidden" name="back" value={back} />
+                  <button type="submit" class="mb menu-btn" role="menuitemcheckbox" aria-checked={a.shown ? "true" : "false"} title={a.shown ? `Hide ${a.address}` : `Show ${a.address}`}>
+                    <span class:list={["box", { on: a.shown }]} aria-hidden="true">{a.shown && <Icon name="check" size={11} />}</span>
+                    <i class="adot" style={`background: var(--acct-${a.color})`}></i>
+                    <span class="mb-addr">{a.address}</span>
+                    {m && <Count value={m.unread} />}
+                  </button>
+                </form>
+                <a class="open" href={`/mb/${encodeURIComponent(a.address)}`} aria-label={`Open only ${a.address}`} title={`Open only ${a.address}`}><Icon name="forward" size={14} /></a>
+              </li>
+            );
+          })}
+        </ul>
+        <p class="hintline">Hidden accounts still get and sort mail. <a href={ALL}>All mail</a></p>
+      </section>
+    )}
+
+    <section hidden={multi}>
       <h3>Mailboxes</h3>
       <ul class="list">
         {mailboxes.map((m) => {
@@ -182,6 +219,16 @@ const unreadElsewhere = mailboxes.filter((m) => m.address !== current).reduce((n
     border: 1px solid var(--border); background: transparent; color: var(--primary); cursor: pointer;
   }
   .me { padding-top: 12px; }
+  .pick { display: flex; align-items: center; gap: 2px; }
+  .pick form { flex: 1; min-width: 0; }
+  .box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border); display: grid; place-items: center; color: var(--on-primary); flex-shrink: 0; }
+  .box.on { background: var(--primary); border-color: var(--primary); }
+  .adot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .pick .mb-addr { flex: 1; }
+  .open { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); flex-shrink: 0; }
+  .open:hover { background: var(--surface-2); color: var(--text); }
+  .hintline { margin: 0; padding: 2px 8px; font-size: var(--text-xs); color: var(--muted); }
+  .hintline a { color: var(--primary); font-weight: 600; text-decoration: none; }
   .foot { gap: 10px; }
   .out { font-size: var(--text-sm); color: var(--muted); text-decoration: none; padding: 4px; }
   .out:hover { color: var(--error); }

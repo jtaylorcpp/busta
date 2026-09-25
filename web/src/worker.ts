@@ -20,6 +20,7 @@ export { MailboxDO, TenantDO, ThreadDO } from "../../src/index";
 /** Paths Astro owns in every environment, for any method. */
 const ASTRO_ROUTES: RegExp[] = [
   /^\/sign-in\/?$/,
+  /^\/accounts\/show\/?$/, // show / hide accounts in the combined list
   /^\/mb\/[^/]+\/folders(\/.*)?$/, // folders: list, editor, save/delete/move/test
   /^\/mb\/[^/]+\/start(\/.*)?$/, // Getting started guide: steps + progress actions
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/folder(\/retry)?\/?$/i, // file a message by hand / retry sorting
@@ -33,6 +34,7 @@ const ASTRO_ROUTES: RegExp[] = [
 const ASTRO_GET_ROUTES: RegExp[] = [
   /^\/$/, // home: landing page when signed out; else your mailbox / setup / org picker
   /^\/llms\.txt$/, // the site as Markdown for language models
+  /^\/mail\/?$/, // every shown account in one list
   /^\/mb\/[^/]+\/?$/, // mailbox list
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/?$/i, // thread
   /^\/mb\/[^/]+\/search(\/more)?\/?$/, // search + load-more partial

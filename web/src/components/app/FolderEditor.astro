@@ -8,6 +8,9 @@ import { Button, Icon } from "../ui";
 import RuleTest from "./RuleTest.astro";
 import RuleTidy from "../islands/RuleTidy";
 import "../../styles/why.css";
+import { env } from "cloudflare:workers";
+import { listAccounts, openShown } from "../../lib/accounts";
+import type { Folder } from "../../../../src/mailbox-do";
 
 interface Props {
   base: string;
@@ -18,6 +21,16 @@ interface Props {
 }
 const { base, address, folder, preset } = Astro.props;
 const [local, domain] = address.split("@");
+// With 2+ accounts: which accounts get this folder and rule ("Applies to").
+const { userId, orgId } = Astro.locals.auth();
+const accounts = userId && orgId ? await listAccounts(env, orgId) : [];
+const lookupName = folder?.name ?? preset?.name ?? "";
+const others = accounts.length > 1
+  ? await Promise.all((await openShown(env, { userId: userId!, orgId: orgId! }, accounts.map((a) => ({ ...a, shown: true }))))
+      .filter((a) => a.address !== address)
+      .map(async (a) => ({ ...a, match: lookupName ? ((await a.stub.folderByName(lookupName)) as Folder | null) : null })))
+  : [];
+const self = accounts.find((a) => a.address === address);
 const slug = (folder?.plus_label ?? folder?.name ?? preset?.name ?? "").toLowerCase().replace(/[^a-z0-9._-]+/g, "").slice(0, 30);
 ---
 <form class="editor" method="post" action={`${base}/folders/save`}>
@@ -27,6 +40,27 @@ const slug = (folder?.plus_label ?? folder?.name ?? preset?.name ?? "").toLowerC
     <label for="fname">Name</label>
     <input id="fname" name="name" type="text" value={folder?.name ?? preset?.name ?? ""} placeholder="Bank" maxlength="60" required autofocus={!folder} />
   </div>
+
+  {others.length > 0 && (
+    <fieldset class="applies">
+      <legend>Applies to</legend>
+      <input type="hidden" name="orig_name" value={lookupName} />
+      <div class="apl-row">
+        <label class="apl on"><input type="checkbox" checked disabled /><i style={`background: var(--acct-${self?.color ?? "blue"})`}></i>{address}</label>
+        {others.map((o) => (
+          <label class="apl">
+            <input type="hidden" name="also_seen" value={o.address} />
+            <input type="checkbox" name="also" value={o.address} checked={folder ? !!o.match : true} />
+            <i style={`background: var(--acct-${o.color})`}></i>{o.address}
+          </label>
+        ))}
+      </div>
+      <p class="hint">Each checked account gets this folder with the same rule and sorts its own mail with it. Unchecking one removes the folder there; its mail goes back to Messages.</p>
+      {others.filter((o) => o.match && folder && o.match.rule.trim() !== folder.rule.trim()).map((o) => (
+        <p class="hint differs"><b>{o.address}</b> has a different rule for {o.match!.name}: “{o.match!.rule}”. Saving with it checked replaces it with this one.</p>
+      ))}
+    </fieldset>
+  )}
 
   <div class="field">
     <label for="frule">Rule</label>
@@ -91,6 +125,13 @@ const slug = (folder?.plus_label ?? folder?.name ?? preset?.name ?? "").toLowerC
   code { font-family: var(--font-mono); font-size: .95em; }
   .actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: var(--space-4); }
   .grow { flex: 1; }
+  .apl-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .apl { display: inline-flex; align-items: center; gap: 7px; font: 600 var(--text-sm) var(--font-sans); padding: 6px 12px 6px 8px; border-radius: var(--radius-pill); border: 1px solid var(--border); cursor: pointer; }
+  .apl:has(input:checked) { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+  .apl input { accent-color: var(--primary); margin: 0; }
+  .apl i { width: 8px; height: 8px; border-radius: 50%; }
+  .differs { padding: 8px 10px; border-radius: var(--radius-md); background: var(--warn-soft); color: var(--warn); }
+  .differs b { font-weight: 600; }
   .undo { font: 600 var(--text-xs) var(--font-sans); color: var(--primary); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 
 </style>

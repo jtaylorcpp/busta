@@ -46,7 +46,9 @@ if (!signedOut && orgId) {
     else if (auto?.kind === "ok") q.set("ok", auto.text);
     if (flash.error) q.set("error", flash.error);
     const qs = q.toString();
-    return Astro.redirect(`/mb/${encodeURIComponent(target.address)}${qs ? `?${qs}` : ""}`);
+    // Two or more accounts open in the combined list.
+    const home = ready.length > 1 ? "/mail" : `/mb/${encodeURIComponent(target.address)}`;
+    return Astro.redirect(`${home}${qs ? `?${qs}` : ""}`);
   }
   if (!flash.ok && !flash.error && auto) flash = auto.kind === "ok" ? { ok: auto.text, error: null } : { ok: null, error: auto.text };
 }

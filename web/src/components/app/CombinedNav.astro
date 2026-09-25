@@ -1,76 +1,77 @@
 ---
 /**
- * Sidebar: the four bins — Messages (with your folders nested under it),
- * Sent, Drafts, Trash. There is no Inbox: everything received is Messages,
- * and a folder is a filter over it. Loads its own counts; the page has
- * already authorized the mailbox.
+ * Sidebar when the org has more than one account: the same four bins, with
+ * counts added across the shown accounts, and folders merged by name. Each
+ * folder carries a dot per account that has it, in that account's color.
+ * Bins and folders open the combined list (/mail); a folder's pen opens its
+ * editor in the first account that has it, where "Applies to" covers the rest.
  */
-import { env } from "cloudflare:workers";
-import { mailboxStub } from "../../../../src/mail";
 import { Count, Icon } from "../ui";
-import { loadNav, type Bin } from "../../lib/mail-data";
-import { listAccounts, openShown } from "../../lib/accounts";
-import CombinedNav from "./CombinedNav.astro";
+import { ALL, loadCombinedNav, type OpenAccount } from "../../lib/accounts";
+import type { Bin } from "../../lib/mail-data";
 
 interface Props {
-  address: string;
+  accounts: OpenAccount[];
   bin: Bin | null;
+  /** Active merged folder, by key (combined list) … */
+  folder?: string | null;
+  /** … or by one account's folder id (single-account pages). */
   folderId?: string | null;
 }
-const { address, bin, folderId = null } = Astro.props;
-// With more than one account, every page's sidebar is the combined one.
-const { userId, orgId } = Astro.locals.auth();
-const accounts = userId && orgId ? await listAccounts(env, orgId) : [];
-const combined = accounts.length > 1 ? await openShown(env, { userId: userId!, orgId: orgId! }, accounts) : null;
-const b = `/mb/${encodeURIComponent(address)}`;
-const nav = combined ? null! : await loadNav(mailboxStub(env, address));
-const messagesActive = bin === "messages" && !folderId;
+const { accounts, bin, folder = null, folderId = null } = Astro.props;
+const nav = await loadCombinedNav(accounts);
+const first = accounts[0] ? `/mb/${encodeURIComponent(accounts[0].address)}` : "/";
+const activeKey = folder ?? (folderId ? nav.folders.find((f) => f.parts.some((p) => p.id === folderId))?.key ?? null : null);
+const messagesActive = bin === "messages" && !activeKey;
+const q = (params: Record<string, string>) => `${ALL}?${new URLSearchParams(params)}`;
 ---
-{combined ? <CombinedNav accounts={combined} bin={bin} folderId={folderId} /> : (
 <div class="nav" data-live="nav">
   <div class:list={["bin-row", { active: messagesActive }]}>
-    <a class="bin" href={b} aria-current={messagesActive ? "page" : undefined}>
+    <a class="bin" href={ALL} aria-current={messagesActive ? "page" : undefined}>
       <Icon name="inbox" size={18} />
       <span class="lbl">Messages</span>
       <Count value={nav.messagesUnread} />
     </a>
-    <a class="gear" href={`${b}/folders`} aria-label="Manage folders" title="Manage folders"><Icon name="gear" size={15} /></a>
+    <a class="gear" href={`${first}/folders`} aria-label="Manage folders" title="Manage folders"><Icon name="gear" size={15} /></a>
   </div>
 
   {nav.folders.length > 0 && (
     <ul class="folders" aria-label="Folders">
       {nav.folders.map((f) => {
-        const active = folderId === f.id;
+        const active = activeKey === f.key;
+        const owner = f.parts[0]!;
         return (
           <li class:list={["folder-row", { active }]}>
-            <a class="folder" href={`${b}?folder=${f.id}`} aria-current={active ? "page" : undefined}>
+            <a class="folder" href={q({ folder: f.name })} aria-current={active ? "page" : undefined}>
               <span class="sq" aria-hidden="true"></span>
               <span class="lbl">{f.name}</span>
+              <span class="dots" title={f.parts.map((p) => p.address).join(", ")}>
+                {f.parts.map((p) => <i style={`background: var(--acct-${p.color})`}></i>)}
+              </span>
               {f.unread > 0 ? <Count value={f.unread} /> : <span class="muted-n">{f.total || ""}</span>}
             </a>
-            <a class="edit" href={`${b}/folders/${f.id}`} aria-label={`Edit ${f.name}`} title={`Edit ${f.name}`}><Icon name="pen" size={13} /></a>
+            <a class="edit" href={`/mb/${encodeURIComponent(owner.address)}/folders/${owner.id}`} aria-label={`Edit ${f.name}`} title={`Edit ${f.name}`}><Icon name="pen" size={13} /></a>
           </li>
         );
       })}
     </ul>
   )}
   <div class="folder-links">
-    <a href={`${b}/folders/new`}>+ New folder</a>
+    <a href={`${first}/folders/new`}>+ New folder</a>
     <span aria-hidden="true">·</span>
-    <a href={`${b}/folders`} aria-current={bin === "folders" ? "page" : undefined}>Manage folders</a>
+    <a href={`${first}/folders`} aria-current={bin === "folders" ? "page" : undefined}>Manage folders</a>
   </div>
 
-  <a class:list={["bin", { active: bin === "sent" }]} href={`${b}?view=sent`} aria-current={bin === "sent" ? "page" : undefined}>
+  <a class:list={["bin", { active: bin === "sent" }]} href={q({ view: "sent" })} aria-current={bin === "sent" ? "page" : undefined}>
     <Icon name="send" size={18} /><span class="lbl">Sent</span><span class="muted-n">{nav.sent || ""}</span>
   </a>
-  <a class:list={["bin", { active: bin === "drafts" }]} href={`${b}/drafts`} aria-current={bin === "drafts" ? "page" : undefined}>
+  <a class:list={["bin", { active: bin === "drafts" }]} href={`${first}/drafts`} aria-current={bin === "drafts" ? "page" : undefined}>
     <Icon name="file" size={18} /><span class="lbl">Drafts</span><span class="muted-n">{nav.drafts || ""}</span>
   </a>
-  <a class:list={["bin", { active: bin === "trash" }]} href={`${b}?view=trash`} aria-current={bin === "trash" ? "page" : undefined}>
+  <a class:list={["bin", { active: bin === "trash" }]} href={q({ view: "trash" })} aria-current={bin === "trash" ? "page" : undefined}>
     <Icon name="trash" size={18} /><span class="lbl">Trash</span><span class="muted-n">{nav.trashed || ""}</span>
   </a>
 </div>
-)}
 
 <style>
   .nav { display: flex; flex-direction: column; gap: 2px; }
@@ -96,6 +97,8 @@ const messagesActive = bin === "messages" && !folderId;
   .folders { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
   .folder { padding-left: 42px; font-size: var(--text-sm); gap: 10px; }
   .sq { width: 8px; height: 8px; border-radius: 2px; background: var(--secondary); opacity: .7; flex-shrink: 0; }
+  .dots { display: inline-flex; gap: 3px; flex-shrink: 0; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; }
   .folder-links { display: flex; gap: 6px; align-items: center; padding: 4px 14px 8px 42px; font-size: var(--text-xs); color: var(--muted); white-space: nowrap; }
   .folder-links a { color: var(--muted); text-decoration: none; }
   .folder-links a:hover, .folder-links a[aria-current] { color: var(--primary); text-decoration: underline; }

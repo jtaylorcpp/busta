@@ -19,6 +19,7 @@ import WhyNot from "../../../components/islands/WhyNot";
 import "../../../styles/why.css";
 import AccountMenu from "../../../components/app/AccountMenu.astro";
 import { audienceChanges } from "../../../lib/audience";
+import { ALL, listAccounts } from "../../../lib/accounts";
 import {
   base, deliveryStatus, folderView, formatDay, formatSize, formatTime, loadThread, openMailbox, splitQuoted,
 } from "../../../lib/mail-data";
@@ -40,6 +41,9 @@ const folders = (await stub.listFolders()) as { id: string; name: string }[];
 const { entries, names, focus, threadId } = loaded;
 const self = address.toLowerCase();
 const b = base(address);
+// With 2+ accounts, the thread says whose it is and goes back to all mail.
+const accounts = await listAccounts(env, orgId);
+const account = accounts.length > 1 ? accounts.find((a) => a.address === address) ?? null : null;
 const url = Astro.url;
 const showImages = url.searchParams.get("images") === "1";
 const ok = url.searchParams.get("ok");
@@ -89,7 +93,7 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
   <MailboxNav slot="nav" address={address} bin="messages" folderId={focus.folder_id} />
 
   <ThreadHeader
-    backHref={b}
+    backHref={account ? ALL : b}
     subject={subject}
     tags={tags}
     people={people}
@@ -98,6 +102,7 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
     unreadAction={`${b}/${id}/unread`}
     trashAction={focus.deleted_at === null ? `${b}/${id}/trash` : undefined}
   >
+    {account && <span slot="folder" class="acct-chip" title="The account this conversation is in"><i style={`background: var(--acct-${account.color})`}></i>{address}</span>}
     {focus.direction === "in" && (
       <ThreadFolder slot="folder" view={folderView(focus, folders)} folders={folders} action={`${b}/${id}/folder?back=${encodeURIComponent(url.pathname)}`} threadHref={url.pathname} />
     )}
@@ -190,4 +195,6 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
   .chat-log { padding-bottom: var(--space-2); }
   .undo { display: inline; margin-left: var(--space-2); }
   .undo button { font: 600 var(--text-sm) var(--font-sans); color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+  .acct-chip { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text); white-space: nowrap; }
+  .acct-chip i { width: 8px; height: 8px; border-radius: 50%; }
 </style>

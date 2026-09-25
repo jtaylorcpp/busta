@@ -1,0 +1,188 @@
+---
+/**
+ * GET /mail — every shown account in one list, newest first
+ * (designs/2026-09-24-connect-gmail, screen 1). Same bins, folders (merged by
+ * name, ?folder=<name>), All/Unread and "Starred first" as a single mailbox.
+ * Each row keeps its own account: a stripe in the account's color, and links
+ * and actions that go to that account's mailbox. Paging keeps a position per
+ * account (?c=). Hidden accounts are left out (screen 2).
+ */
+import { env } from "cloudflare:workers";
+import AppShell from "../../layouts/AppShell.astro";
+import { Banner, Icon, ListFooter, MailList, MailRow } from "../../components/ui";
+import CombinedNav from "../../components/app/CombinedNav.astro";
+import AccountMenu from "../../components/app/AccountMenu.astro";
+import FolderChip from "../../components/app/FolderChip.astro";
+import FolderRowActions from "../../components/app/FolderRowActions.astro";
+import { deliveryStatus, folderView, formatListDate, loadNav } from "../../lib/mail-data";
+import { ALL, listAccounts, loadCombinedList, mergeFolders, openShown, shortName } from "../../lib/accounts";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+Astro.response.headers.set("cache-control", "no-store");
+
+const session = { userId, orgId };
+const accounts = await listAccounts(env, orgId);
+if (accounts.length === 0) return Astro.redirect("/");
+if (accounts.length === 1) return Astro.redirect(`/mb/${encodeURIComponent(accounts[0]!.address)}${Astro.url.search}`);
+const shown = await openShown(env, session, accounts);
+
+const url = Astro.url;
+const navs = await Promise.all(shown.map((a) => loadNav(a.stub)));
+const perAccount = new Map(shown.map((a, i) => [a.address, navs[i]!.folders]));
+const folders = mergeFolders(shown.map((account, i) => ({ account, folders: navs[i]!.folders })));
+const data = await loadCombinedList(shown, url.searchParams, folders);
+
+const ok = url.searchParams.get("ok");
+const error = url.searchParams.get("error");
+const hidden = accounts.filter((a) => !a.shown);
+const hiddenUnread = hidden.length
+  ? (await Promise.all(hidden.map(async (a) => {
+      const opened = await openShown(env, session, [{ ...a, shown: true }]);
+      return opened[0] ? ((await opened[0].stub.stats()) as { unread: number }).unread : 0;
+    }))).reduce((n, x) => n + x, 0)
+  : 0;
+
+const withParams = (changes: Record<string, string | null>) => {
+  const q = new URLSearchParams(url.searchParams);
+  for (const k of ["ok", "error", "c"]) q.delete(k);
+  for (const [k, v] of Object.entries(changes)) (v === null ? q.delete(k) : q.set(k, v));
+  const s = q.toString();
+  return `${ALL}${s ? `?${s}` : ""}`;
+};
+const heading = data.folder?.name ?? (data.view === "trash" ? "Trash" : data.view === "sent" ? "Sent" : "Messages");
+const bin = data.view === "messages" ? "messages" : data.view;
+const back = url.pathname + url.search;
+const unreadCount = data.view === "messages" ? data.messages.filter((m) => !m.read).length : 0;
+const composeFrom = shown[0]?.address ?? accounts[0]!.address;
+---
+<AppShell title={`${heading} — All mail`} mailbox="all mail" live={shown.map((a) => a.address)} composeHref={`/mb/${encodeURIComponent(composeFrom)}/compose`} searchAction={`/mb/${encodeURIComponent(composeFrom)}/search`}>
+  <AccountMenu slot="account" current={null} />
+  <CombinedNav slot="nav" accounts={shown} bin={bin} folder={data.folder?.key ?? null} />
+
+  {ok && <Banner tone="success">{ok}</Banner>}
+  {error && <Banner tone="error">{error}</Banner>}
+
+  <header class="head">
+    <div class="title">
+      <h1>{heading}</h1>
+      {data.folder && (
+        <a class="edit" href={`/mb/${encodeURIComponent(data.folder.parts[0]!.address)}/folders/${data.folder.parts[0]!.id}`}><Icon name="pen" size={13} />Edit rule</a>
+      )}
+    </div>
+    <div class="legend" aria-label="Accounts">
+      {accounts.map((a) => (
+        <span class:list={["achip", { off: !a.shown }]} title={a.shown ? a.address : `${a.address} (hidden)`}>
+          <i style={`background: var(--acct-${a.color})`}></i>{shortName(a, accounts)}
+        </span>
+      ))}
+    </div>
+    {data.view !== "trash" && (
+      <nav class="filters" aria-label="Filter and sort">
+        <a class:list={["chip", { on: !data.unread }]} href={withParams({ unread: null })} aria-current={!data.unread ? "true" : undefined}>All</a>
+        <a class:list={["chip", { on: data.unread }]} href={withParams({ unread: "1" })} aria-current={data.unread ? "true" : undefined}>Unread{unreadCount > 0 && !data.unread ? ` · ${unreadCount}` : ""}</a>
+        <span class="sep" aria-hidden="true"></span>
+        <a class:list={["chip", "sort", { on: data.starredFirst }]} href={withParams({ sort: data.starredFirst ? null : "starred" })} aria-pressed={data.starredFirst ? "true" : "false"} title="Pin starred mail to the top">
+          <Icon name="star" size={13} filled={data.starredFirst} />Starred first
+        </a>
+      </nav>
+    )}
+  </header>
+
+  {hidden.length > 0 && (
+    <div class="filterbar">
+      Showing {shown.length} of {accounts.length} accounts.
+      {hiddenUnread > 0 && <span>{hidden.map((a) => shortName(a, accounts)).join(", ")} {hidden.length === 1 ? "has" : "have"} {hiddenUnread} unread.</span>}
+      <form method="post" action="/accounts/show" class="inline">
+        {hidden.map((a) => <input type="hidden" name="address" value={a.address} />)}
+        <input type="hidden" name="shown" value="1" />
+        <input type="hidden" name="back" value={back} />
+        <button type="submit">Show all</button>
+      </form>
+    </div>
+  )}
+
+  <div data-live="list">
+  <MailList empty={data.messages.length === 0}>
+    {data.messages.map((m, i) => {
+      const b = `/mb/${encodeURIComponent(m.account.address)}`;
+      const to = `${b}/${m.id}`;
+      const status = deliveryStatus(m);
+      const fv = folderView(m, perAccount.get(m.account.address) ?? []);
+      const inThis = data.folder?.parts.some((p) => p.address === m.account.address && p.id === fv.folderId);
+      const showChip = m.direction === "in" && !(inThis && fv.source === "rule");
+      const ret = `?back=${encodeURIComponent(back)}`;
+      return (
+        <Fragment>
+          {data.starredFirst && i === data.pinnedCount && data.pinnedCount > 0 && <li class="divider" aria-hidden="true"></li>}
+          <MailRow
+            href={to}
+            account={{ color: m.account.color, address: m.account.address }}
+            from={m.direction === "out" ? m.recipient : m.from_name ? `${m.from_name}` : m.sender}
+            subject={m.subject || "(no subject)"}
+            snippet={m.snippet}
+            date={formatListDate(m.received_at)}
+            unread={!m.read}
+            starred={!!m.starred}
+            outbound={m.direction === "out"}
+            status={status && status.label !== "Sent" ? status : undefined}
+            attachments={m.attachment_count}
+            unverified={m.grafted === 1}
+            starAction={data.view === "trash" ? undefined : `${to}/${m.starred ? "unstar" : "star"}${ret}`}
+            trashAction={data.view === "trash" ? undefined : `${to}/trash${ret}`}
+            restoreAction={data.view === "trash" ? `${to}/restore` : undefined}
+            purgeAction={data.view === "trash" ? `${to}/purge` : undefined}
+          >
+            {showChip && <FolderChip slot="chip" view={fv} />}
+            {m.direction === "in" && (fv.state === "unsure" || fv.state === "failed") && (
+              <FolderRowActions slot="actions" view={fv} href={to} action={`${to}/folder?back=${encodeURIComponent(back)}`} retry={`${to}/folder/retry?back=${encodeURIComponent(back)}`} />
+            )}
+          </MailRow>
+        </Fragment>
+      );
+    })}
+    <Fragment slot="empty">
+      {shown.length === 0
+        ? "Every account is hidden. Choose which to show in the account menu."
+        : data.folder
+          ? `Nothing in ${data.folder.name} yet.`
+          : data.unread ? "No unread messages." : data.view === "trash" ? "Trash is empty." : data.view === "sent" ? "Nothing sent yet." : "No messages yet."}
+    </Fragment>
+  </MailList>
+
+  <ListFooter
+    from={data.messages.length ? 1 : 0}
+    to={data.messages.length}
+    total={data.messages.length}
+    mailbox="all mail"
+    nextHref={data.nextCursor ? withParams({ c: data.nextCursor }) : undefined}
+  />
+  </div>
+</AppShell>
+
+<style>
+  .head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); padding: 14px var(--space-4) 10px; border-bottom: 1px solid var(--border); }
+  .title { display: flex; align-items: baseline; gap: var(--space-3); }
+  h1 { font-size: var(--text-xl); font-weight: 600; }
+  .edit { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--muted); text-decoration: none; }
+  .edit:hover { color: var(--primary); }
+  .legend { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+  .achip { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text); white-space: nowrap; }
+  .achip i { width: 8px; height: 8px; border-radius: 50%; }
+  .achip.off { background: transparent; box-shadow: inset 0 0 0 1px var(--border); color: var(--faint); text-decoration: line-through; }
+  .achip.off i { opacity: .35; }
+  .filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-basis: 100%; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: var(--radius-pill);
+    font-size: var(--text-sm); font-weight: 500; color: var(--muted); text-decoration: none; border: 1px solid var(--border);
+  }
+  .chip:hover { color: var(--text); background: var(--surface-2); }
+  .chip.on { background: var(--primary-soft); color: var(--primary); border-color: transparent; }
+  .sort.on { --icon-fill: var(--star); }
+  .sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+  .divider { list-style: none; height: 0; border-top: 2px solid var(--border); }
+  .filterbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; padding: 8px var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--muted); }
+  .inline { display: inline; }
+  .inline button { font: 600 var(--text-sm) var(--font-sans); color: var(--primary); background: none; border: 0; padding: 0; cursor: pointer; }
+</style>
