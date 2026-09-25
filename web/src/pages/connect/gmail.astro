@@ -22,7 +22,7 @@ const missing = googleMissing(env);
 ---
 <FolderPageShell title="Connect Gmail" address={home} backHref={accounts.length > 1 ? ALL : `/mb/${encodeURIComponent(home)}`} backLabel="Back to your mail" bin={null} current={accounts.length > 1 ? null : home}>
   <form class="page" method="get" action="/connect/google">
-    <p class="lede">Your Gmail joins your mail in Busta, marked in its own color. New mail arrives within seconds and is sorted by your rules. Nothing changes in Gmail except what you do here: read, star and trash.</p>
+    <p class="lede">Your Gmail joins your mail in Busta, marked in its own color. New mail arrives within seconds and is sorted by your rules. Nothing changes in Gmail except what you do here: read, star, archive and trash.</p>
 
     {missing.length > 0 && (
       <p class="setup">Gmail isn't set up on this server yet. Missing: <code>{missing.join(", ")}</code>.</p>
@@ -33,7 +33,7 @@ const missing = googleMissing(env);
         <h2>Busta will</h2>
         <ul>
           <li><span class="ok"><Icon name="check" size={14} /></span><span>Read your mail<small>Inbox and Sent. Not Spam.</small></span></li>
-          <li><span class="ok"><Icon name="check" size={14} /></span><span>Keep read, star and trash in step<small>Both ways, with the Gmail app on your phone</small></span></li>
+          <li><span class="ok"><Icon name="check" size={14} /></span><span>Keep read, star, archive and trash in step<small>Both ways, with the Gmail app on your phone</small></span></li>
           <li><span class="ok"><Icon name="check" size={14} /></span><span>Send as your Gmail address<small>Through Google, saved in Gmail's Sent</small></span></li>
         </ul>
       </div>
@@ -54,7 +54,7 @@ const missing = googleMissing(env);
           <label class="opt"><input type="radio" name="days" value={v} checked={v === 30} />{l}</label>
         ))}
       </div>
-      <p class="hint">Sorted by your rules as it arrives, oldest first. Older mail stays in Gmail.</p>
+      <p class="hint">Newest first, sorted by your rules as it arrives; new mail shows up meanwhile. You can bring in older mail later from Accounts.</p>
     </fieldset>
 
     <label class="toggle">

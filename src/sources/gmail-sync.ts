@@ -79,7 +79,15 @@ export async function importGmailMessage(
   address: string,
   api: GmailApi,
   gmailId: string,
-  opts: { sort: boolean },
+  opts: {
+    sort: boolean;
+    /**
+     * Runs the storing step (thread matching, indexing) one at a time when
+     * imports run in parallel, so two messages of one conversation can't
+     * each start a thread. Fetching and sorting still overlap.
+     */
+    exclusive?: <T>(fn: () => Promise<T>) => Promise<T>;
+  },
 ): Promise<ImportOutcome> {
   const mailbox = mailboxStub(env, address);
   if (await mailbox.gmailKnown(gmailId)) return "known";
@@ -88,15 +96,21 @@ export async function importGmailMessage(
   if (labels.includes("DRAFT") || labels.includes("SPAM") || labels.includes("CHAT")) return "skipped";
   const outbound = labels.includes("SENT") && !labels.includes("INBOX");
   const raw = fromB64url(m.raw);
-  const result = await ingest(
-    env,
-    { from: "", to: address, rawSize: raw.byteLength },
-    raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer,
-    { direction: outbound ? "out" : "in", receivedAt: Number(m.internalDate) || undefined, trustThread: true },
-  );
+  const store = async () => {
+    const r = await ingest(
+      env,
+      { from: "", to: address, rawSize: raw.byteLength },
+      raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer,
+      { direction: outbound ? "out" : "in", receivedAt: Number(m.internalDate) || undefined, trustThread: true },
+    );
+    if (r.messageId) {
+      await mailbox.linkGmail(gmailId, r.messageId, m.threadId);
+      await mailbox.applyGmailLabels(r.messageId, labels);
+    }
+    return r;
+  };
+  const result = opts.exclusive ? await opts.exclusive(store) : await store();
   if (!result.messageId) return "skipped";
-  await mailbox.linkGmail(gmailId, result.messageId, m.threadId);
-  await mailbox.applyGmailLabels(result.messageId, labels);
   if (result.status === "stored" && !outbound && opts.sort && result.threadId) {
     await fileMessage(env, address, { id: result.messageId, threadId: result.threadId, label: null });
   }

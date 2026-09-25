@@ -37,6 +37,7 @@ export interface ImportState {
 }
 
 const BATCH = 20;
+const PARALLEL = 4;
 const PAGES_PER_RUN = 4;
 const BASE_QUERY = "-in:spam -in:drafts -in:chats";
 
@@ -150,18 +151,31 @@ export class ImportDO extends DurableObject<Env> {
       const batch = this.ctx.storage.sql
         .exec<Row<{ ord: number; gmail_id: string }>>(`SELECT ord, gmail_id FROM queue ORDER BY ord ASC LIMIT ?`, BATCH)
         .toArray();
-      for (const item of batch) {
-        let outcome;
-        try {
-          outcome = await importGmailMessage(this.env, st.address, api, item.gmail_id, { sort: st.sorted < st.sortBudget });
-        } catch (e) {
-          if (!(e instanceof GmailError && e.status === 404)) throw e;
-          outcome = "skipped" as const; // deleted in Gmail since it was listed
+      // A few at a time: each message is fetch, store, then sort, which is
+      // mostly waiting. Newest first still holds within a batch of 20.
+      const queue = [...batch];
+      let failure: unknown = null;
+      let chain: Promise<unknown> = Promise.resolve();
+      const exclusive = <T,>(fn: () => Promise<T>): Promise<T> => {
+        const run = chain.then(fn, fn);
+        chain = run.catch(() => undefined);
+        return run;
+      };
+      await Promise.all(Array.from({ length: PARALLEL }, async () => {
+        for (let item = queue.shift(); item && !failure; item = queue.shift()) {
+          let outcome;
+          try {
+            outcome = await importGmailMessage(this.env, st.address, api, item.gmail_id, { sort: st.sorted < st.sortBudget, exclusive });
+          } catch (e) {
+            if (!(e instanceof GmailError && e.status === 404)) { failure = e; return; }
+            outcome = "skipped" as const; // deleted in Gmail since it was listed
+          }
+          if (outcome === "stored") { st.done++; st.sorted++; } else st.skipped++;
+          this.ctx.storage.sql.exec(`DELETE FROM queue WHERE ord = ?`, item.ord);
         }
-        if (outcome === "stored") { st.done++; st.sorted++; } else st.skipped++;
-        this.ctx.storage.sql.exec(`DELETE FROM queue WHERE ord = ?`, item.ord);
-        this.#save(st);
-      }
+      }));
+      this.#save(st);
+      if (failure) throw failure;
       if (this.#queued() === 0) {
         this.#save({ ...st, phase: "done", finishedAt: Date.now(), lastError: null });
         return;
