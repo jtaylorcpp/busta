@@ -1,0 +1,66 @@
+---
+/**
+ * /v/<token> — one email, from a text (designs/2026-09-25-text-busta, screen 2).
+ * GET shows the PIN page and leaves the token untouched, so link checkers
+ * can't use it up; POSTing the right PIN uses it and opens a 30-minute
+ * session for this one email. "Done" ends the session.
+ */
+import { env } from "cloudflare:workers";
+import PublicPage from "../../components/link/PublicPage.astro";
+import LinkedEmail from "../../components/link/LinkedEmail.astro";
+import { linkStub, validToken } from "../../../../src/sms/links";
+import { clearSession, linkPath, loadLinkedMessage, openLink, sessionId, tryPin } from "../../lib/links";
+
+const token = Astro.params.token!;
+if (!validToken(token)) return new Response("Not found", { status: 404 });
+const path = linkPath("v", token);
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const f = await Astro.request.formData();
+  if (f.get("do") === "done") {
+    const sid = sessionId(Astro.cookies);
+    if (sid) await (await linkStub(env, token)).close(sid);
+    clearSession(Astro.cookies, path);
+    return Astro.redirect(path, 303);
+  }
+  const r = await tryPin(Astro, env, "v", token, String(f.get("pin") ?? ""));
+  if (r.ok) return Astro.redirect(path, 303);
+  error = r.message;
+}
+
+const record = await openLink(env, token, Astro.cookies);
+const linked = record?.kind === "email" && record.address && record.messageId
+  ? await loadLinkedMessage(env, record.orgId, record.address, record.messageId)
+  : null;
+const st = record ? null : await (await linkStub(env, token)).status();
+const until = st?.expiresAt ? new Date(st.expiresAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }) + " UTC" : "";
+---
+<PublicPage title={linked ? linked.message.subject || "Email" : "Open an email"}>
+  {linked ? (
+    <Fragment>
+      <LinkedEmail linked={linked} attBase={`${path}/att`} />
+      <p class="scope">Only this email is open, for 30 minutes. Nothing else in your mailbox can be reached from here.</p>
+      <form method="post"><input type="hidden" name="do" value="done" /><button class="big plain" type="submit">Done</button></form>
+    </Fragment>
+  ) : record ? (
+    <p class="err">This email is no longer available.</p>
+  ) : st?.status === "ready" && st.kind === "email" ? (
+    <Fragment>
+      <h1>{st.label}</h1>
+      {error && <p class="err" role="alert">{error}</p>}
+      <form method="post">
+        <label for="pin" class="muted">Your Busta PIN</label>
+        <input id="pin" name="pin" class="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" autofocus />
+        <button class="big" type="submit">Open message</button>
+      </form>
+      <p class="muted">Opens this one email, once, until {until}. 5 wrong PINs and the link stops working.</p>
+    </Fragment>
+  ) : (
+    <Fragment>
+      <h1>{st?.status === "used" ? "This link was already used" : st?.status === "locked" ? "This link is locked" : st?.status === "expired" ? "This link has expired" : "This link doesn't work"}</h1>
+      {error && <p class="err" role="alert">{error}</p>}
+      <p class="muted">Each link opens its email once, for 12 hours, with your PIN. Text <b>LINK</b> to Busta for a new one, or sign in to Busta to see everything.</p>
+    </Fragment>
+  )}
+</PublicPage>

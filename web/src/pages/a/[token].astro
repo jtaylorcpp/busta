@@ -1,0 +1,80 @@
+---
+/**
+ * /a/<token> — a texted answer's details (designs/2026-09-25-text-busta,
+ * screen 3): the question, the full answer, and the lines it relied on, each
+ * with its email one tap away. Same PIN, one use, 12 hours, 30-minute session;
+ * the session reaches this answer and only the emails it cites.
+ */
+import { env } from "cloudflare:workers";
+import PublicPage from "../../components/link/PublicPage.astro";
+import { linkStub, validToken } from "../../../../src/sms/links";
+import { clearSession, linkPath, openLink, sessionId, tryPin } from "../../lib/links";
+
+const token = Astro.params.token!;
+if (!validToken(token)) return new Response("Not found", { status: 404 });
+const path = linkPath("a", token);
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const f = await Astro.request.formData();
+  if (f.get("do") === "done") {
+    const sid = sessionId(Astro.cookies);
+    if (sid) await (await linkStub(env, token)).close(sid);
+    clearSession(Astro.cookies, path);
+    return Astro.redirect(path, 303);
+  }
+  const r = await tryPin(Astro, env, "a", token, String(f.get("pin") ?? ""));
+  if (r.ok) return Astro.redirect(path, 303);
+  error = r.message;
+}
+
+const record = await openLink(env, token, Astro.cookies);
+const st = record ? null : await (await linkStub(env, token)).status();
+const date = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+---
+<PublicPage title="Your answer">
+  {record?.kind === "answer" ? (
+    <Fragment>
+      <p class="muted">You asked</p>
+      <h1>"{record.question}"</h1>
+      <div class="answer">{record.answer}</div>
+      {(record.cites ?? []).length > 0 && <p class="muted">Where this came from</p>}
+      {(record.cites ?? []).map((c, i) => (
+        <div class="cite">
+          <p><b>{c.title}</b> <span class="kind">{c.kind}</span></p>
+          <p class="muted">{c.from} · {date(c.date)}</p>
+          <blockquote>{c.quote}</blockquote>
+          <a class="big plain" href={`${path}/m/${i}`}>Open this email</a>
+        </div>
+      ))}
+      <p class="scope">This answer and the emails above are open for 30 minutes. Nothing else in your mailbox can be reached from here.</p>
+      <form method="post"><input type="hidden" name="do" value="done" /><button class="big plain" type="submit">Done</button></form>
+    </Fragment>
+  ) : st?.status === "ready" && st.kind === "answer" ? (
+    <Fragment>
+      <h1>Your answer is ready</h1>
+      <p class="muted">"{st.question}"</p>
+      {error && <p class="err" role="alert">{error}</p>}
+      <form method="post">
+        <label for="pin" class="muted">Your Busta PIN</label>
+        <input id="pin" name="pin" class="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" autofocus />
+        <button class="big" type="submit">Open answer</button>
+      </form>
+      <p class="muted">Opens this answer and the emails it cites, once, for 12 hours. 5 wrong PINs and it stops working.</p>
+    </Fragment>
+  ) : (
+    <Fragment>
+      <h1>{st?.status === "used" ? "This link was already used" : st?.status === "locked" ? "This link is locked" : st?.status === "expired" ? "This link has expired" : "This link doesn't work"}</h1>
+      {error && <p class="err" role="alert">{error}</p>}
+      <p class="muted">Each answer link opens once, for 12 hours, with your PIN. Text <b>LINK</b> to Busta for a new one.</p>
+    </Fragment>
+  )}
+</PublicPage>
+
+<style>
+  .answer { padding: 12px 14px; border-radius: 12px; background: var(--tertiary-soft); line-height: 1.55; white-space: pre-wrap; }
+  .cite { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
+  .cite b { font-weight: 600; }
+  .kind { font: 500 11px var(--font-mono); text-transform: uppercase; color: var(--muted); }
+  blockquote { margin: 0; padding: 6px 10px; border-left: 3px solid var(--tertiary); background: var(--tertiary-soft); border-radius: 0 8px 8px 0; font-size: 14px; }
+</style>

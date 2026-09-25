@@ -33,6 +33,7 @@ export { TenantDO } from "./tenant-do";
 export { ImportDO } from "./import-do";
 export { GmailVaultDO } from "./vault-do";
 export { PhoneDO } from "./phone-do";
+export { LinkDO } from "./link-do";
 
 const MESSAGE_ACTIONS = new Set(["trash", "restore", "purge", "star", "unstar", "read", "unread", "archive", "unarchive"]);
 
@@ -185,7 +186,7 @@ export default {
     if (result.status === "stored" && result.messageId && result.threadId) {
       const address = parseRecipient(message.to).mailbox;
       const label = result.tag?.kind === "label" ? result.tag.value : null;
-      ctx.waitUntil(fileIncoming(env, address, { id: result.messageId, threadId: result.threadId, label }));
+      ctx.waitUntil(fileIncoming(env, address, { id: result.messageId, threadId: result.threadId, label }, undefined, { notify: true }));
     }
   },
 } satisfies ExportedHandler<Env>;
@@ -1502,7 +1503,7 @@ async function handleDevInbound(request: Request, env: Env): Promise<Response> {
           id: result.messageId,
           threadId: result.threadId,
           label: result.tag?.kind === "label" ? result.tag.value : null,
-        })
+        }, undefined, { notify: true })
       : null;
   return Response.json({ ...result, folder }, { status: result.status === "stored" ? 201 : 422 });
 }

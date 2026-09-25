@@ -1,0 +1,27 @@
+---
+/** One email on a link page: headers, plain text only (no remote content), attachments. */
+import type { LinkedMessage } from "../../lib/links";
+import { formatSize } from "../../lib/mail-data";
+interface Props { linked: LinkedMessage; attBase: string }
+const { linked, attBase } = Astro.props;
+const m = linked.message;
+const when = new Date(m.received_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC" });
+---
+<article class="mail">
+  <h1>{m.subject || "(no subject)"}</h1>
+  <p class="muted">{linked.row.from_name ? `${linked.row.from_name} <${m.sender}>` : m.sender}<br />{when} UTC · to {m.recipient}</p>
+  <div class="text">{linked.text}</div>
+  {linked.attachments.length > 0 && (
+    <ul class="atts">
+      {linked.attachments.map((a) => <li><a href={`${attBase}/${encodeURIComponent(a.id)}`}>{a.filename}</a> <span class="muted">· {formatSize(a.size)}</span></li>)}
+    </ul>
+  )}
+</article>
+
+<style>
+  .mail { display: grid; gap: 10px; }
+  .text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; font-size: 15px; }
+  .atts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .atts li { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+  .atts a { color: var(--primary); font-weight: 600; }
+</style>

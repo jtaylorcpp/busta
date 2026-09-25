@@ -1,0 +1,21 @@
+---
+/**
+ * /a/<token>/m/<n> — the nth email an answer cites. Only emails in the
+ * answer's own cite list can be opened, and each is re-checked against the org.
+ */
+import { env } from "cloudflare:workers";
+import PublicPage from "../../../../components/link/PublicPage.astro";
+import LinkedEmail from "../../../../components/link/LinkedEmail.astro";
+import { linkPath, loadLinkedMessage, openLink } from "../../../../lib/links";
+
+const token = Astro.params.token!;
+const record = await openLink(env, token, Astro.cookies);
+const cite = record?.kind === "answer" ? record.cites?.[Number(Astro.params.i)] : undefined;
+if (!record || !cite) return Astro.redirect(linkPath("a", token));
+const linked = await loadLinkedMessage(env, record.orgId, cite.address, cite.messageId);
+const back = linkPath("a", token);
+---
+<PublicPage title={linked?.message.subject || "Email"}>
+  <a href={back} class="muted">← Back to the answer</a>
+  {linked ? <LinkedEmail linked={linked} attBase={`${back}/m/${Astro.params.i}/att`} /> : <p class="err">This email is no longer available.</p>}
+</PublicPage>
