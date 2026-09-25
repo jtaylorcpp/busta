@@ -23,7 +23,8 @@ const rows = await Promise.all(opened.map(async (a) => ({
   ...a,
   shownNow: accounts.find((x) => x.address === a.address)!.shown,
   gmail: a.kind === "gmail" ? await a.stub.gmailStatus() : null,
-  queue: a.kind === "gmail" ? await importStub(env, a.address).status() : null,
+  // An import that finished before the catch-up pass existed gets one now.
+  queue: a.kind === "gmail" ? await importStub(env, a.address).catchUp().then(() => importStub(env, a.address).status()) : null,
   purge: a.kind === "gmail" ? await a.stub.purgeStatus() : null,
 })));
 const home = accounts[0]!.address;

@@ -27,7 +27,8 @@ Astro.response.headers.set("cache-control", "no-store");
 const url = Astro.url;
 const data = await loadInbox(stub, url.searchParams);
 // The Getting started guide lives on Messages itself, not in a folder or bin.
-const guide = !data.activeFolder && !data.label && data.view === "messages" ? await stub.guide() : null;
+// Not for a connected account (Gmail): it arrives with your folders already.
+const guide = !data.activeFolder && !data.label && data.view === "messages" && (await stub.sendingAs()) === "busta" ? await stub.guide() : null;
 const b = base(address);
 const ok = url.searchParams.get("ok");
 const error = url.searchParams.get("error");

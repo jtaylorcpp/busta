@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { mailboxStub } from "./mail";
 import { GmailError } from "./sources/gmail";
 import { gmailFor } from "./sources/vault";
 import { importGmailMessage, isAuthFailure } from "./sources/gmail-sync";
@@ -34,12 +35,21 @@ export interface ImportState {
   startedAt: number;
   finishedAt: number | null;
   lastError: string | null;
+  /** The catch-up pass (re-list the window, queue anything not brought in) has run. */
+  reconciled?: boolean;
 }
 
 const BATCH = 20;
 const PARALLEL = 4;
 /** Tries before one message is given up on (and counted as skipped). */
 const MAX_ATTEMPTS = 3;
+
+/**
+ * Failures that are the platform's, not the message's: a deploy resetting an
+ * object, a dropped connection. They're retried without counting against the
+ * message, or one bad moment skips innocent mail.
+ */
+const PLATFORM_HICCUP = /code was updated|Network connection lost|no longer active|Connection closed|internal error|overloaded/i;
 const PAGES_PER_RUN = 4;
 const BASE_QUERY = "-in:spam -in:drafts -in:chats";
 
@@ -55,6 +65,8 @@ export class ImportDO extends DurableObject<Env> {
     // Failed tries per message: one bad message is skipped after a few, not retried forever.
     const hasAttempts = sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM pragma_table_info('queue') WHERE name = 'attempts'`).toArray()[0]?.n;
     if (!hasAttempts) sql.exec(`ALTER TABLE queue ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0`);
+    // Messages given up on, and why; the catch-up pass at the end tries them again.
+    sql.exec(`CREATE TABLE IF NOT EXISTS skipped (gmail_id TEXT PRIMARY KEY, reason TEXT NOT NULL, at INTEGER NOT NULL);`);
   }
 
   #state(): ImportState | null {
@@ -129,6 +141,41 @@ export class ImportDO extends DurableObject<Env> {
     return st ? { ...st, queued: this.#queued() } : null;
   }
 
+  /** Queue every message in this run's window that the mailbox doesn't have yet. */
+  async #reconcile(st: ImportState, api: ReturnType<typeof gmailFor>): Promise<number> {
+    const mailbox = mailboxStub(this.env, st.address);
+    let pageToken: string | undefined;
+    let queued = 0;
+    do {
+      const page = await api.listMessages(st.query, pageToken);
+      for (const m of page.messages ?? []) {
+        if (await mailbox.gmailKnown(m.id)) continue;
+        this.ctx.storage.sql.exec(`INSERT OR IGNORE INTO queue (gmail_id) VALUES (?)`, m.id);
+        queued++;
+      }
+      pageToken = page.nextPageToken;
+    } while (pageToken);
+    this.ctx.storage.sql.exec(`DELETE FROM skipped`);
+    if (queued) console.log("gmail import: catch-up queued", st.address, queued);
+    return queued;
+  }
+
+  /** Run the catch-up pass for an import that finished before it existed. No-op otherwise. */
+  async catchUp(): Promise<boolean> {
+    const st = this.#state();
+    if (!st || st.phase !== "done" || st.reconciled) return false;
+    this.#save({ ...st, phase: "importing" });
+    await this.ctx.storage.setAlarm(Date.now());
+    return true;
+  }
+
+  /** Messages given up on, with why. */
+  skippedList(): { gmail_id: string; reason: string; at: number }[] {
+    return this.ctx.storage.sql
+      .exec<Row<{ gmail_id: string; reason: string; at: number }>>(`SELECT gmail_id, reason, at FROM skipped ORDER BY at DESC LIMIT 50`)
+      .toArray();
+  }
+
   async alarm(): Promise<void> {
     const st = this.#state();
     if (!st || st.phase === "done" || st.phase === "paused") return;
@@ -179,15 +226,20 @@ export class ImportDO extends DurableObject<Env> {
             const gone = e instanceof GmailError && e.status === 404; // deleted in Gmail since it was listed
             const message = e instanceof Error ? e.message : String(e);
             troubled = true;
-            if (!gone && item.attempts + 1 < MAX_ATTEMPTS) {
-              this.ctx.storage.sql.exec(`UPDATE queue SET attempts = attempts + 1 WHERE ord = ?`, item.ord);
+            const hiccup = PLATFORM_HICCUP.test(message);
+            if (!gone && (hiccup || item.attempts + 1 < MAX_ATTEMPTS)) {
+              if (!hiccup) this.ctx.storage.sql.exec(`UPDATE queue SET attempts = attempts + 1 WHERE ord = ?`, item.ord);
               st.lastError = message.slice(0, 300);
-              console.error("gmail import: will retry", st.address, item.gmail_id, message);
+              console.error("gmail import: will retry", st.address, item.gmail_id, hiccup ? "(platform)" : `(try ${item.attempts + 1})`, message);
               continue;
             }
             st.skipped++;
             if (!gone) {
               st.lastError = `Skipped one message after ${MAX_ATTEMPTS} tries: ${message.slice(0, 200)}`;
+              this.ctx.storage.sql.exec(
+                `INSERT INTO skipped (gmail_id, reason, at) VALUES (?, ?, ?) ON CONFLICT(gmail_id) DO UPDATE SET reason = excluded.reason, at = excluded.at`,
+                item.gmail_id, message.slice(0, 300), Date.now(),
+              );
               console.error("gmail import: skipped", st.address, item.gmail_id, message);
             }
           }
@@ -199,7 +251,15 @@ export class ImportDO extends DurableObject<Env> {
       this.#save(st);
       if (authFailure) throw authFailure;
       if (this.#queued() === 0) {
-        this.#save({ ...st, phase: "done", finishedAt: Date.now(), lastError: null });
+        if (!st.reconciled) {
+          // Catch-up pass: list the window again and queue anything that isn't
+          // in the mailbox yet (skipped, or missed). Runs once per import.
+          await this.#reconcile(st, api);
+          this.#save({ ...st, reconciled: true });
+          await this.ctx.storage.setAlarm(Date.now() + 250);
+          return;
+        }
+        this.#save({ ...st, phase: "done", finishedAt: Date.now(), lastError: st.lastError?.startsWith("Skipped") ? st.lastError : null });
         return;
       }
       await this.ctx.storage.setAlarm(Date.now() + 250);

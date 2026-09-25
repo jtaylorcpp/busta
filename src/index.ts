@@ -705,7 +705,9 @@ async function sendFromForm(
   // sends it separately, so what the user typed stays uncluttered.
   const quote = String(form.get("quote") ?? "");
   const body = String(form.get("body") ?? "") + (quote ? `\n\n${quote}` : "");
-  const backTo = base(address);
+  // With 2+ accounts, compose and reply send back=/mail to return to all mail.
+  const backField = String(form.get("back") ?? new URL(request.url).searchParams.get("back") ?? "");
+  const backTo = /^\/mail(\/|\?|$)/.test(backField) ? backField : base(address);
 
   try {
     // A draft's staged files behave exactly like re-attached ones: read back

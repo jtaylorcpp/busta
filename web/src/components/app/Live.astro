@@ -88,9 +88,13 @@ const { addresses } = Astro.props;
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
+    // Coalesce bursts, and refresh at most every 2 s: an import can send
+    // several notices a second, and each refresh re-renders the page.
+    let lastRefresh = 0;
     function schedule() {
       clearTimeout(timer);
-      timer = window.setTimeout(() => void refresh(), 250); // coalesce bursts
+      const wait = Math.max(250, lastRefresh + 2000 - Date.now());
+      timer = window.setTimeout(() => { lastRefresh = Date.now(); void refresh(); }, wait);
     }
 
     /** One socket per mailbox, each reconnecting on its own. */

@@ -183,7 +183,7 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
     {readOnly ? (
       <p class="readonly"><span><b>{address} is disconnected.</b> You can read this, but replying needs Gmail.</span><a href={`/connect/google?account=${encodeURIComponent(address)}`}>Reconnect Gmail</a></p>
     ) : <ChatComposer
-      action={`${b}/${target.row.id}/reply`}
+      action={`${b}/${target.row.id}/reply${account ? `?back=${encodeURIComponent(ALL)}` : ""}`}
       mode={mode}
       modeHrefs={{ reply: modeHref("reply"), replyAll: modeHref("replyAll"), forward: `${b}/compose?forward=${target.row.id}` }}
       to={replyTo}

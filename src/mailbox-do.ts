@@ -810,6 +810,8 @@ export class MailboxDO extends DurableObject<Env> {
     const cur = this.#gmail();
     // Remembered after a disconnect, so this address never sends as busta.app.
     this.#setMeta("source_kind", "gmail");
+    // No Getting started: a connected account arrives with your folders.
+    this.updateGuide({ status: "hidden" });
     const next: GmailState = cur
       ? { ...cur, status: "live", pending: true, lastError: null, watchRenewAt: 0 }
       : {
