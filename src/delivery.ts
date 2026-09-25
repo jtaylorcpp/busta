@@ -16,8 +16,12 @@
  * Cloudflare at all.
  */
 
+import { mailboxStub } from "./mail";
+import { buildMime, getHeaders, GmailError, sendRaw, type TokenSource } from "./sources/gmail";
+
 /** Codes that will never succeed on retry. Retrying them wastes quota. */
 const PERMANENT_CODES = new Set([
+  "E_GMAIL_AUTH",
   "E_VALIDATION_ERROR",
   "E_FIELD_MISSING",
   "E_TOO_MANY_RECIPIENTS",
@@ -55,6 +59,7 @@ export interface DeliveryVerdict {
 }
 
 const REMEDIES: Record<string, string> = {
+  E_GMAIL_AUTH: "Google no longer accepts Busta's access to this Gmail. Reconnect it in Accounts.",
   E_SENDER_NOT_VERIFIED: "Run `wrangler email sending enable <domain>` and try again.",
   E_SENDER_DOMAIN_NOT_AVAILABLE: "MAIL_DOMAIN is not onboarded to Email Service.",
   E_RECIPIENT_SUPPRESSED: "This address hard-bounced or complained. Remove it from the list.",
@@ -147,6 +152,16 @@ export interface OutboundPayload {
   html: string;
   headers: Record<string, string>;
   attachments: { filename: string; contentType: string; r2Key: string }[];
+  /** Send through the mailbox's connected Gmail instead of Email Sending. */
+  via?: "gmail";
+  /** Gmail thread to reply in. */
+  gmailThread?: string | null;
+}
+
+export interface Delivered {
+  messageId: string;
+  /** Set when sent through Gmail: its id and thread, to link the sent copy. */
+  gmail?: { id: string; threadId: string };
 }
 
 /**
@@ -154,7 +169,7 @@ export interface OutboundPayload {
  * success or failure means, which is what lets the same function serve both
  * the interactive path and the retry alarm.
  */
-export async function deliver(env: Env, payload: OutboundPayload): Promise<{ messageId: string }> {
+export async function deliver(env: Env, payload: OutboundPayload, gmailToken?: TokenSource): Promise<Delivered> {
   // Development-only fault injection. Every rejection path — permanent,
   // transient, retry-until-exhausted — has to be exercisable before a real
   // domain exists, because that is exactly when it is cheap to get wrong.
@@ -163,6 +178,8 @@ export async function deliver(env: Env, payload: OutboundPayload): Promise<{ mes
       code: env.FAULT_CODE,
     });
   }
+
+  if (payload.via === "gmail") return deliverViaGmail(env, payload, gmailToken ?? (() => mailboxStub(env, payload.from).gmailAccessToken()));
 
   const attachments = [];
   for (const attachment of payload.attachments) {
@@ -189,4 +206,30 @@ export async function deliver(env: Env, payload: OutboundPayload): Promise<{ mes
     ...(Object.keys(payload.headers).length > 0 ? { headers: payload.headers } : {}),
     ...(attachments.length > 0 ? { attachments } : {}),
   });
+}
+
+/**
+ * Send as the connected Gmail account: Google delivers it and keeps it in
+ * Gmail's Sent. Errors are mapped onto the same codes as Email Sending, so
+ * the retry and "failed" handling above apply unchanged.
+ */
+async function deliverViaGmail(env: Env, payload: OutboundPayload, token: TokenSource): Promise<Delivered> {
+  const attachments = [];
+  for (const a of payload.attachments) {
+    const object = await env.MAIL_ARCHIVE.get(a.r2Key);
+    if (!object) throw new Error(`Archived attachment missing: ${a.r2Key}`);
+    attachments.push({ filename: a.filename, contentType: a.contentType, content: await object.arrayBuffer() });
+  }
+  const mime = buildMime({ ...payload, attachments });
+  try {
+    const sent = await sendRaw(token, mime, payload.gmailThread);
+    const meta = await getHeaders(token, sent.id, ["Message-ID"]).catch(() => null);
+    const messageId = meta?.payload?.headers?.find((h) => h.name.toLowerCase() === "message-id")?.value ?? `<gmail-${sent.id}@mail.gmail.com>`;
+    return { messageId, gmail: { id: sent.id, threadId: sent.threadId } };
+  } catch (e) {
+    const code = e instanceof GmailError
+      ? e.status === 401 || e.status === 403 ? "E_GMAIL_AUTH" : e.status === 429 ? "E_RATE_LIMIT_EXCEEDED" : e.status >= 500 ? "E_INTERNAL_SERVER_ERROR" : "E_VALIDATION_ERROR"
+      : (e as { code?: string }).code === "invalid_grant" ? "E_GMAIL_AUTH" : "E_INTERNAL_SERVER_ERROR";
+    throw Object.assign(new Error(e instanceof Error ? e.message : String(e)), { code });
+  }
 }

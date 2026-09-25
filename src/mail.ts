@@ -14,6 +14,7 @@ import {
   deliver,
   nextAttemptDelay,
   type OutboundPayload,
+  type Delivered,
 } from "./delivery";
 import { downloadUrl, signDownloadToken } from "./download";
 import { describeBounce, detectBounce } from "./bounce";
@@ -236,11 +237,26 @@ export function isSystemAddress(address: string, domain: string): boolean {
   );
 }
 
+/**
+ * How a connected account's mail differs from mail delivered here: it can be
+ * mail you sent (from Gmail's Sent), its time is the provider's, and its
+ * threading headers are the provider's to vouch for.
+ */
+export interface IngestOptions {
+  direction?: "in" | "out";
+  /** The provider's received time (Gmail internalDate), ms. */
+  receivedAt?: number;
+  /** Don't mark header-threaded messages as unverified. */
+  trustThread?: boolean;
+}
+
 export async function ingest(
   env: Env,
   envelope: { from: string; to: string; rawSize: number },
   raw: ArrayBuffer,
+  options: IngestOptions = {},
 ): Promise<IngestResult> {
+  const outbound = options.direction === "out";
   const recipient = parseRecipient(envelope.to);
   const address = recipient.mailbox;
   const mailbox = mailboxStub(env, address);
@@ -270,7 +286,7 @@ export async function ingest(
   // A delivery report is about a message we sent, not a new conversation.
   // Recognise it before threading, or it lands as a stray reply from
   // MAILER-DAEMON and the original still looks delivered.
-  const bounce = detectBounce(parsed, envelope.from);
+  const bounce = outbound ? { isBounce: false as const } : detectBounce(parsed, envelope.from);
   if (bounce.isBounce) {
     const description = describeBounce(bounce);
     const applied = await mailbox.applyBounce({
@@ -363,7 +379,11 @@ export async function ingest(
   const sender = parsed.from?.address
     ? normalizeAddress(parsed.from.address)
     : normalizeAddress(envelope.from);
-  const receivedAt = parsed.date ? Date.parse(parsed.date) || Date.now() : Date.now();
+  const receivedAt = options.receivedAt ?? (parsed.date ? Date.parse(parsed.date) || Date.now() : Date.now());
+  // Mail you sent from the provider: the other side is the first recipient.
+  const firstTo = parsed.to?.find((a) => a.address)?.address;
+  const counterpart = outbound && firstTo ? normalizeAddress(firstTo) : address;
+  const toCount = (parsed.to?.length ?? 0) + (parsed.cc?.length ?? 0);
   const size = envelope.rawSize || raw.byteLength;
   const metadata = extractMetadata(parsed, stored.length);
 
@@ -373,9 +393,9 @@ export async function ingest(
     { mailbox: address, threadId: resolution.threadId },
     {
       id,
-      direction: "in",
+      direction: outbound ? "out" : "in",
       sender,
-      recipient: address,
+      recipient: counterpart,
       subject,
       snippet,
       bodyText: parsed.text ?? null,
@@ -405,9 +425,10 @@ export async function ingest(
   await mailbox.index({
     id,
     threadId: resolution.threadId,
-    direction: "in",
+    direction: outbound ? "out" : "in",
+    ...(outbound ? { delivery: { status: "sent" } } : {}),
     sender,
-    recipient: address,
+    recipient: outbound && toCount > 1 ? `${counterpart} +${toCount - 1}` : counterpart,
     subject,
     snippet,
     messageId: rfcMessageId,
@@ -415,7 +436,7 @@ export async function ingest(
     size,
     attachmentCount: stored.length,
     // Joined an existing conversation on headers the sender controls.
-    grafted: !resolution.trusted && !resolution.isNewThread,
+    grafted: !options.trustThread && !resolution.trusted && !resolution.isNewThread,
     label,
     metadata,
     searchBody: searchBodyOf(env, parsed.text ?? null, parsed.html ?? null),
@@ -543,8 +564,12 @@ export async function send(env: Env, input: SendInput): Promise<SendResult> {
   validateAttachments(env, attachments);
   const { inline, linked } = partitionAttachments(env, attachments);
 
+  // A connected Gmail account sends through Gmail, as itself: no signed
+  // Reply-To (that is a busta.app sub-address), and in the parent's Gmail thread.
+  const viaGmail = await mailbox.isGmail();
   const tag = await signThreadTag(env.THREAD_SECRET, from, threadId);
-  const replyTo = replyToAddress(from, tag);
+  const replyTo = viaGmail ? "" : replyToAddress(from, tag);
+  const gmailThread = viaGmail && parent ? await mailbox.gmailThreadOf(parent.id) : null;
   const html = `<p>${escapeHtml(input.text).replace(/\n/g, "<br>")}</p>`;
 
   const sentAt = Date.now();
@@ -605,6 +630,7 @@ export async function send(env: Env, input: SendInput): Promise<SendResult> {
     text,
     html: htmlBody,
     headers,
+    ...(viaGmail ? { via: "gmail" as const, gmailThread } : {}),
     attachments: inline.map((att) => {
       const filename = sanitizeFilename(att.filename);
       const stored = storedAttachments.find((a) => a.filename === filename);
@@ -616,7 +642,7 @@ export async function send(env: Env, input: SendInput): Promise<SendResult> {
     }),
   };
 
-  let result: { messageId: string };
+  let result: Delivered;
   let delivery: { status: "sent" | "queued" | "failed"; code?: string; remedy?: string } = {
     status: "sent",
   };
@@ -698,6 +724,8 @@ export async function send(env: Env, input: SendInput): Promise<SendResult> {
     searchBody: searchBodyOf(env, input.text, null),
   });
 
+  if (result.gmail) await mailbox.linkGmail(result.gmail.id, id, result.gmail.threadId);
+
   if (delivery.status === "queued") {
     await mailbox.enqueue(JSON.stringify({ payload, storedId: id }), id, nextAttemptDelay(0)!);
   }
@@ -738,7 +766,7 @@ function synthesizeRfc822(m: {
     `From: ${m.from}`,
     `To: ${m.to.join(", ")}`,
     ...(m.cc.length > 0 ? [`Cc: ${m.cc.join(", ")}`] : []),
-    `Reply-To: ${m.replyTo}`,
+    ...(m.replyTo ? [`Reply-To: ${m.replyTo}`] : []),
     `Subject: ${m.subject}`,
     ...Object.entries(m.headers).map(([k, v]) => `${k}: ${v}`),
     // Attachment bytes are archived once, under their own keys. Inlining them
