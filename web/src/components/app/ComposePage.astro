@@ -12,8 +12,10 @@ interface Props {
   stats: { unread: number; total: number; trashed: number; starred: number };
   labels: { label: string; total: number; unread: number }[];
   flash: { ok: string | null; warn: string | null; error: string | null };
+  /** The form has its own From menu (2+ accounts), so don't repeat it here. */
+  hideFrom?: boolean;
 }
-const { title, address, base, stats, labels, flash } = Astro.props;
+const { title, address, base, stats, labels, flash, hideFrom = false } = Astro.props;
 ---
 <AppShell title={title} mailbox={address} composeHref={`${base}/compose`} searchAction={`${base}/search`}>
   <AccountMenu slot="account" current={address} />
@@ -21,7 +23,7 @@ const { title, address, base, stats, labels, flash } = Astro.props;
   <header class="head">
     <a class="back" href={base} aria-label="Back to inbox">←</a>
     <h1>{title}</h1>
-    <span class="from">From <b>{address}</b></span>
+    {!hideFrom && <span class="from">From <b>{address}</b></span>}
   </header>
   {flash.ok && <Banner tone="success">{flash.ok}</Banner>}
   {flash.warn && <Banner tone="warn" icon="alert">{flash.warn}</Banner>}
