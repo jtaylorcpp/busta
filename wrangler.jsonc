@@ -107,7 +107,13 @@
     // Those addresses receive the domain's DMARC and TLS reports, which name
     // every source sending as this domain — so this is an allowlist, not a
     // race. Empty means nobody, which is the correct default.
-    "ADMIN_USER_IDS": "user_3JkKu2PUY014lpSGMtUASlecP6X"
+    "ADMIN_USER_IDS": "user_3JkKu2PUY014lpSGMtUASlecP6X",
+
+    // Connected Gmail (src/sources). Gmail publishes new-mail alerts to this
+    // Pub/Sub topic; its push subscription calls /hooks/gmail signed as this
+    // service account. Client id/secret and SOURCE_TOKEN_KEY are secrets.
+    "GMAIL_PUBSUB_TOPIC": "projects/busta-509704/topics/gmail-busta",
+    "PUBSUB_PUSH_SA": "busta-push@busta-509704.iam.gserviceaccount.com"
   },
 
   // Workers AI. Files incoming mail into the user's folders by their
