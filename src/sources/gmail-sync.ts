@@ -19,7 +19,7 @@
 import { ingest, mailboxStub } from "../mail";
 import { fileMessage } from "../folders";
 import type * as gmail from "./gmail";
-import { fromB64url, GmailError } from "./gmail";
+import { GmailError } from "./gmail";
 import type { GmailApi } from "./vault";
 
 export interface GmailState {
@@ -91,16 +91,15 @@ export async function importGmailMessage(
 ): Promise<ImportOutcome> {
   const mailbox = mailboxStub(env, address);
   if (await mailbox.gmailKnown(gmailId)) return "known";
-  const m = await api.getRaw(gmailId);
+  const { meta: m, bytes } = await api.getRawBytes(gmailId);
   const labels = m.labelIds ?? [];
   if (labels.includes("DRAFT") || labels.includes("SPAM") || labels.includes("CHAT")) return "skipped";
   const outbound = labels.includes("SENT") && !labels.includes("INBOX");
-  const raw = fromB64url(m.raw);
   const store = async () => {
     const r = await ingest(
       env,
-      { from: "", to: address, rawSize: raw.byteLength },
-      raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer,
+      { from: "", to: address, rawSize: bytes.byteLength },
+      bytes,
       { direction: outbound ? "out" : "in", receivedAt: Number(m.internalDate) || undefined, trustThread: true },
     );
     if (r.messageId) {

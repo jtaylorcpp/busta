@@ -81,6 +81,25 @@ export class GmailVaultDO extends DurableObject<Env> {
   stopWatch() { return this.#run((t) => gmail.stopWatch(t)); }
   listMessages(q: string, pageToken?: string) { return this.#run((t) => gmail.listMessages(t, q, pageToken)); }
   getRaw(id: string) { return this.#run((t) => gmail.getRaw(t, id)); }
+
+  /**
+   * One message's metadata, and its raw bytes as a stream. A large message is
+   * ~33% bigger as Gmail's base64 than as bytes, and over RPC's 32 MiB limit
+   * as a plain value; a stream isn't held to that limit.
+   */
+  async getRawStream(id: string): Promise<VaultResult<{ meta: Omit<gmail.RawMessage, "raw">; body: ReadableStream<Uint8Array> }>> {
+    const r = await this.#run((t) => gmail.getRaw(t, id));
+    if (!r.ok) return r;
+    const { raw, ...meta } = r.value;
+    const bytes = gmail.fromB64url(raw);
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let i = 0; i < bytes.length; i += 1 << 20) controller.enqueue(bytes.subarray(i, i + (1 << 20)));
+        controller.close();
+      },
+    });
+    return { ok: true, value: { meta, body } };
+  }
   getHeaders(id: string, names: string[]) { return this.#run((t) => gmail.getHeaders(t, id, names)); }
   listHistory(startHistoryId: string, pageToken?: string) { return this.#run((t) => gmail.listHistory(t, startHistoryId, pageToken)); }
   modify(id: string, add: string[], remove: string[]) { return this.#run((t) => gmail.modify(t, id, add, remove)); }

@@ -38,6 +38,8 @@ export interface ImportState {
 
 const BATCH = 20;
 const PARALLEL = 4;
+/** Tries before one message is given up on (and counted as skipped). */
+const MAX_ATTEMPTS = 3;
 const PAGES_PER_RUN = 4;
 const BASE_QUERY = "-in:spam -in:drafts -in:chats";
 
@@ -50,6 +52,9 @@ export class ImportDO extends DurableObject<Env> {
     sql.exec(`CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);`);
     // ord ascends in Gmail's list order, which is newest first.
     sql.exec(`CREATE TABLE IF NOT EXISTS queue (ord INTEGER PRIMARY KEY AUTOINCREMENT, gmail_id TEXT NOT NULL UNIQUE);`);
+    // Failed tries per message: one bad message is skipped after a few, not retried forever.
+    const hasAttempts = sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM pragma_table_info('queue') WHERE name = 'attempts'`).toArray()[0]?.n;
+    if (!hasAttempts) sql.exec(`ALTER TABLE queue ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0`);
   }
 
   #state(): ImportState | null {
@@ -149,12 +154,13 @@ export class ImportDO extends DurableObject<Env> {
       }
 
       const batch = this.ctx.storage.sql
-        .exec<Row<{ ord: number; gmail_id: string }>>(`SELECT ord, gmail_id FROM queue ORDER BY ord ASC LIMIT ?`, BATCH)
+        .exec<Row<{ ord: number; gmail_id: string; attempts: number }>>(`SELECT ord, gmail_id, attempts FROM queue ORDER BY ord ASC LIMIT ?`, BATCH)
         .toArray();
       // A few at a time: each message is fetch, store, then sort, which is
-      // mostly waiting. Newest first still holds within a batch of 20.
+      // mostly waiting. The storing step runs one at a time (exclusive) so a
+      // conversation can't split into two threads.
       const queue = [...batch];
-      let failure: unknown = null;
+      let authFailure: unknown = null;
       let chain: Promise<unknown> = Promise.resolve();
       const exclusive = <T,>(fn: () => Promise<T>): Promise<T> => {
         const run = chain.then(fn, fn);
@@ -162,20 +168,31 @@ export class ImportDO extends DurableObject<Env> {
         return run;
       };
       await Promise.all(Array.from({ length: PARALLEL }, async () => {
-        for (let item = queue.shift(); item && !failure; item = queue.shift()) {
-          let outcome;
+        for (let item = queue.shift(); item && !authFailure; item = queue.shift()) {
           try {
-            outcome = await importGmailMessage(this.env, st.address, api, item.gmail_id, { sort: st.sorted < st.sortBudget, exclusive });
+            const outcome = await importGmailMessage(this.env, st.address, api, item.gmail_id, { sort: st.sorted < st.sortBudget, exclusive });
+            if (outcome === "stored") { st.done++; st.sorted++; } else st.skipped++;
           } catch (e) {
-            if (!(e instanceof GmailError && e.status === 404)) { failure = e; return; }
-            outcome = "skipped" as const; // deleted in Gmail since it was listed
+            if (isAuthFailure(e)) { authFailure = e; return; }
+            const gone = e instanceof GmailError && e.status === 404; // deleted in Gmail since it was listed
+            const message = e instanceof Error ? e.message : String(e);
+            if (!gone && item.attempts + 1 < MAX_ATTEMPTS) {
+              this.ctx.storage.sql.exec(`UPDATE queue SET attempts = attempts + 1 WHERE ord = ?`, item.ord);
+              st.lastError = message.slice(0, 300);
+              console.error("gmail import: will retry", st.address, item.gmail_id, message);
+              continue;
+            }
+            st.skipped++;
+            if (!gone) {
+              st.lastError = `Skipped one message after ${MAX_ATTEMPTS} tries: ${message.slice(0, 200)}`;
+              console.error("gmail import: skipped", st.address, item.gmail_id, message);
+            }
           }
-          if (outcome === "stored") { st.done++; st.sorted++; } else st.skipped++;
           this.ctx.storage.sql.exec(`DELETE FROM queue WHERE ord = ?`, item.ord);
         }
       }));
       this.#save(st);
-      if (failure) throw failure;
+      if (authFailure) throw authFailure;
       if (this.#queued() === 0) {
         this.#save({ ...st, phase: "done", finishedAt: Date.now(), lastError: null });
         return;
