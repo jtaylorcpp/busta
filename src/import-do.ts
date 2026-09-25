@@ -161,6 +161,7 @@ export class ImportDO extends DurableObject<Env> {
       // conversation can't split into two threads.
       const queue = [...batch];
       let authFailure: unknown = null;
+      let troubled = false;
       let chain: Promise<unknown> = Promise.resolve();
       const exclusive = <T,>(fn: () => Promise<T>): Promise<T> => {
         const run = chain.then(fn, fn);
@@ -177,6 +178,7 @@ export class ImportDO extends DurableObject<Env> {
             if (isAuthFailure(e)) { authFailure = e; return; }
             const gone = e instanceof GmailError && e.status === 404; // deleted in Gmail since it was listed
             const message = e instanceof Error ? e.message : String(e);
+            troubled = true;
             if (!gone && item.attempts + 1 < MAX_ATTEMPTS) {
               this.ctx.storage.sql.exec(`UPDATE queue SET attempts = attempts + 1 WHERE ord = ?`, item.ord);
               st.lastError = message.slice(0, 300);
@@ -192,6 +194,8 @@ export class ImportDO extends DurableObject<Env> {
           this.ctx.storage.sql.exec(`DELETE FROM queue WHERE ord = ?`, item.ord);
         }
       }));
+      // A clean batch clears an old problem, except a note about a skipped message.
+      if (!troubled && st.lastError && !st.lastError.startsWith("Skipped")) st.lastError = null;
       this.#save(st);
       if (authFailure) throw authFailure;
       if (this.#queued() === 0) {
