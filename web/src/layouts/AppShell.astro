@@ -14,8 +14,10 @@ interface Props {
   composeHref: string;
   searchAction?: string;
   query?: string;
+  /** Mailboxes to keep live; defaults to `mailbox`. The combined view passes every shown account. */
+  live?: string[];
 }
-const { title, mailbox, composeHref, searchAction, query } = Astro.props;
+const { title, mailbox, composeHref, searchAction, query, live } = Astro.props;
 ---
 <Base title={title}>
   <div class="shell">
@@ -35,7 +37,7 @@ const { title, mailbox, composeHref, searchAction, query } = Astro.props;
       </nav>
       <main class="pane"><slot /></main>
     </div>
-    <Live address={mailbox} />
+    <Live addresses={live ?? [mailbox]} />
   </div>
 </Base>
 

@@ -20,7 +20,9 @@ export function back(ctx: APIContext, address: string, fallback: string, flash?:
   const mine = `/mb/${encodeURIComponent(address)}`;
   const plain = `/mb/${address}`;
   if (raw.startsWith(plain)) raw = mine + raw.slice(plain.length);
-  const target = (raw === mine || raw.startsWith(`${mine}/`) || raw.startsWith(`${mine}?`)) ? raw : fallback;
+  // The combined view (/mail) is also "inside": its rows act on this mailbox.
+  const inside = (p: string) => raw === p || raw.startsWith(`${p}/`) || raw.startsWith(`${p}?`);
+  const target = inside(mine) || inside("/mail") ? raw : fallback;
   if (!flash) return ctx.redirect(target, 303);
   const u = new URL(target, ctx.url);
   u.searchParams.delete("ok");

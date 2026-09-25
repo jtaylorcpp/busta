@@ -34,13 +34,15 @@ interface Props {
   unverified?: boolean;
   /** Search terms to mark in the subject and snippet. */
   highlight?: string[];
+  /** Combined view: the owning account's color (a stripe on the left edge) and address. */
+  account?: { color: string; address: string };
 }
 const {
   href, from, subject, snippet, date, unread = false, starred = false, outbound = false,
-  tags = [], status, attachments = 0, starAction, trashAction, restoreAction, purgeAction, unverified = false, highlight = [],
+  tags = [], status, attachments = 0, starAction, trashAction, restoreAction, purgeAction, unverified = false, highlight = [], account,
 } = Astro.props;
 ---
-<li class:list={["row", { unread }]}>
+<li class:list={["row", { unread, acc: !!account }]} style={account ? `--acct: var(--acct-${account.color})` : undefined} title={account ? account.address : undefined}>
   <span class="lead">
     <span class="udot" aria-hidden="true"></span>
     {starAction ? (
@@ -84,6 +86,7 @@ const {
     font-size: var(--text-md);
   }
   .row.unread { background: var(--row-unread); }
+  .row.acc { box-shadow: inset 3px 0 0 var(--acct); }
   .row:hover { background: var(--row-hover); }
   .lead { display: flex; align-items: center; gap: 4px; padding-left: 12px; flex-shrink: 0; }
   .lead form { display: contents; }

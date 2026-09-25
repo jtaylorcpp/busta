@@ -35,6 +35,13 @@
   --primary: #1A5FD0;
   --on-primary: #FFFFFF;
   --primary-soft: #DCE7FB;
+  /* Account colors: which connected account a message belongs to. Marks
+     only (row stripe, dots, chips), never fills. Deliberately not red,
+     amber, green or violet, which already mean something. */
+  --acct-blue: #3552C9; --acct-blue-soft: #E3E8FA;
+  --acct-teal: #0B8584; --acct-teal-soft: #DDF2F1;
+  --acct-slate: #5E6B80; --acct-slate-soft: #E8EBF0;
+  --acct-sand: #8A6A3F; --acct-sand-soft: #F1EADF;
   --secondary: #4B5566;
   --secondary-soft: #E9EDF3;
   --tertiary: #6B42C8;
@@ -94,6 +101,10 @@
     --primary: #8AB2F7;
     --on-primary: #0A1A38;
     --primary-soft: #1E2F52;
+    --acct-blue: #93A6F5; --acct-blue-soft: #232C4E;
+    --acct-teal: #5CCFCB; --acct-teal-soft: #143533;
+    --acct-slate: #AEB8C8; --acct-slate-soft: #2A313B;
+    --acct-sand: #D2B48A; --acct-sand-soft: #352B1D;
     --secondary: #B4BDCA;
     --secondary-soft: #2A313B;
     --tertiary: #BBA2F7;
@@ -134,6 +145,10 @@
   --primary: #8AB2F7;
   --on-primary: #0A1A38;
   --primary-soft: #1E2F52;
+  --acct-blue: #93A6F5; --acct-blue-soft: #232C4E;
+  --acct-teal: #5CCFCB; --acct-teal-soft: #143533;
+  --acct-slate: #AEB8C8; --acct-slate-soft: #2A313B;
+  --acct-sand: #D2B48A; --acct-sand-soft: #352B1D;
   --secondary: #B4BDCA;
   --secondary-soft: #2A313B;
   --tertiary: #BBA2F7;

@@ -13,6 +13,12 @@ export interface TenantMailbox {
    */
   status: string;
   failure: string | null;
+  /** busta (an address here) | gmail (a connected Gmail account). */
+  kind: string;
+  /** Account color name (see ACCOUNT_COLORS in web/src/lib/accounts.ts); null = by position. */
+  color: string | null;
+  /** 1 when the account is in the combined list, 0 when hidden from it. */
+  shown: number;
 }
 
 /**
@@ -40,6 +46,9 @@ export class TenantDO extends DurableObject<Env> {
     for (const [column, type] of [
       ["status", "TEXT NOT NULL DEFAULT 'ready'"],
       ["failure", "TEXT"],
+      ["kind", "TEXT NOT NULL DEFAULT 'busta'"],
+      ["color", "TEXT"],
+      ["shown", "INTEGER NOT NULL DEFAULT 1"],
     ] as const) {
       const present = ctx.storage.sql
         .exec<{ n: number }>(
@@ -150,18 +159,29 @@ export class TenantDO extends DurableObject<Env> {
     domain: string,
     label: string | null,
     status: string = "ready",
+    kind: string = "busta",
   ): void {
     this.ctx.storage.sql.exec(
-      `INSERT INTO mailboxes (address, local_part, domain, label, created_at, status)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(address) DO UPDATE SET label = excluded.label, status = excluded.status`,
+      `INSERT INTO mailboxes (address, local_part, domain, label, created_at, status, kind)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(address) DO UPDATE SET label = excluded.label, status = excluded.status, kind = excluded.kind`,
       address,
       localPart,
       domain,
       label,
       Date.now(),
       status,
+      kind,
     );
+  }
+
+  /** Show or hide an account in the combined list. It keeps getting mail either way. */
+  setShown(address: string, shown: boolean): void {
+    this.ctx.storage.sql.exec(`UPDATE mailboxes SET shown = ? WHERE address = ?`, shown ? 1 : 0, address);
+  }
+
+  setColor(address: string, color: string | null): void {
+    this.ctx.storage.sql.exec(`UPDATE mailboxes SET color = ? WHERE address = ?`, color, address);
   }
 
   setMailboxStatus(address: string, status: string, failure: string | null = null): void {

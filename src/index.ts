@@ -336,7 +336,11 @@ async function route(
       if (request.method === "POST" && action && MESSAGE_ACTIONS.has(action)) {
         const row = await indexed;
         if (!row) return html(errorPage(404, "Message not found"), 404);
-        const backTo = `${base(address)}${row.deleted_at !== null ? "?view=trash" : ""}`;
+        // The combined view (/mail) sends ?back= so star/trash return there.
+        const backParam = url.searchParams.get("back") ?? "";
+        const backTo = /^\/mail(\/|\?|$)/.test(backParam)
+          ? backParam
+          : `${base(address)}${row.deleted_at !== null ? "?view=trash" : ""}`;
 
         // Every write is awaited before responding: an un-awaited Durable Object
         // call can be dropped once the Worker returns, which silently lost stars.

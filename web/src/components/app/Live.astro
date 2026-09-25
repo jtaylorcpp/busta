@@ -15,24 +15,20 @@
  * A page marked data-live-follow (Getting started's "send a test" step)
  * moves on when its re-fetch redirects: the server says the wait is over.
  * The server renders every region, so there is one source of markup. Without
- * JavaScript the page simply doesn't update on its own.
+ * JavaScript the page simply doesn't update on its own. The combined view
+ * (/mail) holds one socket per shown account; any of them refreshes the page.
  */
-interface Props { address: string }
-const { address } = Astro.props;
+interface Props { addresses: string[] }
+const { addresses } = Astro.props;
 ---
-<div hidden data-live-url={`/mb/${encodeURIComponent(address)}/live`}></div>
+{addresses.map((a) => <div hidden data-live-url={`/mb/${encodeURIComponent(a)}/live`}></div>)}
 <button type="button" class="live-pill" hidden data-live-pill></button>
 
 <script>
-  const holder = document.querySelector<HTMLElement>("[data-live-url]");
+  const holders = [...document.querySelectorAll<HTMLElement>("[data-live-url]")];
   const pill = document.querySelector<HTMLButtonElement>("[data-live-pill]");
-  if (holder && pill && "WebSocket" in window) {
-    const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${holder.dataset.liveUrl}`;
-    let ws: WebSocket | null = null;
-    let retry = 1000;
-    let opened = false;
+  if (holders.length && pill && "WebSocket" in window) {
     let timer: number | undefined;
-    let ping: number | undefined;
     let pendingList: Element | null = null;
     let inflight = false;
     let again = false;
@@ -96,32 +92,43 @@ const { address } = Astro.props;
       timer = window.setTimeout(() => void refresh(), 250); // coalesce bursts
     }
 
-    function connect() {
-      ws = new WebSocket(url);
-      ws.addEventListener("open", () => {
-        retry = 1000;
-        if (opened || document.querySelector("[data-live-pending]")) schedule();
-        opened = true;
-        clearInterval(ping);
-        ping = window.setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send("ping"), 25_000);
+    /** One socket per mailbox, each reconnecting on its own. */
+    function watch(path: string) {
+      const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${path}`;
+      let ws: WebSocket | null = null;
+      let retry = 1000;
+      let opened = false;
+      let ping: number | undefined;
+
+      function connect() {
+        ws = new WebSocket(url);
+        ws.addEventListener("open", () => {
+          retry = 1000;
+          if (opened || document.querySelector("[data-live-pending]")) schedule();
+          opened = true;
+          clearInterval(ping);
+          ping = window.setInterval(() => ws?.readyState === WebSocket.OPEN && ws.send("ping"), 25_000);
+        });
+        ws.addEventListener("message", (e) => { if (e.data !== "pong") schedule(); });
+        ws.addEventListener("close", () => {
+          clearInterval(ping);
+          if (document.visibilityState === "visible") {
+            window.setTimeout(connect, retry);
+            retry = Math.min(retry * 2, 30_000);
+          }
+        });
+      }
+
+      // Catch up on anything missed while the tab was hidden or the socket down.
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        if (!ws || ws.readyState === WebSocket.CLOSED) { connect(); schedule(); }
       });
-      ws.addEventListener("message", (e) => { if (e.data !== "pong") schedule(); });
-      ws.addEventListener("close", () => {
-        clearInterval(ping);
-        if (document.visibilityState === "visible") {
-          window.setTimeout(connect, retry);
-          retry = Math.min(retry * 2, 30_000);
-        }
-      });
+      window.addEventListener("pagehide", () => ws?.close(1000, "leaving"));
+      connect();
     }
 
-    // Catch up on anything missed while the tab was hidden or the socket down.
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState !== "visible") return;
-      if (!ws || ws.readyState === WebSocket.CLOSED) { connect(); schedule(); }
-    });
-    window.addEventListener("pagehide", () => ws?.close(1000, "leaving"));
-    connect();
+    for (const h of holders) if (h.dataset.liveUrl) watch(h.dataset.liveUrl);
   }
 </script>
 
