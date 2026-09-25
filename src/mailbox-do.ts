@@ -1897,12 +1897,19 @@ export class MailboxDO extends DurableObject<Env> {
 
   /** Most recent outbound message to an address — a fallback when a DSN omits the Message-ID. */
   findLatestOutboundTo(recipient: string): IndexedMessage | null {
+    // `recipient` comes from a bounce the sender wrote, so it can be anything.
+    // Match exactly ("a@b" or "a@b +2"), never as a LIKE pattern: a pattern
+    // with enough wildcards makes SQLite give up ("pattern too complex").
+    const r = recipient.trim().toLowerCase();
+    if (!r || r.length > 320) return null;
     const rows = this.ctx.storage.sql
       .exec<Row<IndexedMessage>>(
         `SELECT * FROM messages
-          WHERE direction = 'out' AND recipient LIKE ? AND delivery_status != 'bounced'
+          WHERE direction = 'out' AND (recipient = ? OR substr(recipient, 1, ?) = ?) AND delivery_status != 'bounced'
           ORDER BY received_at DESC LIMIT 1`,
-        `${recipient}%`,
+        r,
+        r.length + 2,
+        `${r} +`,
       )
       .toArray();
     return rows.length > 0 ? (rows[0]! as IndexedMessage) : null;

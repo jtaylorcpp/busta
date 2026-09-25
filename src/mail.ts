@@ -291,7 +291,9 @@ export async function ingest(
   // A delivery report is about a message we sent, not a new conversation.
   // Recognise it before threading, or it lands as a stray reply from
   // MAILER-DAEMON and the original still looks delivered.
-  const bounce = outbound ? { isBounce: false as const } : detectBounce(parsed, envelope.from);
+  // A connected account's bounces are about mail its provider sent, not us:
+  // they are ordinary messages here (trustThread marks provider mail).
+  const bounce = outbound || options.trustThread ? { isBounce: false as const } : detectBounce(parsed, envelope.from);
   if (bounce.isBounce) {
     const description = describeBounce(bounce);
     const applied = await mailbox.applyBounce({
