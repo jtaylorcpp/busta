@@ -33,7 +33,7 @@ export function ruleHash(rule: string): string {
   return (h >>> 0).toString(36);
 }
 
-async function askJson(env: Env, system: string, user: string, schema: object, maxTokens = 900): Promise<unknown> {
+export async function askJson(env: Env, system: string, user: string, schema: object, maxTokens = 900): Promise<unknown> {
   const out = (await env.AI.run(TEXT_MODEL as never, {
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
     response_format: { type: "json_schema", json_schema: schema },

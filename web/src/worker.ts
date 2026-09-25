@@ -15,8 +15,9 @@ import { handle } from "@astrojs/cloudflare/handler";
 import legacy from "../../src/index";
 import { liveSocket } from "../../src/live";
 import { gmailPush } from "../../src/sources/push";
+import { smsWebhook } from "../../src/sms/inbound";
 
-export { GmailVaultDO, ImportDO, LinkDO, MailboxDO, PhoneDO, TenantDO, ThreadDO } from "../../src/index";
+export { AskDO, GmailVaultDO, ImportDO, LinkDO, MailboxDO, PhoneDO, TenantDO, ThreadDO } from "../../src/index";
 
 /** Paths Astro owns in every environment, for any method. */
 const ASTRO_ROUTES: RegExp[] = [
@@ -67,6 +68,8 @@ export default {
     if (live && request.method === "GET") return liveSocket(request, env, live[1]!);
     // Gmail's Pub/Sub alerts: signed by Google, checked in src/sources/push.ts.
     if (path === "/hooks/gmail" && request.method === "POST") return gmailPush(request, env, ctx);
+    // Texts to Busta's number: signed by Twilio, checked in src/sms/inbound.ts.
+    if (path === "/hooks/sms" && request.method === "POST") return smsWebhook(request, env, ctx);
     return astroOwns(request.method, path, env) ? handle(request, env, ctx) : legacy.fetch(request, env, ctx);
   },
   email: legacy.email,

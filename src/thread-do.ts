@@ -105,6 +105,8 @@ export class ThreadDO extends DurableObject<Env> {
   #migrate(): void {
     const sql = this.ctx.storage.sql;
     sql.exec(`CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);`);
+    // Attachment text for Ask by text, converted once (toMarkdown) and kept.
+    sql.exec(`CREATE TABLE IF NOT EXISTS attachment_text (attachment_id TEXT PRIMARY KEY, text TEXT NOT NULL, created_at INTEGER NOT NULL);`);
     // "Why not this folder?" answers, kept until the folder's rule changes.
     sql.exec(`
       CREATE TABLE IF NOT EXISTS explanations (
@@ -348,6 +350,50 @@ export class ThreadDO extends DurableObject<Env> {
    * chosen folder id (null for none), its probability, and the probability of
    * every option so the UI can show a match percentage.
    */
+  /**
+   * How likely this message helps answer `question` (Ask by text), scored by
+   * jev with the question as the one "folder rule". Cheap: the body stays here.
+   */
+  async relevance(id: string, question: string): Promise<number> {
+    const r = await classifyEmail(this.env, await this.#emailFor(id), [
+      { id: "q", name: "Answers the question", rule: `Emails that help answer this question: ${question}` },
+    ]);
+    return r.probabilities.q ?? (r.folderId === "q" ? r.probability : 0);
+  }
+
+  /**
+   * A message as the answer model reads it: headers, body text, and text
+   * pulled from its PDFs, images and documents (converted once, then kept).
+   */
+  async readForAnswer(id: string, maxChars = 6000): Promise<{ from: string; subject: string; date: number; body: string; attachments: { name: string; kind: "pdf" | "image" | "doc"; text: string }[] } | null> {
+    const view = await this.get(id);
+    if (!view) return null;
+    const email = await this.#emailFor(id);
+    const attachments: { name: string; kind: "pdf" | "image" | "doc"; text: string }[] = [];
+    for (const a of view.attachments.slice(0, 3)) {
+      const mime = (a.mime_type ?? "").toLowerCase();
+      const kind = mime.includes("pdf") ? "pdf" : mime.startsWith("image/") ? "image" : /word|officedocument|opendocument|text\/(plain|csv|html)/.test(mime) ? "doc" : null;
+      if (!kind || a.size > 5_000_000) continue;
+      const cached = this.ctx.storage.sql.exec<{ text: string }>(`SELECT text FROM attachment_text WHERE attachment_id = ?`, a.id).toArray()[0];
+      let text = cached?.text ?? null;
+      if (text === null) {
+        const object = await this.env.MAIL_ARCHIVE.get(a.r2_key);
+        if (!object) continue;
+        try {
+          const blob = new Blob([await object.arrayBuffer()], { type: mime || "application/octet-stream" });
+          const out = (await this.env.AI.toMarkdown({ name: a.filename, blob })) as { data?: string };
+          text = (out.data ?? "").slice(0, 8000);
+        } catch (e) {
+          console.error("toMarkdown failed", a.id, String(e).slice(0, 120));
+          text = "";
+        }
+        this.ctx.storage.sql.exec(`INSERT OR REPLACE INTO attachment_text (attachment_id, text, created_at) VALUES (?, ?, ?)`, a.id, text, Date.now());
+      }
+      if (text) attachments.push({ name: a.filename, kind, text: text.slice(0, 3000) });
+    }
+    return { from: email.from, subject: email.subject, date: view.message.received_at, body: email.body.replace(/\s+\n/g, "\n").slice(0, maxChars), attachments };
+  }
+
   async classify(id: string, folders: { id: string; name: string; rule: string }[]): Promise<ClassifyResult> {
     return classifyEmail(this.env, await this.#emailFor(id), folders);
   }

@@ -22,6 +22,22 @@ export class PhoneDO extends DurableObject<Env> {
     return prev && (prev.userId !== owner.userId || prev.orgId !== owner.orgId) ? prev : null;
   }
 
+  /** True the first time this Twilio MessageSid is seen (Twilio retries webhooks). */
+  firstDelivery(sid: string): boolean {
+    const seen = this.ctx.storage.kv.get<string[]>("sids") ?? [];
+    if (seen.includes(sid)) return false;
+    this.ctx.storage.kv.put("sids", [sid, ...seen].slice(0, 50));
+    return true;
+  }
+
+  /** An unknown number gets one reply a day, then silence. */
+  mayReplyUnknown(): boolean {
+    const last = this.ctx.storage.kv.get<number>("unknown_reply_at") ?? 0;
+    if (Date.now() - last < 86_400_000) return false;
+    this.ctx.storage.kv.put("unknown_reply_at", Date.now());
+    return true;
+  }
+
   /** Forget the mapping, but only if it still belongs to this user. */
   release(userId: string): void {
     if (this.owner()?.userId === userId) this.ctx.storage.kv.delete("owner");

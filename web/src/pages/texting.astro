@@ -110,6 +110,7 @@ if (Astro.request.method === "POST") {
 }
 
 const v = (await tenant.texting(userId)) as TextingView;
+const questions = (await tenant.questions(userId)) as { id: string; question: string; status: string; steps: string[]; short: string | null; created_at: number }[];
 const accounts = await listAccounts(env, orgId);
 const opened = await openShown(env, { userId, orgId }, accounts.map((a) => ({ ...a, shown: true })));
 const folders = mergeFolders(await Promise.all(opened.map(async (a) => ({ account: a, folders: (await a.stub.listFolders()) as FolderWithCounts[] }))));
@@ -219,6 +220,18 @@ const when = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "
         )}
       </section>
     )}
+    {questions.length > 0 && (
+      <section class="panel">
+        <div class="ph"><b>Questions you texted</b><span class="grow"></span><span class="hint">kept 30 days</span></div>
+        {questions.map((q) => (
+          <div class="q">
+            <p class="qh"><b>"{q.question}"</b><span class="hint">{new Date(q.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC" })} UTC · {q.status}</span></p>
+            {q.steps.length > 0 && <p class="steps">{q.steps.map((st) => <span>{st}</span>)}</p>}
+            {q.short && <pre class="texted">{q.short}</pre>}
+          </div>
+        ))}
+      </section>
+    )}
     {busta && <p class="hint">Reply STOP to {busta} at any time to stop all texts; START to resume.</p>}
   </div>
 </FolderPageShell>
@@ -266,4 +279,10 @@ const when = (ms: number) => new Date(ms).toLocaleDateString("en-US", { month: "
   .risks span { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--warn); }
   .risks ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; font-size: var(--text-sm); color: var(--text); }
   .ack { display: flex; gap: 8px; align-items: center; font-size: var(--text-sm); font-weight: 600; }
+  .q { display: grid; gap: 6px; padding: 12px 14px; border-top: 1px solid var(--border); }
+  .qh { margin: 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+  .qh b { font-weight: 600; }
+  .steps { margin: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .steps span { font-size: var(--text-xs); font-weight: 600; padding: 3px 8px; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--secondary); }
+  .texted { margin: 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--tertiary-soft); font: 500 12.5px/1.45 var(--font-mono); white-space: pre-wrap; max-width: 40ch; }
 </style>

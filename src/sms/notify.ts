@@ -90,6 +90,10 @@ export async function notifyFiled(env: Env, address: string, messageId: string, 
         : `New email in ${folder.name}`;
       if (!(await tenant.textingReserveSend(v.userId))) continue;
       await sendSms(env, v.phone, `${head}${link}`);
+      if (link) {
+        const label = v.features.subject ? `${scrub(row.from_name || row.sender, 40)}: ${scrub(row.subject || "(no subject)", 80)}` : `An email in ${folder.name}`;
+        await tenant.setLastNotified(v.userId, { address, messageId, label, at: Date.now(), reissues: 0 });
+      }
     }
   } catch (e) {
     console.error("texting: notify failed", String(e));

@@ -106,7 +106,22 @@ export class TenantDO extends DurableObject<Env> {
         updated_at      INTEGER NOT NULL
       );
     `);
-    for (const [column, type] of [["sent_hour", "TEXT"], ["sent_hour_count", "INTEGER NOT NULL DEFAULT 0"], ["line_checked_at", "INTEGER"]] as const) {
+    // Ask by text: a log of questions (the "Questions you texted" page).
+    ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS questions (
+        id         TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL,
+        question   TEXT NOT NULL,
+        status     TEXT NOT NULL,
+        steps      TEXT NOT NULL DEFAULT '[]',
+        short      TEXT,
+        created_at INTEGER NOT NULL,
+        done_at    INTEGER
+      );
+    `);
+    ctx.storage.sql.exec(`CREATE INDEX IF NOT EXISTS idx_questions_user ON questions(user_id, created_at DESC);`);
+    for (const [column, type] of [["sent_hour", "TEXT"], ["sent_hour_count", "INTEGER NOT NULL DEFAULT 0"], ["line_checked_at", "INTEGER"],
+      ["ask_day", "TEXT"], ["ask_count", "INTEGER NOT NULL DEFAULT 0"], ["last_notified", "TEXT"]] as const) {
       const has = ctx.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM pragma_table_info('texting') WHERE name = ?`, column).toArray()[0]?.n;
       if (!has) ctx.storage.sql.exec(`ALTER TABLE texting ADD COLUMN ${column} ${type}`);
     }
@@ -400,6 +415,43 @@ export class TenantDO extends DurableObject<Env> {
 
   markTextingLineChecked(userId: string): void {
     this.ctx.storage.sql.exec(`UPDATE texting SET line_checked_at = ? WHERE user_id = ?`, Date.now(), userId);
+  }
+
+  /** Count one question against the daily cap (30). False when over it. */
+  textingReserveAsk(userId: string, perDay = 30): boolean {
+    const r = this.#textingRow(userId);
+    if (!r) return false;
+    const day = new Date().toISOString().slice(0, 10);
+    const count = r.ask_day === day ? Number(r.ask_count) : 0;
+    if (count >= perDay) return false;
+    this.ctx.storage.sql.exec(`UPDATE texting SET ask_day = ?, ask_count = ? WHERE user_id = ?`, day, count + 1, userId);
+    return true;
+  }
+
+  /** The last email texted to a user, so LINK can re-issue its link (12 h, 3 times). */
+  setLastNotified(userId: string, n: { address: string; messageId: string; label: string; at: number; reissues: number } | null): void {
+    this.ctx.storage.sql.exec(`UPDATE texting SET last_notified = ? WHERE user_id = ?`, n ? JSON.stringify(n) : null, userId);
+  }
+
+  lastNotified(userId: string): { address: string; messageId: string; label: string; at: number; reissues: number } | null {
+    const raw = this.#textingRow(userId)?.last_notified as string | null | undefined;
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  logQuestion(q: { id: string; userId: string; question: string; status: string; steps?: string[]; short?: string | null; done?: boolean }): void {
+    this.ctx.storage.sql.exec(
+      `INSERT INTO questions (id, user_id, question, status, steps, short, created_at, done_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET status = excluded.status, steps = excluded.steps, short = excluded.short, done_at = excluded.done_at`,
+      q.id, q.userId, q.question, q.status, JSON.stringify(q.steps ?? []), q.short ?? null, Date.now(), q.done ? Date.now() : null,
+    );
+    this.ctx.storage.sql.exec(`DELETE FROM questions WHERE created_at < ?`, Date.now() - 30 * 86_400_000);
+  }
+
+  questions(userId: string): { id: string; question: string; status: string; steps: string[]; short: string | null; created_at: number; done_at: number | null }[] {
+    return this.ctx.storage.sql
+      .exec<Record<string, SqlStorageValue>>(`SELECT * FROM questions WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`, userId)
+      .toArray()
+      .map((r) => ({ id: String(r.id), question: String(r.question), status: String(r.status), steps: JSON.parse(String(r.steps)) as string[], short: (r.short as string | null) ?? null, created_at: Number(r.created_at), done_at: (r.done_at as number | null) ?? null }));
   }
 
   /** Users in this org who get texts for mail filed into `folderKey`. */

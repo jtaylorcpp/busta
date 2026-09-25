@@ -34,6 +34,7 @@ export { ImportDO } from "./import-do";
 export { GmailVaultDO } from "./vault-do";
 export { PhoneDO } from "./phone-do";
 export { LinkDO } from "./link-do";
+export { AskDO } from "./ask-do";
 
 const MESSAGE_ACTIONS = new Set(["trash", "restore", "purge", "star", "unstar", "read", "unread", "archive", "unarchive"]);
 

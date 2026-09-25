@@ -140,7 +140,9 @@
       // One per phone number: which user and org an incoming text belongs to.
       { "name": "PHONE", "class_name": "PhoneDO" },
       // One per one-time link, named by the hash of its token (src/link-do.ts).
-      { "name": "LINK", "class_name": "LinkDO" }
+      { "name": "LINK", "class_name": "LinkDO" },
+      // One per texted question: the Ask pipeline, step by step (src/ask-do.ts).
+      { "name": "ASK", "class_name": "AskDO" }
     ]
   },
 
@@ -168,6 +170,10 @@
     {
       "tag": "v6",
       "new_sqlite_classes": ["LinkDO"]
+    },
+    {
+      "tag": "v7",
+      "new_sqlite_classes": ["AskDO"]
     }
   ],
 
