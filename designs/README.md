@@ -52,3 +52,9 @@ Decided after the mockup was approved; the code is the source of truth.
 - **Imports run from an import queue** (approved change to v3): one ImportDO
   per Gmail account captures the message ids to bring in and works through
   them newest to oldest on its own alarm; the mailbox's DO only does live sync.
+- **From** is a menu on new messages only. Replies go from the account the
+  thread is in, and forwards and drafts keep their account.
+- **Disconnected Gmail, kept:** replying is off (and sending from it is
+  refused), but archive, star and trash still work on Busta's copies.
+- **Undo after Archive** is a banner at the top of the list, not a dark toast.
+

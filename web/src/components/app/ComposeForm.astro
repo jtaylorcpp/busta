@@ -19,12 +19,27 @@ interface Props {
   forward?: { messageId: string; attachments: File[] };
   draft?: { id: string; threadId: string | null; attachments: File[]; savedAt: string };
   limits: { inline: string; inlineBytes: number; linkDays: number };
+  /**
+   * With 2+ accounts, a new message can pick its From. Choosing another
+   * account points the form at that account's compose, so it sends (and
+   * saves drafts) there. The choice is remembered as "last used".
+   */
+  from?: { current: string; options: { address: string; color: string; via: string }[] };
 }
-const { base, prefill = {}, bounced = [], forward, draft, limits } = Astro.props;
+const { base, prefill = {}, bounced = [], forward, draft, limits, from } = Astro.props;
 const check = `${base}/recipients/check`;
 ---
-<form class="compose" method="post" action={`${base}/compose`} enctype="multipart/form-data">
+<form class="compose" method="post" action={`${base}/compose`} enctype="multipart/form-data" data-compose>
   <div class="rows">
+    {from && (
+      <div class="rcpt from-row">
+        <label for="from">From</label>
+        <span class="from-dot" aria-hidden="true" style={`background: var(--acct-${from.options.find((o) => o.address === from.current)?.color ?? "blue"})`}></span>
+        <select id="from" data-from>
+          {from.options.map((o) => <option value={o.address} data-color={o.color} data-via={o.via} selected={o.address === from.current}>{o.address} · {o.via}</option>)}
+        </select>
+      </div>
+    )}
     <RecipientInput client:load id="to" name="to" label="To" value={prefill.to} bounced={bounced} checkUrl={check} placeholder="someone@example.com" autofocus={!prefill.to} />
     <RecipientInput client:load id="cc" name="cc" label="Cc" value={prefill.cc} bounced={bounced} checkUrl={check} />
     <RecipientInput client:load id="bcc" name="bcc" label="Bcc" value={prefill.bcc} bounced={bounced} checkUrl={check} hint="Hidden from other recipients." />
@@ -78,6 +93,22 @@ const check = `${base}/recipients/check`;
     {draft && <span class="saved-at">Last saved {draft.savedAt}</span>}
   </div>
 </form>
+
+<script>
+  // From: point the form at the chosen account's compose; remember it as last used.
+  for (const el of Array.from(document.querySelectorAll("[data-from]"))) {
+    const sel = el as unknown as { value: string; selectedOptions: HTMLCollectionOf<HTMLOptionElement>; closest: Element["closest"]; addEventListener: Element["addEventListener"] };
+    const form = sel.closest<HTMLFormElement>("[data-compose]");
+    const dot = form?.querySelector<HTMLElement>(".from-dot");
+    sel.addEventListener("change", () => {
+      if (!form) return;
+      form.action = `/mb/${encodeURIComponent(sel.value)}/compose`;
+      const color = sel.selectedOptions[0]?.dataset.color;
+      if (dot && color) dot.style.background = `var(--acct-${color})`;
+    });
+    form?.addEventListener("submit", () => { document.cookie = `busta_from=${encodeURIComponent(sel.value)}; path=/; max-age=31536000; samesite=lax`; });
+  }
+</script>
 
 <style>
   .compose { display: grid; gap: var(--space-4); padding: var(--space-4) var(--space-5) var(--space-5); }
@@ -142,4 +173,7 @@ const check = `${base}/recipients/check`;
   .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
   .saved-at { margin-left: auto; font-size: var(--text-xs); color: var(--muted); }
   @media (max-width: 640px) { .compose { padding: var(--space-3); } .compose :global(.rcpt) { grid-template-columns: 44px 1fr; } }
+  .from-row { display: flex; align-items: center; gap: 8px; }
+  .from-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .from-row select { flex: 1; min-width: 0; font: inherit; color: var(--text); background: transparent; border: 0; padding: 8px 0; cursor: pointer; }
 </style>

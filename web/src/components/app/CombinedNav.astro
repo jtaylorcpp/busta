@@ -68,6 +68,9 @@ const q = (params: Record<string, string>) => `${ALL}?${new URLSearchParams(para
   <a class:list={["bin", { active: bin === "drafts" }]} href={`${first}/drafts`} aria-current={bin === "drafts" ? "page" : undefined}>
     <Icon name="file" size={18} /><span class="lbl">Drafts</span><span class="muted-n">{nav.drafts || ""}</span>
   </a>
+  <a class:list={["bin", { active: bin === "archive" }]} href={q({ view: "archive" })} aria-current={bin === "archive" ? "page" : undefined}>
+    <Icon name="archive" size={18} /><span class="lbl">Archive</span><span class="muted-n">{nav.archived || ""}</span>
+  </a>
   <a class:list={["bin", { active: bin === "trash" }]} href={q({ view: "trash" })} aria-current={bin === "trash" ? "page" : undefined}>
     <Icon name="trash" size={18} /><span class="lbl">Trash</span><span class="muted-n">{nav.trashed || ""}</span>
   </a>

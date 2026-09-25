@@ -41,17 +41,29 @@ const withParams = (changes: Record<string, string | null>) => {
   const s = q.toString();
   return `${b}${s ? `?${s}` : ""}`;
 };
-const heading = data.activeFolder?.name ?? (data.label ? `+${data.label}` : data.view === "trash" ? "Trash" : data.view === "sent" ? "Sent" : "Messages");
+const heading = data.activeFolder?.name ?? (data.label ? `+${data.label}` : data.view === "trash" ? "Trash" : data.view === "sent" ? "Sent" : data.view === "archive" ? "Archive" : "Messages");
 const bin = data.view === "messages" ? "messages" : data.view;
 const unreadCount = data.activeFolder ? data.activeFolder.unread : data.view === "messages" ? data.messages.filter((m) => !m.read).length : 0;
 const [local, domain] = address.split("@");
 const back = url.pathname + url.search;
+// "Archived … Undo": the row action came back with ?archived=<address>:<id>.
+const archivedRaw = url.searchParams.get("archived");
+const archivedParam = archivedRaw && archivedRaw.includes(":") ? { address: archivedRaw.slice(0, archivedRaw.lastIndexOf(":")), id: archivedRaw.slice(archivedRaw.lastIndexOf(":") + 1) } : null;
+const undoBack = (() => { const q = new URLSearchParams(url.search); for (const k of ["ok", "error", "archived"]) q.delete(k); const s = q.toString(); return url.pathname + (s ? `?${s}` : ""); })();
+
 ---
 <AppShell title={`${heading} — ${address}`} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
   <AccountMenu slot="account" current={address} />
   <MailboxNav slot="nav" address={address} bin={bin} folderId={data.activeFolder?.id ?? null} />
 
-  {ok && <Banner tone="success">{ok}</Banner>}
+  {ok && !archivedParam && <Banner tone="success">{ok}</Banner>}
+  {archivedParam && (
+    <Banner tone="success">
+      {ok ?? "Archived."}
+      <form method="post" action={`/mb/${encodeURIComponent(archivedParam.address)}/${archivedParam.id}/unarchive?back=${encodeURIComponent(undoBack)}`} class="undo"><button type="submit">Undo</button></form>
+    </Banner>
+  )}
+
   {error && <Banner tone="error">{error}</Banner>}
   {warn && <Banner tone="warn" icon="alert">{warn}</Banner>}
   {data.agent.enabled && (
@@ -103,6 +115,8 @@ const back = url.pathname + url.search;
             unverified={m.grafted === 1}
             starAction={data.view === "trash" ? undefined : `${to}/${m.starred ? "unstar" : "star"}`}
             trashAction={data.view === "trash" ? undefined : `${to}/trash`}
+            archiveAction={data.view === "messages" && m.direction === "in" ? `${to}/archive?back=${encodeURIComponent(back)}` : undefined}
+            unarchiveAction={data.view === "archive" ? `${to}/unarchive?back=${encodeURIComponent(back)}` : undefined}
             restoreAction={data.view === "trash" ? `${to}/restore` : undefined}
             purgeAction={data.view === "trash" ? `${to}/purge` : undefined}
           >
@@ -119,7 +133,7 @@ const back = url.pathname + url.search;
         ? `Nothing in ${data.activeFolder.name} yet.`
         : data.unread
           ? "No unread messages."
-          : data.view === "trash" ? "Trash is empty." : data.view === "sent" ? "Nothing sent yet." : "No messages yet."}
+          : data.view === "trash" ? "Trash is empty." : data.view === "sent" ? "Nothing sent yet." : data.view === "archive" ? "Nothing archived. Archive keeps mail you're done with out of Messages." : "No messages yet."}
     </Fragment>
   </MailList>
 
@@ -154,4 +168,6 @@ const back = url.pathname + url.search;
   .divider { list-style: none; height: 0; border-top: 2px solid var(--border); }
   .hint { padding: 0 var(--space-4) var(--space-4); font-size: var(--text-xs); color: var(--muted); }
   code { font-family: var(--font-mono); }
+  .undo { display: inline; margin-left: 8px; }
+  .undo button { font: 600 inherit var(--font-sans); font-size: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 </style>

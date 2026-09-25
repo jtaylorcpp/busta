@@ -6,16 +6,17 @@
  *     ownership. A Gmail already connected to another org is refused.
  *   - The refresh token is sealed before it's stored.
  *   - New accounts can start with the org's folders and rules (Applies to).
- *   - The mailbox's alarm then brings in the chosen days and follows new mail.
+ *   - The account's import queue (ImportDO) brings in the chosen days, newest
+ *     first, while the mailbox's own alarm follows new mail.
  */
 import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
-import { mailboxStub, tenantStub } from "../../../../../src/mail";
+import { importStub, mailboxStub, tenantStub } from "../../../../../src/mail";
 import { exchangeCode, GoogleAuthError, revoke } from "../../../../../src/sources/google";
 import { seal } from "../../../../../src/sources/seal";
 import type { FolderWithCounts } from "../../../../../src/mailbox-do";
 import { listAccounts, mergeFolders, openShown } from "../../../lib/accounts";
-import { redirectUri, takeTicket } from "../../../lib/connect";
+import { redirectUri, sortBudget, takeTicket } from "../../../lib/connect";
 
 export const GET: APIRoute = async (ctx) => {
   const { userId, orgId } = ctx.locals.auth();
@@ -64,7 +65,10 @@ export const GET: APIRoute = async (ctx) => {
     }
   }
 
-  await mailbox.connectGmail({ account: address, sealedRefresh: await seal(env, signedIn.refreshToken), days: ticket.days });
+  await mailbox.connectGmail({ account: address, sealedRefresh: await seal(env, signedIn.refreshToken) });
+  const queue = importStub(env, address);
+  if (isNew || !(await queue.status())) await queue.start({ address, days: ticket.days, sortBudget: sortBudget(ticket.days) });
+  else await queue.resume();
 
   const text = isNew
     ? `Connected ${address}. Bringing in the last ${ticket.days} days; new mail is next.`

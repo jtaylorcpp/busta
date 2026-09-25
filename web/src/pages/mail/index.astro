@@ -15,6 +15,7 @@ import AccountMenu from "../../components/app/AccountMenu.astro";
 import FolderChip from "../../components/app/FolderChip.astro";
 import FolderRowActions from "../../components/app/FolderRowActions.astro";
 import { deliveryStatus, folderView, formatListDate, loadNav } from "../../lib/mail-data";
+import { importStub, mailboxStub } from "../../../../src/mail";
 import { ALL, listAccounts, loadCombinedList, mergeFolders, openShown, shortName } from "../../lib/accounts";
 
 const { userId, orgId } = Astro.locals.auth();
@@ -51,20 +52,40 @@ const withParams = (changes: Record<string, string | null>) => {
   const s = q.toString();
   return `${ALL}${s ? `?${s}` : ""}`;
 };
-const heading = data.folder?.name ?? (data.view === "trash" ? "Trash" : data.view === "sent" ? "Sent" : "Messages");
+const heading = data.folder?.name ?? (data.view === "trash" ? "Trash" : data.view === "sent" ? "Sent" : data.view === "archive" ? "Archive" : "Messages");
 const bin = data.view === "messages" ? "messages" : data.view;
 const back = url.pathname + url.search;
+// "Archived … Undo": the row action came back with ?archived=<address>:<id>.
+const archivedRaw = url.searchParams.get("archived");
+const archivedParam = archivedRaw && archivedRaw.includes(":") ? { address: archivedRaw.slice(0, archivedRaw.lastIndexOf(":")), id: archivedRaw.slice(archivedRaw.lastIndexOf(":") + 1) } : null;
+const undoBack = (() => { const q = new URLSearchParams(url.search); for (const k of ["ok", "error", "archived"]) q.delete(k); const s = q.toString(); return url.pathname + (s ? `?${s}` : ""); })();
+
 const unreadCount = data.view === "messages" ? data.messages.filter((m) => !m.read).length : 0;
-const composeFrom = shown[0]?.address ?? accounts[0]!.address;
-// Connected Gmail accounts that are bringing mail in, or need reconnecting.
-const gmail = (await Promise.all(shown.filter((a) => a.kind === "gmail").map(async (a) => ({ a, st: await a.stub.gmailStatus() }))))
-  .filter((x) => x.st && x.st.status !== "live");
+// New mail starts from the folder's only account, else the account you last
+// sent from (the compose From menu remembers it), else the first shown.
+const lastFrom = Astro.cookies.get("busta_from")?.value;
+const composeFrom = (data.folder?.parts.length === 1 ? data.folder.parts[0]!.address : null)
+  ?? shown.find((a) => a.address === lastFrom)?.address ?? shown[0]?.address ?? accounts[0]!.address;
+// Per Gmail account: needs reconnecting, importing past mail, or being deleted.
+const status = (await Promise.all(accounts.filter((a) => a.kind === "gmail").map(async (a) => {
+  const stub = mailboxStub(env, a.address);
+  const [live, queue, purge] = await Promise.all([stub.gmailStatus(), importStub(env, a.address).status(), stub.purgeStatus()]);
+  return { a, live, queue, purge };
+})));
+const bars = status.filter((x) => x.purge || x.live?.status === "needs_reconnect" || (x.a.shown && x.queue && x.queue.phase !== "done"));
 ---
 <AppShell title={`${heading} — All mail`} mailbox="all mail" live={shown.map((a) => a.address)} composeHref={`/mb/${encodeURIComponent(composeFrom)}/compose`} searchAction={`/mb/${encodeURIComponent(composeFrom)}/search`}>
   <AccountMenu slot="account" current={null} />
   <CombinedNav slot="nav" accounts={shown} bin={bin} folder={data.folder?.key ?? null} />
 
-  {ok && <Banner tone="success">{ok}</Banner>}
+  {ok && !archivedParam && <Banner tone="success">{ok}</Banner>}
+  {archivedParam && (
+    <Banner tone="success">
+      {ok ?? "Archived."}
+      <form method="post" action={`/mb/${encodeURIComponent(archivedParam.address)}/${archivedParam.id}/unarchive?back=${encodeURIComponent(undoBack)}`} class="undo"><button type="submit">Undo</button></form>
+    </Banner>
+  )}
+
   {error && <Banner tone="error">{error}</Banner>}
 
   <header class="head">
@@ -94,19 +115,25 @@ const gmail = (await Promise.all(shown.filter((a) => a.kind === "gmail").map(asy
   </header>
 
   <div data-live="sync">
-  {gmail.map(({ a, st }) => st!.status === "needs_reconnect" ? (
+  {bars.map(({ a, live, queue, purge }) => purge ? (
+    <div class="sync" data-live-pending>
+      <div class="top"><i style={`background: var(--acct-${a.color})`}></i><b>Deleting {a.address} from Busta</b><span class="grow"></span></div>
+      <div class="bar"><span style={`width: ${purge.total ? Math.round((purge.done / purge.total) * 100) : 100}%`}></span></div>
+      <div class="facts"><span><b>{purge.done}</b> of {purge.total}</span><span>Your Gmail isn't touched.</span></div>
+    </div>
+  ) : live?.status === "needs_reconnect" || queue?.phase === "paused" ? (
     <div class="errbar" role="alert">
       <Icon name="alert" size={15} />
       <span><b>{a.address} stopped syncing.</b> Google no longer accepts Busta's access. Mail since then is still in Gmail.</span>
-      <a class="btn-err" href={`/connect/google?account=${encodeURIComponent(a.address)}&days=${st!.days}`}>Reconnect Gmail</a>
+      <a class="btn-err" href={`/connect/google?account=${encodeURIComponent(a.address)}`}>Reconnect Gmail</a>
     </div>
-  ) : (
+  ) : queue ? (
     <div class="sync" data-live-pending>
-      <div class="top"><i style={`background: var(--acct-${a.color})`}></i><b>Bringing in {a.address} · last {st!.days} days</b><span class="grow"></span><span class="wait">New mail follows when this finishes</span></div>
-      <div class="bar"><span style={`width: ${st!.backfill.total ? Math.min(100, Math.round(((st!.backfill.done + st!.backfill.skipped) / st!.backfill.total) * 100)) : 3}%`}></span></div>
-      <div class="facts"><span><b>{st!.backfill.done}</b> of about {st!.backfill.total || "…"}</span><span>Oldest first, sorted by your rules as they arrive.</span></div>
+      <div class="top"><i style={`background: var(--acct-${a.color})`}></i><b>Bringing in {a.address}</b><span class="grow"></span><span class="wait">New Gmail shows up live meanwhile</span></div>
+      <div class="bar"><span style={`width: ${queue.total ? Math.min(100, Math.round(((queue.done + queue.skipped) / queue.total) * 100)) : 3}%`}></span></div>
+      <div class="facts"><span><b>{queue.done}</b> of about {queue.total || "…"}{queue.phase === "listing" ? " (still counting)" : ""}</span><span>Newest first; older mail slots in by date.</span></div>
     </div>
-  ))}
+  ) : null)}
   </div>
 
   {hidden.length > 0 && (
@@ -150,6 +177,8 @@ const gmail = (await Promise.all(shown.filter((a) => a.kind === "gmail").map(asy
             unverified={m.grafted === 1}
             starAction={data.view === "trash" ? undefined : `${to}/${m.starred ? "unstar" : "star"}${ret}`}
             trashAction={data.view === "trash" ? undefined : `${to}/trash${ret}`}
+            archiveAction={data.view === "messages" && m.direction === "in" ? `${to}/archive${ret}` : undefined}
+            unarchiveAction={data.view === "archive" ? `${to}/unarchive${ret}` : undefined}
             restoreAction={data.view === "trash" ? `${to}/restore` : undefined}
             purgeAction={data.view === "trash" ? `${to}/purge` : undefined}
           >
@@ -166,7 +195,7 @@ const gmail = (await Promise.all(shown.filter((a) => a.kind === "gmail").map(asy
         ? "Every account is hidden. Choose which to show in the account menu."
         : data.folder
           ? `Nothing in ${data.folder.name} yet.`
-          : data.unread ? "No unread messages." : data.view === "trash" ? "Trash is empty." : data.view === "sent" ? "Nothing sent yet." : "No messages yet."}
+          : data.unread ? "No unread messages." : data.view === "trash" ? "Trash is empty." : data.view === "sent" ? "Nothing sent yet." : data.view === "archive" ? "Nothing archived. Archive keeps mail you're done with out of Messages." : "No messages yet."}
     </Fragment>
   </MailList>
 
@@ -203,6 +232,9 @@ const gmail = (await Promise.all(shown.filter((a) => a.kind === "gmail").map(asy
   .divider { list-style: none; height: 0; border-top: 2px solid var(--border); }
   .filterbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; padding: 8px var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--muted); }
   .inline { display: inline; }
+  .undo { display: inline; margin-left: 8px; }
+  .undo button { font: 600 inherit var(--font-sans); font-size: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
   .sync { margin: 12px var(--space-4) 0; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; display: grid; gap: 8px; }
   .sync .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--text-sm); }
   .sync .top i { width: 8px; height: 8px; border-radius: 50%; }

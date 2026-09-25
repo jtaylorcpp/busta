@@ -9,6 +9,7 @@ import FolderPageShell from "../../components/app/FolderPageShell.astro";
 import { Button, Icon } from "../../components/ui";
 import { ACCOUNT_COLORS, ALL, listAccounts, openShown } from "../../lib/accounts";
 import { formatListDate } from "../../lib/mail-data";
+import { importStub } from "../../../../src/mail";
 
 const { userId, orgId } = Astro.locals.auth();
 if (!userId) return Astro.redirect("/sign-in");
@@ -22,6 +23,8 @@ const rows = await Promise.all(opened.map(async (a) => ({
   ...a,
   shownNow: accounts.find((x) => x.address === a.address)!.shown,
   gmail: a.kind === "gmail" ? await a.stub.gmailStatus() : null,
+  queue: a.kind === "gmail" ? await importStub(env, a.address).status() : null,
+  purge: a.kind === "gmail" ? await a.stub.purgeStatus() : null,
 })));
 const home = accounts[0]!.address;
 const back = accounts.length > 1 ? ALL : `/mb/${encodeURIComponent(home)}`;
@@ -43,39 +46,63 @@ const when = (ms: number | null | undefined) => (ms ? formatListDate(ms) : "not 
           </form>
         </div>
 
-        {a.gmail && (
+        {a.purge && (
+          <div class="discon"><span class="live wait"><i></i>Deleting from Busta · {a.purge.done} of {a.purge.total}</span><p class="hint">Your Gmail isn't touched. This account leaves the list when it's done.</p></div>
+        )}
+        {a.gmail && !a.purge && (
           <Fragment>
-            {a.gmail.status === "needs_reconnect" ? (
+            {a.gmail.status === "needs_reconnect" && (
               <div class="err">
                 <Icon name="alert" size={15} />
                 <span><b>Gmail stopped syncing.</b> {a.gmail.lastError ?? "Google no longer accepts Busta's access."} Mail since then is still in Gmail.</span>
-                <Button variant="danger" size="sm" href={`/connect/google?account=${encodeURIComponent(a.address)}&days=${a.gmail.days}`}>Reconnect Gmail</Button>
+                <Button variant="danger" size="sm" href={`/connect/google?account=${encodeURIComponent(a.address)}`}>Reconnect Gmail</Button>
               </div>
-            ) : null}
+            )}
             <dl class="kv">
               <dt>Status</dt>
               <dd>
-                {a.gmail.status === "backfill" && <span class="live wait"><i></i>Bringing in the last {a.gmail.days} days · {a.gmail.backfill.done} of about {a.gmail.backfill.total || "…"}</span>}
-                {a.gmail.status === "live" && <span class="live"><i></i>Up to date · checked {when(a.gmail.lastSyncAt)}</span>}
+                {a.gmail.status === "live" && <span class="live"><i></i>Connected · checked {when(a.gmail.lastSyncAt)}</span>}
                 {a.gmail.status === "needs_reconnect" && <span class="live bad"><i></i>Needs you</span>}
               </dd>
               <dt>Busta can</dt><dd>Read, organize and send. Can't permanently delete.</dd>
               <dt>New mail</dt><dd>Arrives within seconds · last brought in {when(a.gmail.lastMailAt)}</dd>
-              <dt>Stays connected</dt><dd>Busta renews Gmail's alerts every day{a.gmail.watchExpires ? `; current one lasts until ${formatListDate(a.gmail.watchExpires)}` : ""}.</dd>
-              <dt>Stays in step</dt><dd>Read, star and trash, both ways{a.gmail.changesWaiting ? ` · ${a.gmail.changesWaiting} change${a.gmail.changesWaiting > 1 ? "s" : ""} waiting to reach Gmail` : ""}. Folders stay in Busta.</dd>
+              <dt>Brought in</dt>
+              <dd>
+                {!a.queue && "Nothing yet"}
+                {a.queue && (a.queue.phase === "done"
+                  ? <Fragment>{a.queue.done} messages{a.queue.coveredAfter ? ` back to ${formatListDate(a.queue.coveredAfter * 1000)}` : ", everything"}</Fragment>
+                  : <span class="live wait"><i></i>{a.queue.phase === "paused" ? "Paused until Gmail is reconnected" : `Bringing in · ${a.queue.done} of about ${a.queue.total || "…"}`}</span>)}
+              </dd>
+              <dt>Stays in step</dt><dd>Read, star, archive and trash, both ways{a.gmail.changesWaiting ? ` · ${a.gmail.changesWaiting} change${a.gmail.changesWaiting > 1 ? "s" : ""} waiting to reach Gmail` : ""}. Folders stay in Busta.</dd>
+              <dt>Stays connected</dt><dd>Busta renews Gmail's alerts every day{a.gmail.watchExpires ? `; the current one lasts until ${formatListDate(a.gmail.watchExpires)}` : ""}.</dd>
               {a.gmail.lastError && a.gmail.status !== "needs_reconnect" && (<Fragment><dt>Last problem</dt><dd class="muted">{a.gmail.lastError}</dd></Fragment>)}
             </dl>
-            <form class="discon" method="post" action="/accounts/disconnect">
-              <input type="hidden" name="address" value={a.address} />
-              <p class="hint">Disconnecting stops new mail and removes Busta's access at Google. Your Gmail isn't touched, and the mail already here stays, read-only.</p>
-              <div><Button variant="danger" size="sm" type="submit">Disconnect Gmail</Button></div>
-            </form>
+            {a.gmail.status === "live" && (!a.queue || a.queue.phase === "done") && (a.queue?.coveredAfter ?? 1) !== 0 && (
+              <form class="discon" method="post" action="/accounts/import">
+                <input type="hidden" name="address" value={a.address} />
+                <b class="lbl">Bring in older mail</b>
+                <div class="opts">
+                  {[[90, "90 days"], [365, "1 year"], [0, "Everything"]].map(([v, l]) => (
+                    <label class="opt"><input type="radio" name="days" value={v} checked={v === 365} />{l}</label>
+                  ))}
+                  <Button size="sm" type="submit">Bring in</Button>
+                </div>
+                <p class="hint">Newest first; it slots in by date. The newest 1,000 are sorted by your rules, the rest come in unsorted.</p>
+              </form>
+            )}
+            <div class="discon">
+              <p class="hint">Stop syncing and remove Busta's access at Google. You choose what happens to the mail already in Busta.</p>
+              <div><Button variant="danger" size="sm" href={`/accounts/disconnect?address=${encodeURIComponent(a.address)}`}>Disconnect Gmail…</Button></div>
+            </div>
           </Fragment>
         )}
-        {!a.gmail && a.kind === "gmail" && (
+        {!a.gmail && !a.purge && a.kind === "gmail" && (
           <div class="discon">
-            <p class="hint">Disconnected. The mail brought in earlier stays here.</p>
-            <div><Button size="sm" href={`/connect/google?account=${encodeURIComponent(a.address)}&days=7`}>Reconnect Gmail</Button></div>
+            <p class="hint">Disconnected. The mail brought in earlier stays here, read-only.</p>
+            <div class="row-btns">
+              <Button size="sm" href={`/connect/google?account=${encodeURIComponent(a.address)}`}>Reconnect Gmail</Button>
+              <Button variant="danger" size="sm" href={`/accounts/disconnect?address=${encodeURIComponent(a.address)}`}>Delete from Busta…</Button>
+            </div>
           </div>
         )}
       </section>
@@ -108,4 +135,11 @@ const when = (ms: number | null | undefined) => (ms ? formatListDate(ms) : "not 
   .err b { font-weight: 600; }
   .discon { display: grid; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
   .hint { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+  .lbl { font-size: var(--text-sm); font-weight: 600; }
+  .opts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .opt { display: inline-flex; align-items: center; font: 600 var(--text-sm) var(--font-sans); padding: 5px 12px; border-radius: var(--radius-pill); border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+  .opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .opt:has(input:checked) { background: var(--primary-soft); border-color: transparent; color: var(--primary); }
+  .opt:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 </style>

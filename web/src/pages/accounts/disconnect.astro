@@ -1,0 +1,94 @@
+---
+/**
+ * /accounts/disconnect?address=… — disconnect a Gmail account
+ * (designs/2026-09-24-connect-gmail, screen 11). Busta stops syncing and
+ * revokes its access at Google; then either keep Busta's copies (read-only)
+ * or delete them. Deleting asks for a tick with the message count. Your
+ * Gmail is never touched. The form posts back here.
+ */
+import { env } from "cloudflare:workers";
+import FolderPageShell from "../../components/app/FolderPageShell.astro";
+import { Button } from "../../components/ui";
+import { importStub } from "../../../../src/mail";
+import { revoke } from "../../../../src/sources/google";
+import { unseal } from "../../../../src/sources/seal";
+import type { FolderWithCounts } from "../../../../src/mailbox-do";
+import { ALL, listAccounts } from "../../lib/accounts";
+import { openMailbox } from "../../lib/mail-data";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+Astro.response.headers.set("cache-control", "no-store");
+
+const post = Astro.request.method === "POST";
+const form = post ? await Astro.request.formData() : null;
+const rawAddress = post ? String(form!.get("address") ?? "") : Astro.url.searchParams.get("address") ?? "";
+const access = await openMailbox(env, { userId, orgId }, rawAddress);
+if (!access.ok) return new Response(access.message, { status: access.status });
+const { address, stub } = access;
+if ((await stub.sendingAs()) === "busta") return Astro.redirect(`/accounts?error=${encodeURIComponent("Only connected accounts can be disconnected.")}`);
+
+const stats = (await stub.stats()) as { total: number };
+const folders = (await stub.listFolders()) as FolderWithCounts[];
+let error: string | null = null;
+
+if (post) {
+  const mode = form!.get("mode") === "delete" ? "delete" : "keep";
+  if (mode === "delete" && form!.get("confirm") !== "1") {
+    error = `Tick "Delete ${stats.total.toLocaleString("en-US")} messages from Busta" to confirm.`;
+  } else {
+    // Stop the import queue and live sync, and hand the access back to Google.
+    await importStub(env, address).cancel();
+    const sealed = (await stub.disconnectGmail()) as string | null;
+    let note = "";
+    if (sealed) {
+      const revoked = await revoke(await unseal(env, sealed)).catch(() => false);
+      if (!revoked) note = " Google didn't confirm; you can also remove Busta at myaccount.google.com/permissions.";
+    }
+    if (mode === "delete") {
+      await stub.startPurge();
+      return Astro.redirect(`/accounts?ok=${encodeURIComponent(`Disconnected ${address}. Deleting its mail from Busta; your Gmail isn't touched.${note}`)}`, 303);
+    }
+    return Astro.redirect(`/accounts?ok=${encodeURIComponent(`Disconnected ${address}. Its mail stays here, read-only.${note}`)}`, 303);
+  }
+}
+const accounts = await listAccounts(env, orgId);
+const home = accounts.find((a) => a.address !== address)?.address ?? address;
+const count = stats.total.toLocaleString("en-US");
+const folderNote = folders.length ? `, and ${folders.length === 1 ? `the ${folders[0]!.name} folder` : `${folders.length} folders`}` : "";
+---
+<FolderPageShell title={`Disconnect ${address}`} address={home} backHref="/accounts" backLabel="Accounts" bin={null} current={accounts.length > 1 ? null : home}>
+  <form class="page" method="post">
+    <input type="hidden" name="address" value={address} />
+    <p class="lede">Busta stops syncing and tells Google to remove its access. Your Gmail isn't touched{accounts.length > 1 ? ", and neither are your other accounts" : ""}.</p>
+    {error && <p class="err" role="alert">{error}</p>}
+    <fieldset>
+      <legend>What happens to the mail already in Busta?</legend>
+      <label class="radio"><input type="radio" name="mode" value="keep" checked={form?.get("mode") !== "delete"} /><span><b>Keep it, read-only</b><small>It stays in All mail in its color. You can read and search it; replying needs Gmail reconnected.</small></span></label>
+      <label class="radio"><input type="radio" name="mode" value="delete" checked={form?.get("mode") === "delete"} /><span><b>Delete it from Busta</b><small>Removes {count} messages, their attachments{folderNote} from Busta. The account leaves your menu.</small></span></label>
+    </fieldset>
+    <p class="note"><b>Deleting can't be undone in Busta.</b> Gmail keeps everything, so you could connect again and bring it back in.</p>
+    <label class="confirm"><input type="checkbox" name="confirm" value="1" /><span><b>Delete {count} messages from Busta</b><small>Only needed if you chose Delete</small></span></label>
+    <div class="actions">
+      <Button variant="ghost" href={accounts.length > 1 ? "/accounts" : ALL}>Cancel</Button>
+      <Button variant="danger" type="submit">Disconnect</Button>
+    </div>
+  </form>
+</FolderPageShell>
+
+<style>
+  .page { display: grid; gap: var(--space-4); padding: var(--space-5); max-width: 700px; }
+  .lede { margin: 0; color: var(--muted); }
+  .err { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--error-soft); color: var(--error); font-size: var(--text-sm); }
+  fieldset { border: 1px solid var(--border); border-radius: var(--radius-lg); margin: 0; padding: 12px 14px; display: grid; gap: 12px; }
+  legend { font-weight: 600; padding: 0 4px; }
+  .radio, .confirm { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .radio input, .confirm input { margin-top: 3px; accent-color: var(--primary); }
+  small { display: block; font-size: var(--text-xs); color: var(--muted); }
+  b { font-weight: 600; }
+  .note { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-2); font-size: var(--text-sm); color: var(--muted); }
+  .note b { color: var(--text); }
+  .confirm { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .actions { display: flex; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: var(--space-4); }
+</style>

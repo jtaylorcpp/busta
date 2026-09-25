@@ -27,6 +27,9 @@ interface Props {
   attachments?: number;
   starAction?: string;
   trashAction?: string;
+  /** Archive (Messages, folders) or move back to Messages (the Archive bin). */
+  archiveAction?: string;
+  unarchiveAction?: string;
   /** Trash view: put back, or delete for good. */
   restoreAction?: string;
   purgeAction?: string;
@@ -39,7 +42,7 @@ interface Props {
 }
 const {
   href, from, subject, snippet, date, unread = false, starred = false, outbound = false,
-  tags = [], status, attachments = 0, starAction, trashAction, restoreAction, purgeAction, unverified = false, highlight = [], account,
+  tags = [], status, attachments = 0, starAction, trashAction, archiveAction, unarchiveAction, restoreAction, purgeAction, unverified = false, highlight = [], account,
 } = Astro.props;
 ---
 <li class:list={["row", { unread, acc: !!account }]} style={account ? `--acct: var(--acct-${account.color})` : undefined} title={account ? account.address : undefined}>
@@ -69,8 +72,10 @@ const {
     </span>
   </a>
   {Astro.slots.has("actions") && <div class="row-actions"><slot name="actions" /></div>}
-  {(trashAction || restoreAction || purgeAction) && (
+  {(trashAction || restoreAction || purgeAction || archiveAction || unarchiveAction) && (
     <div class="hover-actions">
+      {archiveAction && <form method="post" action={archiveAction}><IconButton icon="archive" label="Archive" type="submit" size={17} /></form>}
+      {unarchiveAction && <form method="post" action={unarchiveAction}><IconButton icon="inbox" label="Move to Messages" type="submit" size={17} /></form>}
       {restoreAction && <form method="post" action={restoreAction}><IconButton icon="inbox" label="Restore to inbox" type="submit" size={17} /></form>}
       {purgeAction && <form method="post" action={purgeAction}><IconButton icon="trash" label="Delete permanently" tone="danger" type="submit" size={17} /></form>}
       {trashAction && <form method="post" action={trashAction}><IconButton icon="trash" label="Move to Trash" tone="danger" type="submit" size={17} /></form>}

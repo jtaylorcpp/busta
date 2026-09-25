@@ -66,6 +66,9 @@ const messagesActive = bin === "messages" && !folderId;
   <a class:list={["bin", { active: bin === "drafts" }]} href={`${b}/drafts`} aria-current={bin === "drafts" ? "page" : undefined}>
     <Icon name="file" size={18} /><span class="lbl">Drafts</span><span class="muted-n">{nav.drafts || ""}</span>
   </a>
+  <a class:list={["bin", { active: bin === "archive" }]} href={`${b}?view=archive`} aria-current={bin === "archive" ? "page" : undefined}>
+    <Icon name="archive" size={18} /><span class="lbl">Archive</span><span class="muted-n">{nav.archived || ""}</span>
+  </a>
   <a class:list={["bin", { active: bin === "trash" }]} href={`${b}?view=trash`} aria-current={bin === "trash" ? "page" : undefined}>
     <Icon name="trash" size={18} /><span class="lbl">Trash</span><span class="muted-n">{nav.trashed || ""}</span>
   </a>

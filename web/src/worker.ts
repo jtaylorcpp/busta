@@ -16,7 +16,7 @@ import legacy from "../../src/index";
 import { liveSocket } from "../../src/live";
 import { gmailPush } from "../../src/sources/push";
 
-export { MailboxDO, TenantDO, ThreadDO } from "../../src/index";
+export { ImportDO, MailboxDO, TenantDO, ThreadDO } from "../../src/index";
 
 /** Paths Astro owns in every environment, for any method. */
 const ASTRO_ROUTES: RegExp[] = [

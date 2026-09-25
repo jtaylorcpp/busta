@@ -38,31 +38,34 @@ export async function loadInbox(stub: MailboxStub, params: URLSearchParams) {
   const folder = params.get("folder");
   const rawView = params.get("view");
   // "starred" is kept for old links: it is now Messages sorted starred-first.
-  const view: "messages" | "sent" | "trash" = rawView === "trash" ? "trash" : rawView === "sent" ? "sent" : "messages";
+  const view: "messages" | "sent" | "trash" | "archive" = rawView === "trash" ? "trash" : rawView === "sent" ? "sent" : rawView === "archive" ? "archive" : "messages";
   const unread = params.get("unread") === "1";
   const starredFirst = params.get("sort") === "starred" || rawView === "starred";
-  const beforeParam = params.get("before");
-  const before = beforeParam ? Number(beforeParam) : undefined;
+  // Page cursor "<received_at>.<seq>" of the last row shown (the list is in time order).
+  const [atRaw, seqRaw] = (params.get("before") ?? "").split(".");
+  const after = atRaw && seqRaw ? { at: Number(atRaw), seq: Number(seqRaw) } : undefined;
 
   const base = {
     label: label ?? undefined,
     folder: folder ?? undefined,
     trash: view === "trash",
-    box: view === "trash" ? undefined : view,
+    archived: view === "archive" || undefined,
+    box: view === "trash" || view === "archive" ? undefined : view,
     unread: unread || undefined,
   } as const;
 
   // Starred first works like pinning: the first page leads with every starred
   // message, then the rest newest-first; later pages continue the rest.
   const [pinned, rows, stats, folders, agent] = await Promise.all([
-    starredFirst && before === undefined ? stub.list(INBOX_PAGE_SIZE, 0, { ...base, starred: true }) : Promise.resolve([]),
-    stub.list(INBOX_PAGE_SIZE + 1, 0, { ...base, before, unstarred: starredFirst || undefined }),
+    starredFirst && after === undefined ? stub.list(INBOX_PAGE_SIZE, 0, { ...base, starred: true }) : Promise.resolve([]),
+    stub.list(INBOX_PAGE_SIZE + 1, 0, { ...base, after, unstarred: starredFirst || undefined }),
     stub.stats(),
     stub.listFolders() as Promise<FolderWithCounts[]>,
     stub.agentConfig(),
   ]);
   const rest = rows.slice(0, INBOX_PAGE_SIZE) as IndexedMessage[];
-  const nextBefore = rows.length > INBOX_PAGE_SIZE ? rest[rest.length - 1]!.seq : null;
+  const last = rest[rest.length - 1];
+  const nextBefore = rows.length > INBOX_PAGE_SIZE && last ? `${last.received_at}.${last.seq}` : null;
   const messages = [...(pinned as IndexedMessage[]), ...rest];
   const activeFolder = folder ? folders.find((f) => f.id === folder) ?? null : null;
   return { messages, pinnedCount: pinned.length, stats, folders, activeFolder, agent: agent as AgentConfig, label, view, unread, starredFirst, nextBefore };
@@ -365,7 +368,7 @@ export async function loadAccount(env: Env, session: { userId: string; orgId: st
 /** A just-filed "pending" row older than this is shown as failed (the sort was cut off). */
 export const SORTING_STALE_MS = 2 * 60_000;
 
-export type Bin = "messages" | "sent" | "drafts" | "trash" | "folders";
+export type Bin = "messages" | "sent" | "drafts" | "archive" | "trash" | "folders";
 
 /** Sidebar data: bin counts and folders with their counts. */
 export async function loadNav(stub: MailboxStub) {
@@ -378,6 +381,7 @@ export async function loadNav(stub: MailboxStub) {
   return {
     messagesUnread: box.messagesUnread,
     sent: box.sent,
+    archived: box.archived,
     trashed: stats.trashed,
     drafts: drafts.length,
     folders,

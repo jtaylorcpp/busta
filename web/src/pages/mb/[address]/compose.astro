@@ -7,6 +7,7 @@ import { env } from "cloudflare:workers";
 import ComposePage from "../../../components/app/ComposePage.astro";
 import ComposeForm from "../../../components/app/ComposeForm.astro";
 import { base, composeLimits, forwardPrefill, openMailbox } from "../../../lib/mail-data";
+import { listAccounts } from "../../../lib/accounts";
 
 const { userId, orgId } = Astro.locals.auth();
 if (!userId) return Astro.redirect("/sign-in");
@@ -24,6 +25,15 @@ const [stats, labels, fwd] = await Promise.all([
   forwardId ? forwardPrefill(env, stub, address, forwardId) : Promise.resolve(null),
 ]);
 const b = base(address);
+// A new message (not a forward) can choose its From among your accounts.
+const accounts = fwd ? [] : await listAccounts(env, orgId);
+const via = async (a: string) => {
+  const s = await (await openMailbox(env, { userId, orgId }, a)).stub?.sendingAs();
+  return s === "gmail" ? "via Gmail" : s === "gmail-off" ? "disconnected" : "via Busta";
+};
+const options = accounts.length > 1
+  ? (await Promise.all(accounts.map(async (a) => ({ address: a.address, color: a.color, via: await via(a.address) })))).filter((o) => o.via !== "disconnected")
+  : [];
 ---
 <ComposePage
   title={fwd ? "Forward" : "New message"}
@@ -38,5 +48,6 @@ const b = base(address);
     prefill={fwd ? { subject: fwd.subject, body: fwd.body } : undefined}
     forward={fwd && forwardId ? { messageId: forwardId, attachments: fwd.attachments } : undefined}
     limits={composeLimits(env)}
+    from={options.length > 1 ? { current: address, options } : undefined}
   />
 </ComposePage>

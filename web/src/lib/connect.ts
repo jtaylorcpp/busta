@@ -50,3 +50,6 @@ export async function takeTicket(cookies: AstroCookies, secret: string): Promise
 
 /** Where Google sends the user back: this origin, so local and production each use their own. */
 export const redirectUri = (url: URL) => `${url.origin}/oauth/google/callback`;
+
+/** A first import of 90 days or less is sorted in full; past that, the newest 1,000. */
+export const sortBudget = (days: number) => (days > 0 && days <= 90 ? 1_000_000 : 1_000);

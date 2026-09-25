@@ -17,9 +17,12 @@ interface Props {
   starred?: boolean;
   starAction?: string;
   unreadAction?: string;
+  /** Archive (or, for archived mail, move back to Messages). The e key presses it. */
+  archiveAction?: string;
+  archived?: boolean;
   trashAction?: string;
 }
-const { backHref, subject, tags = [], people, starred = false, starAction, unreadAction, trashAction } = Astro.props;
+const { backHref, subject, tags = [], people, starred = false, starAction, unreadAction, archiveAction, archived = false, trashAction } = Astro.props;
 ---
 <header class="th">
   <a class="back" href={backHref} aria-label="Back to inbox" title="Back to inbox"><Icon name="back" size={18} /></a>
@@ -30,9 +33,20 @@ const { backHref, subject, tags = [], people, starred = false, starAction, unrea
   <div class="acts">
     {starAction && <form method="post" action={starAction}><IconButton icon="star" tone="star" label={starred ? "Unstar" : "Star"} pressed={starred} type="submit" /></form>}
     {unreadAction && <form method="post" action={unreadAction}><IconButton icon="mail" label="Mark unread" type="submit" /></form>}
+    {archiveAction && <form method="post" action={archiveAction} data-archive-form><IconButton icon={archived ? "inbox" : "archive"} label={archived ? "Move to Messages" : "Archive (e)"} type="submit" /></form>}
     {trashAction && <form method="post" action={trashAction}><IconButton icon="trash" tone="danger" label="Move to Trash" type="submit" /></form>}
   </div>
 </header>
+
+<script>
+  // e archives the open conversation, unless you're typing.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "e" || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    document.querySelector<HTMLFormElement>("[data-archive-form]")?.requestSubmit();
+  });
+</script>
 
 <style>
   .th { display: flex; align-items: flex-start; gap: var(--space-2); padding: 12px var(--space-4) 12px var(--space-2); border-bottom: 1px solid var(--border); }

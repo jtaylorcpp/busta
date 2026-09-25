@@ -97,6 +97,7 @@ export async function loadCombinedNav(accounts: OpenAccount[]) {
   return {
     messagesUnread: navs.reduce((n, x) => n + x.messagesUnread, 0),
     sent: navs.reduce((n, x) => n + x.sent, 0),
+    archived: navs.reduce((n, x) => n + x.archived, 0),
     trashed: navs.reduce((n, x) => n + x.trashed, 0),
     drafts: navs.reduce((n, x) => n + x.drafts, 0),
     folders: mergeFolders(accounts.map((account, i) => ({ account, folders: navs[i]!.folders }))),
@@ -107,11 +108,11 @@ export async function loadCombinedNav(accounts: OpenAccount[]) {
 // --- the combined list --------------------------------------------------------
 
 /**
- * Paging across accounts: each account keeps its own position (the seq of the
- * last row shown from it), or "done" once it has nothing older. Encoded in one
+ * Paging across accounts: each account keeps its own position (the time and
+ * seq of the last row shown from it), or "done" once it has nothing older. Encoded in one
  * query parameter so a page link is still a plain GET.
  */
-type Cursor = Record<string, number | "done">;
+type Cursor = Record<string, [number, number] | "done">;
 
 export function encodeCursor(c: Cursor): string {
   return btoa(JSON.stringify(c)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -123,7 +124,10 @@ function decodeCursor(raw: string | null): Cursor {
     const parsed = JSON.parse(atob(raw.replace(/-/g, "+").replace(/_/g, "/"))) as unknown;
     if (!parsed || typeof parsed !== "object") return {};
     const out: Cursor = {};
-    for (const [k, v] of Object.entries(parsed)) if (v === "done" || (typeof v === "number" && Number.isFinite(v))) out[k] = v;
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v === "done") out[k] = v;
+      else if (Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === "number" && Number.isFinite(n))) out[k] = [v[0], v[1]];
+    }
     return out;
   } catch {
     return {};
@@ -142,7 +146,7 @@ export interface CombinedRow extends IndexedMessage {
  */
 export async function loadCombinedList(accounts: OpenAccount[], params: URLSearchParams, folders: MergedFolder[]) {
   const rawView = params.get("view");
-  const view: "messages" | "sent" | "trash" = rawView === "trash" ? "trash" : rawView === "sent" ? "sent" : "messages";
+  const view: "messages" | "sent" | "trash" | "archive" = rawView === "trash" ? "trash" : rawView === "sent" ? "sent" : rawView === "archive" ? "archive" : "messages";
   const unread = params.get("unread") === "1";
   const starredFirst = params.get("sort") === "starred";
   const folderParam = params.get("folder");
@@ -155,7 +159,8 @@ export async function loadCombinedList(accounts: OpenAccount[], params: URLSearc
   const filterFor = (a: OpenAccount) => ({
     folder: folder ? folder.parts.find((p) => p.address === a.address)!.id : undefined,
     trash: view === "trash",
-    box: view === "trash" ? undefined : view,
+    archived: view === "archive" || undefined,
+    box: view === "trash" || view === "archive" ? undefined : view,
     unread: unread || undefined,
   });
 
@@ -172,7 +177,7 @@ export async function loadCombinedList(accounts: OpenAccount[], params: URLSearc
     if (at === "done") return { a, rows: [] as IndexedMessage[] };
     const rows = (await a.stub.list(INBOX_PAGE_SIZE + 1, 0, {
       ...filterFor(a),
-      before: typeof at === "number" ? at : undefined,
+      after: Array.isArray(at) ? { at: at[0], seq: at[1] } : undefined,
       unstarred: starredFirst || undefined,
     })) as IndexedMessage[];
     return { a, rows };
@@ -187,7 +192,8 @@ export async function loadCombinedList(accounts: OpenAccount[], params: URLSearc
     const mine = shown.filter((r) => r.account.address === a.address);
     const at = cursor[a.address];
     if (at === "done" || (mine.length === rows.length && rows.length <= INBOX_PAGE_SIZE)) { next[a.address] = "done"; continue; }
-    next[a.address] = mine.length ? mine[mine.length - 1]!.seq : typeof at === "number" ? at : Number.MAX_SAFE_INTEGER;
+    const lastMine = mine[mine.length - 1];
+    next[a.address] = lastMine ? [lastMine.received_at, lastMine.seq] : Array.isArray(at) ? at : [Number.MAX_SAFE_INTEGER, 0];
     more = true;
   }
 
