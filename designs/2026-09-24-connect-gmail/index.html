@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- Busta Connect Gmail mockup (Version 2: combined accounts, account colors, merged folders, rules for one or both accounts, Gmail connect and sync), approved 2026-09-24. Published copy: https://claude.ai/artifact/Nmfcqf69NW87gMGucTJxbh -->
+<!-- Busta Connect Gmail mockup (Version 3: adds Archive synced with Gmail, a From menu for new mail, bringing in older mail, disconnect with delete, time-ordered list), approved 2026-09-24 with one change: imports run from a per-account import queue Durable Object, newest to oldest. Published copy: https://claude.ai/artifact/Nmfcqf69NW87gMGucTJxbh -->
 <style>[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -491,6 +491,20 @@ button { font: inherit; color: inherit; }
 .ver.new .vb p { margin: 0 0 4px; font-weight: 600; }
 .ver.new .vb ul { margin: 0 0 10px; padding-left: 18px; display: grid; gap: 2px; }
 .ver.new .vb .out-list li { color: var(--muted); }
+
+/* ---- v3 ---- */
+.row .hacts { display: flex; gap: 2px; padding-right: 10px; color: var(--muted); }
+.row .hacts span { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+.row .hacts span:hover { background: var(--surface-2); color: var(--text); }
+.row.hov { background: var(--row-hover); }
+.row.hov .meta { display: none; }
+kbd { font: 500 11px var(--mono); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface-2); }
+.toast { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 16px 0; padding: 10px 12px 10px 14px; border-radius: 12px; background: var(--text); color: var(--bg); }
+.toast b { font-weight: 600; }
+.toast .soft { opacity: .75; }
+.toast .grow { flex: 1; }
+.toast button { font: 600 12.5px var(--sans); background: none; border: 0; color: inherit; cursor: pointer; padding: 4px 8px; border-radius: 999px; text-decoration: underline; }
+.discon .opts { margin-top: 2px; }
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
@@ -527,21 +541,24 @@ button { font: inherit; color: inherit; }
 
 <div class="wrap">
   <header class="intro">
-    <span class="eyebrow">Busta · feature mockup · for review · v2</span>
+    <span class="eyebrow">Busta · feature mockup · for review · v3</span>
     <h1>Connect Gmail</h1>
-    <p>Connect Gmail and it joins your Busta mail in one list, newest first, as if it were one mailbox. Underneath, each account stays its own isolated mailbox. A color tells you which account a message belongs to: <b style="color:var(--acct-a)">blue for jtaylorcpp@busta.app</b> and <b style="color:var(--acct-b)">teal for jtaylorcpp@gmail.com</b>. Folders with the same name merge, and a rule can apply to both accounts or just one. Use the checkboxes in the account menu to choose which accounts you see. The Gmail messages are example data; your rules, folders and addresses are real.</p>
+    <p>Connect Gmail and it joins your Busta mail in one list, newest first, as if it were one mailbox. Underneath, each account stays its own isolated mailbox. A color tells you which account a message belongs to: <b style="color:var(--acct-a)">blue for jtaylorcpp@busta.app</b> and <b style="color:var(--acct-b)">teal for jtaylorcpp@gmail.com</b>. Folders with the same name merge, and a rule can apply to both accounts or just one. Use the checkboxes in the account menu to choose which accounts you see. <b>New in v3:</b> an Archive bin that stays in step with Gmail's Inbox, a From menu for new mail, bringing in older mail, deleting Busta's copies when you disconnect, and new Gmail showing up live even while the import runs. The Gmail messages are example data; your rules, folders and addresses are real.</p>
   </header>
 
   <div class="switcher">
     <div class="seg" role="group" aria-label="Screen" id="pageSeg">
       <button type="button" data-page="combined" aria-pressed="true">1 · All mail</button>
       <button type="button" data-page="accounts" aria-pressed="false">2 · Choose accounts</button>
-      <button type="button" data-page="rule" aria-pressed="false">3 · Rule for both</button>
-      <button type="button" data-page="reply" aria-pressed="false">4 · Thread &amp; reply</button>
-      <button type="button" data-page="connect" aria-pressed="false">5 · Connect Gmail</button>
-      <button type="button" data-page="google" aria-pressed="false">6 · Google's screens</button>
-      <button type="button" data-page="importing" aria-pressed="false">7 · Bringing mail in</button>
-      <button type="button" data-page="settings" aria-pressed="false">8 · Accounts</button>
+      <button type="button" data-page="archive" aria-pressed="false">3 · Archive</button>
+      <button type="button" data-page="rule" aria-pressed="false">4 · Rule for both</button>
+      <button type="button" data-page="reply" aria-pressed="false">5 · Reply</button>
+      <button type="button" data-page="newmsg" aria-pressed="false">6 · New message</button>
+      <button type="button" data-page="connect" aria-pressed="false">7 · Connect Gmail</button>
+      <button type="button" data-page="google" aria-pressed="false">8 · Google's screens</button>
+      <button type="button" data-page="importing" aria-pressed="false">9 · Bringing mail in</button>
+      <button type="button" data-page="settings" aria-pressed="false">10 · Accounts</button>
+      <button type="button" data-page="disconnect" aria-pressed="false">11 · Disconnect</button>
       <button type="button" data-page="plumbing" aria-pressed="false">How it works</button>
     </div>
     <div class="seg" role="group" aria-label="Theme" id="themeSeg">
@@ -580,16 +597,30 @@ button { font: inherit; color: inherit; }
     <div class="card">
       <span class="ask">Needs a yes</span>
       <h3>Which address you send from</h3>
-      <p>Replies go from the account the email came to, so replying to Liz goes through Gmail. New mail defaults to the account you last sent from, and the From menu shows every account with its color. Gmail mail goes out through Google and is saved in Gmail's Sent.</p>
+      <p>Replies go from the account the email came to, so replying to Liz goes through Gmail. New mail starts from the account you're looking at (a single account, or a folder only one account has); from All mail it starts from the account you last sent from. The From menu lists every account in its color, and says how each one sends. Drafts remember their From.</p>
     </div>
     <div class="card">
       <span class="ask">Needs a yes</span>
       <h3>How far back</h3>
-      <p>Connecting brings in the last <b>30 days</b> of Gmail (7 days, 90 days and 1 year are the other choices), sorted by your rules as it arrives. That's one filing call per message, so for 1 year only the newest 1,000 are sorted. Spam isn't brought in, and drafts don't sync either way.</p>
+      <p>Connecting brings in the last <b>30 days</b> of Gmail (7 days, 90 days and 1 year are the other choices), sorted by your rules as it arrives. That's one filing call per message, so for 1 year only the newest 1,000 are sorted. Spam isn't brought in, and drafts don't sync either way. <b>Bring in older mail</b> in Accounts extends it later (90 days, 1 year, or everything).</p>
     </div>
     <div class="card">
       <h3>What stays in step with Gmail</h3>
       <p>Read, star, archive and trash go both ways, so the Gmail app on your phone agrees. Folders stay in Busta and Gmail labels are left alone. Busta can't permanently delete anything: Google's permission doesn't allow it.</p>
+    </div>
+    <div class="card">
+      <span class="ask">Needs a yes</span>
+      <h3>Archive is new for every account</h3>
+      <p>Archive means "done, but keep it". It takes a message out of Messages and its folder and puts it in a new <b>Archive</b> bin; search still finds it. For Gmail it's the same as archiving in Gmail (the message leaves Gmail's Inbox), both ways. Gmail mail that skipped the Inbox, through a Gmail filter, arrives already archived. Busta addresses get Archive too. Undo is on the toast, and <kbd>e</kbd> archives the open message.</p>
+    </div>
+    <div class="card">
+      <h3>The list is ordered by time, not arrival</h3>
+      <p>Today the list runs in arrival order. Imported mail arrives out of time order: new mail during the import, then older mail from "Bring in more". So the list, its paging and the combined view switch to the message's own time, with arrival order only breaking ties. That's what lets new Gmail show up live while the import runs, and older mail slot into place later.</p>
+    </div>
+    <div class="card">
+      <span class="ask">Needs a yes</span>
+      <h3>Disconnecting, and deleting copies</h3>
+      <p>Disconnecting stops syncing and revokes Busta's access at Google; your Gmail is never touched. Then either <b>keep</b> Busta's copies (read-only, no replies, a bar offers Reconnect) or <b>delete</b> them: every message, attachment and folder for that account is removed from Busta, and the account leaves your menu. Deleting asks you to confirm with the message count. busta.app mail is never involved.</p>
     </div>
     <div class="card">
       <h3>The one-time Google setup</h3>
@@ -608,19 +639,20 @@ const DOTS = (ks) => `<span class="dots">${ks.map(AD).join("")}</span>`;
 const FOLDERS_ALL = [{ name: "Bank", unread: 2, acc: ["a", "b"] }, { name: "Must read", unread: 2, acc: ["a", "b"] }, { name: "Receipts", unread: 0, acc: ["b"] }];
 const FOLDERS_A = [{ name: "Bank", unread: 1, acc: ["a"] }, { name: "Must read", unread: 0, acc: ["a"] }];
 
-function sidebar({ folders = FOLDERS_ALL, unread = 6, menu = false, accts = ["a", "b"] } = {}) {
+function sidebar({ folders = FOLDERS_ALL, unread = 6, menu = false, accts = ["a", "b"], bin = "messages" } = {}) {
   const f = folders.map((x) => `<div class="srow"><a class="sub" href="#">${I("folder", 14, "icon fd")}${x.name}${DOTS(x.acc)}${x.unread ? `<span class="n attn">${x.unread}</span>` : ""}</a></div>`).join("");
   const who = accts.length === 2
     ? `<span class="stack"><span class="av a">J</span><span class="av b">J</span></span><span class="who"><span class="addr">All mail</span><span class="sub">busta.app · gmail.com</span></span>`
     : `<span class="stack"><span class="av a">J</span></span><span class="who"><span class="addr">${BUSTA}</span><span class="sub">1 of 2 accounts shown</span></span>`;
   return `<nav class="nav" aria-label="Bins">
     <button class="compose-btn" type="button">${I("pen", 17)}Compose</button>
-    <div class="mrow"><a class="on" href="#">${I("inbox", 18)}Messages${unread ? `<span class="n attn">${unread}</span>` : ""}</a></div>
+    <div class="mrow"><a class="${bin === "messages" ? "on" : ""}" href="#">${I("inbox", 18)}Messages${unread ? `<span class="n attn">${unread}</span>` : ""}</a></div>
     ${f}
     <div class="flinks"><a href="#">${I("plus", 12)}New folder</a><a href="#">Manage folders</a></div>
     <div class="sep"></div>
     <a href="#">${I("send", 18)}Sent</a>
     <a href="#">${I("file", 18)}Drafts</a>
+    <a href="#" class="${bin === "archive" ? "on" : ""}">${I("archive", 18)}Archive</a>
     <a href="#">${I("trash", 18)}Trash</a>
     <div class="acct${menu ? " open" : ""}">${who}${I("updown", 16, "icon muted")}</div>
   </nav>`;
@@ -634,8 +666,9 @@ function shell(main, opts = {}) {
   </div>`;
 }
 
-function row({ from, subj, snip, time, unread, chip = "", acc }) {
-  return `<li class="row acc-${acc}${unread ? " unread" : ""}"><span class="lead"><span class="udot"></span><span class="star">${I("star", 17)}</span></span><span class="body"><span class="from">${from}</span><span class="main">${chip}<span class="subj">${subj}</span><span class="snip"> — ${snip}</span></span><span class="meta"><time>${time}</time></span></span></li>`;
+function row({ from, subj, snip, time, unread, chip = "", acc, hover = false }) {
+  const acts = hover ? `<span class="hacts"><span title="Archive">${I("archive", 17)}</span><span title="Move to Trash">${I("trash", 17)}</span></span>` : "";
+  return `<li class="row acc-${acc}${unread ? " unread" : ""}${hover ? " hov" : ""}"><span class="lead"><span class="udot"></span><span class="star">${I("star", 17)}</span></span><span class="body"><span class="from">${from}</span><span class="main">${chip}<span class="subj">${subj}</span><span class="snip"> — ${snip}</span></span><span class="meta"><time>${time}</time></span></span>${acts}</li>`;
 }
 const rule = (f) => `<span class="fc">${f}<span class="auto">rule</span></span>`;
 const sorting = `<span class="st sorting"><i></i>Sorting…</span>`;
@@ -655,8 +688,8 @@ const legend = (offB = false) => `<span class="achip">${AD("a")}busta.app</span>
 function combined() {
   return shell(`<div class="head"><h2>Messages</h2><span class="grow"></span>${legend()}</div>
     <div class="filters"><span class="fchip on">All</span><span class="fchip">Unread <span class="cnt">6</span></span><span class="fchip">Starred</span></div>
-    <ul class="rows">${ROWS.map(row).join("")}</ul>
-    <p class="state-label">Newest first across both accounts. The stripe on the left says whose it is.</p>`);
+    <ul class="rows">${ROWS.map((r, i) => row({ ...r, hover: i === 1 })).join("")}</ul>
+    <p class="state-label">Newest first across both accounts. The stripe on the left says whose it is. Hovering a row shows Archive and Trash.</p>`);
 }
 
 /* 2 · choose accounts */
@@ -780,9 +813,10 @@ function google() {
 /* 7 · importing */
 function importing() {
   const card = `<div class="sync">
-    <div class="top">${I("sync", 16, "icon muted")}${AD("b")}<b>Bringing in Gmail · last 30 days</b><span class="grow"></span><span class="live wait"><i></i>New Gmail is already live</span></div>
+    <div class="top">${I("sync", 16, "icon muted")}${AD("b")}<b>Bringing in Gmail · last 30 days</b><span class="grow"></span><span class="live wait"><i></i>New Gmail shows up live meanwhile</span></div>
     <div class="bar"><i style="width:34%"></i></div>
     <div class="facts"><span><b>1,290</b> of about 3,800</span><span><b>1,244</b> sorted · Bank 61 · Must read 37</span><span>About 6 minutes left</span></div>
+    <span class="fine">Newest first, so today is ready now. Older mail slots in below by date as it arrives.</span>
   </div>`;
   const rows = ROWS.slice(0, 5).map((r, i) => row({ ...r, chip: i < 2 ? sorting : r.chip })).join("");
   return shell(`<div class="head"><h2>Messages</h2><span class="grow"></span>${legend()}</div>${card}<ul class="rows" style="margin-top:12px">${rows}</ul>`);
@@ -803,18 +837,77 @@ function settings() {
         <span class="k">Busta can</span><span class="v">Read, organize and send. Can't permanently delete.</span>
         <span class="k">New mail</span><span class="v">Arrives within seconds · last at 09:12</span>
         <span class="k">Stays connected</span><span class="v">Busta renews Gmail's alerts daily. Next: tomorrow 06:00.</span>
-        <span class="k">Brought in</span><span class="v">Last 30 days · 3,812 messages · <a href="#" style="color:var(--primary);font-weight:600">bring in more</a></span>
+        <span class="k">Brought in</span><span class="v">Last 30 days · 3,812 messages</span>
         <span class="k">Stays in step</span><span class="v">Read, star, archive, trash (both ways). Folders stay in Busta.</span>
       </div>
-      <div class="discon"><span class="hint">Disconnecting stops new mail and removes Busta's access at Google. Your Gmail isn't touched, and neither is ${BUSTA}.</span>
-        <div class="radio"><span class="r on"></span><span>Keep Gmail's mail in Busta<span class="d">Read-only, marked in teal; reconnect later to pick up where it left off</span></span></div>
-        <div class="radio"><span class="r"></span><span>Delete it from Busta<span class="d">Removes the Gmail account's messages, folders and rules</span></span></div>
-        <div><span class="btn e sm">Disconnect Gmail</span></div></div></div>
+      <div class="discon"><b style="font-weight:600">Bring in older mail</b>
+        <div class="opts"><span class="opt">90 days</span><span class="opt on">1 year</span><span class="opt">Everything</span></div>
+        <span class="hint">About <b>9,400 more</b> messages. They slot in by date; only the newest 1,000 of them are sorted by your rules. <span class="btn s sm" style="margin-left:6px">Bring in</span></span></div>
+      <div class="discon"><span class="hint">Stop syncing and remove Busta's access at Google. You'll choose what happens to the mail already in Busta.</span>
+        <div><span class="btn e sm" data-go="disconnect">Disconnect Gmail…</span></div></div></div>
   </div>
   <p class="state-label">If Google stops letting Busta in (access removed, password changed)</p>
   <div class="errbar">${I("x", 15)}<span><b>Gmail stopped syncing at 14:02.</b> <span class="soft">Google no longer accepts Busta's access. Mail since then is still in Gmail.</span></span><span class="grow"></span><span class="btn err sm">Reconnect Gmail</span></div>
   <p class="state-label">The same bar shows above all mail until it's fixed; busta.app mail is unaffected</p>`;
   return shell(p);
+}
+
+
+/* 3 · archive */
+function archive() {
+  const toast = `<div class="toast">${I("archive", 16)}<span><b>Archived "Dinner Sunday?"</b> <span class="soft">Also archived in Gmail.</span></span><span class="grow"></span><button type="button">Undo</button></div>`;
+  const rows = [
+    { acc: "b", from: "Liz Taylor", subj: "Dinner Sunday?", snip: "Are you two free Sunday around 6? Dad's making the ribs.", time: "08:40", unread: false, chip: rule("Must read") },
+    { acc: "b", from: "Amazon", subj: "Your package was delivered", snip: "Delivered to front door.", time: "Mon", unread: false, chip: `<span class="fc manual">Receipts</span>` },
+    { acc: "a", from: "Cloudflare", subj: "Email Sending enabled for busta.app", snip: "You can now send from any address on busta.app.", time: "Sep 21", unread: false },
+    { acc: "b", from: "Nextdoor", subj: "Trending near you: street closure on J St", snip: "12 neighbors are talking about this.", time: "Sep 20", unread: false },
+  ].map((r) => row(r)).join("");
+  return shell(`<div class="head"><h2>Archive</h2><span class="grow"></span>${legend()}</div>${toast}
+    <p class="state-label">Out of Messages and folders; search still finds it. Folder chips stay, so you can see where it was.</p>
+    <ul class="rows">${rows}</ul>
+    <p class="state-label">In a thread: Archive sits between Star and Trash, and <kbd>e</kbd> does the same. Gmail's filters that skip the Inbox land here directly.</p>`, { bin: "archive" });
+}
+
+/* 6 · new message */
+function newmsg() {
+  const c = `<div class="head"><h2>New message</h2></div><div class="cmp">
+    <div class="cf"><span class="k">From</span><span><span class="fromsel">${AD("b")}${GMAIL}<span class="src">via Gmail</span>${I("down", 12)}</span>
+      <div class="fromlist">
+        <div class="fo on"><span>${I("check", 14)}</span><span><b>${AD("b")} ${GMAIL}</b><span class="d">Last used · sends through Google · saved in Gmail's Sent</span></span></div>
+        <div class="fo"><span></span><span><b>${AD("a")} ${BUSTA}</b><span class="d">Sends from Busta · replies come back here</span></span></div>
+      </div></span></div>
+    <div class="cf"><span class="k">To</span><span>tim.taylor@example.com</span></div>
+    <div class="cf"><span class="k">Subject</span><span>Bergamo calendar</span></div>
+    <div class="cbody">Tim, the school calendar is out. First day is the 8th.</div>
+    <div class="sendrow"><span class="btn p">${I("send", 14)}Send</span><span class="fine">Saved as a draft in ${AD("b")} gmail.com's Busta Drafts if you leave.</span></div>
+  </div>
+  <p class="state-label">Where From starts</p>
+  <div class="note"><b>All mail:</b> the account you last sent from. <b>One account shown, or a folder only one account has:</b> that account. <b>Reply:</b> the account the email came to (screen 5). Changing From on a draft keeps the text and attachments.</div>`;
+  return shell(c);
+}
+
+/* 11 · disconnect */
+function disconnect() {
+  const d = `<div class="set">
+    <div class="head" style="padding:0;border:0"><h2>Disconnect ${GMAIL}</h2></div>
+    <p class="hint">Busta stops syncing and tells Google to remove its access. Your Gmail isn't touched, and neither is ${BUSTA}.</p>
+    <div class="panel2"><div class="ph"><b>What happens to the mail already in Busta?</b></div>
+      <div class="discon">
+        <div class="radio"><span class="r"></span><span>Keep it, read-only<span class="d">It stays in All mail in teal. You can read and search it; replies, archive and star are off until you reconnect.</span></span></div>
+        <div class="radio"><span class="r on"></span><span>Delete it from Busta<span class="d">Removes 3,812 messages, their attachments, and the Receipts folder from Busta. The account leaves your menu.</span></span></div>
+        <div class="note" style="margin:0"><span><b>This can't be undone in Busta.</b> Gmail keeps everything, so you could connect again and bring it back in.</span></div>
+        <div class="toggle-row"><span class="t"><b>Delete 3,812 messages from Busta</b><span class="hint">Tick to confirm</span></span><span class="sw off"></span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="btn g sm">Cancel</span><span class="btn e sm">Disconnect and delete</span></div>
+      </div></div>
+    <p class="state-label" style="padding:0">After "Delete": a progress bar in Accounts ("Deleting 1,204 of 3,812"), then the account disappears.</p>
+  </div>`;
+  const th = `<p class="state-label">After "Keep": a Gmail thread is read-only</p>
+    <div class="th"><span class="back">${I("back", 18)}</span>
+      <div class="t"><h2>Dinner Sunday?</h2><div class="sub"><span class="achip">${AD("b")}${GMAIL}</span><span class="muted" style="font-size:12px">Liz Taylor · 08:40</span></div></div></div>
+    <div class="chat"><span class="cav">L</span><div class="cstack"><span class="cwho"><b>Liz Taylor</b><span>to ${GMAIL}</span></span>
+      <div class="bubble">Are you two free Sunday around 6? Dad's making the ribs.</div><span class="ctime">08:40</span></div></div>
+    <div class="note" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:24ch"><b>${GMAIL} is disconnected.</b> You can read this, but replying needs Gmail.</span><span class="btn s sm">Reconnect Gmail</span></div>`;
+  return shell(`${d}${th}`);
 }
 
 /* how it works */
@@ -830,14 +923,20 @@ function plumbing() {
       why: "The same rule is written into each checked account and each files its own mail. Undo restores the previous rule in each account it was saved to." },
     { h: "Connect Gmail", when: "once", chain: [N("w", "Worker", "GET /connect/google"), N("g", "Google sign-in", "gmail.modify + email · state + PKCE"), N("w", "Worker", "GET /oauth/google/callback"), N("d", "TenantDO", "add account + color"), N("d", "MailboxDO (new)", "token sealed · users.watch")],
       why: "The email Google returns becomes the new mailbox's address, which proves you own it. The refresh token is sealed with AES-GCM under a Worker secret." },
-    { h: "Bring in the past", when: "after connect", chain: [N("d", "MailboxDO alarm", "backfill cursor"), N("g", "Gmail", "messages.list newer_than:30d -in:spam"), N("g", "Gmail", "messages.get format=raw"), N("w", "ingest()", "same path as busta.app mail"), N("d", "ThreadDO", "classify → folder")],
-      why: "Newest first, 50 per alarm run, so today's mail is ready right away and Gmail's rate limit is never close." },
+    { h: "List order", when: "every list", chain: [N("d", "MailboxDO.list", "ORDER BY received_at DESC, seq DESC"), N("", "cursor", "(time, seq) of the last row"), N("w", "merge", "same key across accounts")],
+      why: "The list follows each message's own time, arrival order only breaking ties. Imported mail can arrive in any order and still lands where it belongs. Needs a (received_at, seq) index; search keeps its arrival-order walk." },
+    { h: "Bring in the past", when: "after connect, and Bring in more", chain: [N("d", "MailboxDO alarm", "backfill cursor"), N("g", "Gmail", "messages.list newer_than:30d -in:spam"), N("g", "Gmail", "messages.get format=raw"), N("w", "ingest()", "same path as busta.app mail"), N("d", "ThreadDO", "classify → folder")],
+      why: "Newest first, a batch per alarm run, while new mail keeps flowing through history in parallel. Bring in more lists the older window (older_than the first import) and runs the same way." },
+    { h: "Archive", when: "row, thread, e", chain: [N("", "Archive"), N("d", "MailboxDO", "archived_at = now"), N("g", "Gmail", "modify: −INBOX"), N("g", "history", "INBOX removed / added from your phone")],
+      why: "A new archived_at column: Messages and folders leave archived rows out; the Archive bin lists them. Unarchive clears it and adds INBOX back in Gmail. Mail arriving without INBOX is stored archived." },
     { h: "New mail", when: "seconds", chain: [N("g", "Gmail"), N("g", "Pub/Sub push", "signed OIDC token"), N("w", "Worker", "POST /hooks/gmail"), N("d", "MailboxDO", "sync(historyId)"), N("g", "Gmail", "history.list"), N("w", "ingest()"), N("d", "Live", "socket per shown account")],
       why: "Google's alert only says something changed; Busta asks Gmail what changed since the last history id, so a missed or doubled alert costs nothing. Messages are keyed by Gmail id." },
     { h: "Stay in step", when: "both ways", chain: [N("", "Read · star · archive · trash"), N("d", "MailboxDO", "outbox, retried"), N("g", "Gmail", "messages.modify / trash"), N("g", "history.list", "label changes from your phone")],
       why: "Busta applies a change first and sends it to Gmail after; the echo that comes back is recognized and skipped." },
     { h: "Send", when: "on Send", chain: [N("", "From: gmail.com"), N("w", "send()", "source = gmail"), N("g", "Gmail", "messages.send raw + threadId"), N("g", "Gmail Sent"), N("d", "Busta Sent", "via history")],
       why: "The MIME Busta builds today goes to Gmail instead of Cloudflare Email Sending. busta.app mail still sends the way it does now." },
+    { h: "Delete copies", when: "Disconnect and delete", chain: [N("w", "Worker", "POST /accounts/disconnect"), N("g", "Google", "revoke"), N("d", "MailboxDO alarm", "purge 200 per run: R2 + threads + index"), N("d", "TenantDO", "remove account"), N("d", "MailboxDO", "release address")],
+      why: "Purging runs in batches from the alarm, with progress in Accounts, so thousands of messages and their files are removed without a request timing out." },
     { h: "Stay connected", when: "daily", chain: [N("d", "MailboxDO alarm", "every 24 h"), N("g", "Gmail", "users.watch renew (expires ≤ 7 days)"), N("d", "catch-up", "history.list; if too old, re-list 7 days")],
       why: "An alarm per Gmail account, no global cron. If Google refuses the token, that account shows \"needs you\" and stops retrying." },
   ];
@@ -869,7 +968,7 @@ function plumbing() {
   </div>`;
 }
 
-const PAGES = { combined, accounts, rule: ruleEdit, reply, connect, google, importing, settings, plumbing };
+const PAGES = { combined, accounts, archive, rule: ruleEdit, reply, newmsg, connect, google, importing, settings, disconnect, plumbing };
 let page = "combined", theme = "both";
 function render() {
   const stage = document.getElementById("stage");
@@ -901,7 +1000,7 @@ for (const b of document.querySelectorAll("[data-theme-pick]")) b.addEventListen
   document.querySelectorAll("[data-theme-pick]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
   render();
 });
-if (/^#(combined|accounts|rule|reply|connect|google|importing|settings|plumbing)$/.test(location.hash)) go(location.hash.slice(1)); else render();
+if (/^#(combined|accounts|archive|rule|reply|newmsg|connect|google|importing|settings|disconnect|plumbing)$/.test(location.hash)) go(location.hash.slice(1)); else render();
 </script>
 
 </body>
