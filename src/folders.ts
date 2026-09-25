@@ -10,6 +10,7 @@
  */
 import { mailboxStub, threadStub } from "./mail";
 import type { FolderDecision, FolderWithCounts } from "./mailbox-do";
+import { notifyFiled } from "./sms/notify";
 
 /** Minimum probability for a rule to file a message on its own. */
 export const FOLDER_THRESHOLD = 0.75;
@@ -25,6 +26,8 @@ export async function fileMessage(
   address: string,
   message: { id: string; threadId: string; label: string | null },
   folders?: FolderWithCounts[],
+  /** New mail arriving live: text the users who picked the folder it lands in. */
+  opts: { notify?: boolean } = {},
 ): Promise<FolderDecision | null> {
   const mailbox = mailboxStub(env, address);
   const list = folders ?? ((await mailbox.listFolders()) as FolderWithCounts[]);
@@ -35,6 +38,7 @@ export async function fileMessage(
   if (byAddress) {
     const d: FolderDecision = { folderId: byAddress.id, source: "address", state: "filed", confidence: 1 };
     await mailbox.fileMessage(message.id, d);
+    if (opts.notify) await notifyFiled(env, address, message.id, byAddress);
     return d;
   }
 
@@ -60,7 +64,9 @@ export async function fileMessage(
     console.error("folder classify failed", { address, id: message.id, error: String(error) });
     d = { folderId: null, source: "rule", state: "failed" };
   }
-  await mailbox.fileMessage(message.id, d);
+  const filed = await mailbox.fileMessage(message.id, d);
+  const folder = d.state === "filed" && d.folderId ? ruled.find((f) => f.id === d.folderId) : undefined;
+  if (opts.notify && filed && folder) await notifyFiled(env, address, message.id, folder);
   return d;
 }
 

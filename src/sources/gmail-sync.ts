@@ -87,6 +87,8 @@ export async function importGmailMessage(
      * each start a thread. Fetching and sorting still overlap.
      */
     exclusive?: <T>(fn: () => Promise<T>) => Promise<T>;
+    /** Live mail (not an import): text users who picked its folder. */
+    notify?: boolean;
   },
 ): Promise<ImportOutcome> {
   const mailbox = mailboxStub(env, address);
@@ -117,7 +119,7 @@ export async function importGmailMessage(
   const result = opts.exclusive ? await opts.exclusive(store) : await store();
   if (!result.messageId) return "skipped";
   if (result.status === "stored" && !outbound && opts.sort && result.threadId) {
-    await fileMessage(env, address, { id: result.messageId, threadId: result.threadId, label: null });
+    await fileMessage(env, address, { id: result.messageId, threadId: result.threadId, label: null }, undefined, { notify: opts.notify });
   }
   return result.status === "stored" ? "stored" : "duplicate";
 }
@@ -202,7 +204,7 @@ async function syncHistory(host: GmailHost) {
 
 async function bringIn(host: GmailHost, gmailId: string) {
   try {
-    if ((await importGmailMessage(host.env, host.address, host.api, gmailId, { sort: true })) === "stored") {
+    if ((await importGmailMessage(host.env, host.address, host.api, gmailId, { sort: true, notify: true })) === "stored") {
       host.update({ lastMailAt: Date.now() });
     }
   } catch (e) {

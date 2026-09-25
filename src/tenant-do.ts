@@ -106,6 +106,10 @@ export class TenantDO extends DurableObject<Env> {
         updated_at      INTEGER NOT NULL
       );
     `);
+    for (const [column, type] of [["sent_hour", "TEXT"], ["sent_hour_count", "INTEGER NOT NULL DEFAULT 0"], ["line_checked_at", "INTEGER"]] as const) {
+      const has = ctx.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM pragma_table_info('texting') WHERE name = ?`, column).toArray()[0]?.n;
+      if (!has) ctx.storage.sql.exec(`ALTER TABLE texting ADD COLUMN ${column} ${type}`);
+    }
 
     // Single-row key/value for tenant-level facts that are not mailboxes.
     ctx.storage.sql.exec(`
@@ -373,6 +377,29 @@ export class TenantDO extends DurableObject<Env> {
       Date.now(), userId,
     );
     return prev;
+  }
+
+  /**
+   * Count one outgoing text against the user's hourly cap. False when over
+   * it: a runaway rule mustn't flood the phone (or the bill).
+   */
+  textingReserveSend(userId: string, perHour = 20): boolean {
+    const r = this.#textingRow(userId);
+    if (!r) return false;
+    const hour = new Date().toISOString().slice(0, 13);
+    const count = r.sent_hour === hour ? Number(r.sent_hour_count) : 0;
+    if (count >= perHour) return false;
+    this.ctx.storage.sql.exec(`UPDATE texting SET sent_hour = ?, sent_hour_count = ? WHERE user_id = ?`, hour, count + 1, userId);
+    return true;
+  }
+
+  /** When the SIM/carrier was last checked (Twilio Lookup), so it runs at most every few hours. */
+  textingLineCheckedAt(userId: string): number | null {
+    return (this.#textingRow(userId)?.line_checked_at as number | null) ?? null;
+  }
+
+  markTextingLineChecked(userId: string): void {
+    this.ctx.storage.sql.exec(`UPDATE texting SET line_checked_at = ? WHERE user_id = ?`, Date.now(), userId);
   }
 
   /** Users in this org who get texts for mail filed into `folderKey`. */
