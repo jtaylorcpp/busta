@@ -3,6 +3,10 @@ import { newThreadId } from "./addressing";
 import { classify, deliver, nextAttemptDelay, type OutboundPayload } from "./delivery";
 import type { MessageMetadata } from "./metadata";
 import type { ThreadAttachment } from "./thread-do";
+import { gmailTick, type GmailHost, type GmailState } from "./sources/gmail-sync";
+import { refreshAccess } from "./sources/google";
+import { unseal } from "./sources/seal";
+import { stopWatch } from "./sources/gmail";
 
 export type Direction = "in" | "out";
 
@@ -485,6 +489,28 @@ export class MailboxDO extends DurableObject<Env> {
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_sender ON messages(sender, received_at DESC);`);
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_subject_key ON messages(subject_key);`);
 
+    // Connected Gmail (src/sources/gmail-sync.ts): Gmail id ↔ Busta message,
+    // the queue of ids still to bring in, and changes waiting to go to Gmail.
+    sql.exec(`
+      CREATE TABLE IF NOT EXISTS gmail_ext (
+        gmail_id     TEXT PRIMARY KEY,
+        message_id   TEXT NOT NULL,
+        gmail_thread TEXT
+      );
+    `);
+    sql.exec(`CREATE INDEX IF NOT EXISTS idx_gmail_ext_msg ON gmail_ext(message_id);`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS gmail_queue (gmail_id TEXT PRIMARY KEY, ord INTEGER NOT NULL);`);
+    sql.exec(`
+      CREATE TABLE IF NOT EXISTS gmail_outbox (
+        seq      INTEGER PRIMARY KEY AUTOINCREMENT,
+        gmail_id TEXT NOT NULL,
+        op       TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_at  INTEGER NOT NULL,
+        error    TEXT
+      );
+    `);
+
     if (from !== SCHEMA_VERSION) this.#setMeta("schema_version", String(SCHEMA_VERSION));
   }
 
@@ -725,9 +751,11 @@ export class MailboxDO extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const drained = await this.drainOutbox();
     const relief = await this.relieve();
+    const gmailNext = this.#meta("gmail") ? await gmailTick(this.#gmailHost()) : null;
 
     // Whichever wants attention sooner wins the next alarm slot.
     const wants: number[] = [];
+    if (gmailNext !== null) wants.push(gmailNext);
     if (!relief.settled && !relief.exhausted) wants.push(Date.now() + 60_000);
     const pending = this.outboxStats().nextAttemptAt;
     if (pending !== null) wants.push(pending);
@@ -736,6 +764,176 @@ export class MailboxDO extends DurableObject<Env> {
     if (drained.attempted > 0) {
       console.log("outbox drained", JSON.stringify(drained));
     }
+  }
+
+  // ---- connected Gmail -------------------------------------------------
+  //
+  // State lives in meta "gmail" (GmailState, with the refresh token sealed).
+  // The work happens in alarm() via gmailTick; everything else only records
+  // what to do and asks for the alarm sooner.
+
+  #gmail(): GmailState | null {
+    const raw = this.#meta("gmail");
+    return raw ? (JSON.parse(raw) as GmailState) : null;
+  }
+
+  #setGmail(patch: Partial<GmailState>): void {
+    const cur = this.#gmail();
+    if (!cur) return;
+    this.#setMeta("gmail", JSON.stringify({ ...cur, ...patch }));
+    this.#emit({ t: "nav" });
+  }
+
+  #access: { token: string; expiresAt: number } | null = null;
+
+  /** A current access token, refreshed from the sealed refresh token when needed. */
+  async gmailAccessToken(): Promise<string> {
+    if (this.#access && this.#access.expiresAt - Date.now() > 60_000) return this.#access.token;
+    const st = this.#gmail();
+    if (!st) throw new Error("Gmail isn't connected");
+    const fresh = await refreshAccess(this.env, await unseal(this.env, st.sealedRefresh));
+    this.#access = { token: fresh.accessToken, expiresAt: fresh.expiresAt };
+    return fresh.accessToken;
+  }
+
+  async #wake(delayMs = 0): Promise<void> {
+    const at = Date.now() + delayMs;
+    const cur = await this.ctx.storage.getAlarm();
+    if (cur === null || cur > at) await this.ctx.storage.setAlarm(at);
+  }
+
+  /** Start (or, with a new token, resume) syncing a Gmail account into this mailbox. */
+  async connectGmail(input: { account: string; sealedRefresh: string; days: number }): Promise<void> {
+    const cur = this.#gmail();
+    this.#access = null;
+    const next: GmailState = cur
+      ? { ...cur, sealedRefresh: input.sealedRefresh, status: cur.backfill.listed && this.#queueSize() === 0 ? "live" : "backfill", pending: true, lastError: null, watchRenewAt: 0 }
+      : {
+          account: input.account,
+          sealedRefresh: input.sealedRefresh,
+          status: "backfill",
+          days: input.days,
+          connectedAt: Date.now(),
+          historyId: null,
+          watchRenewAt: 0,
+          watchExpires: null,
+          backfill: { listed: false, pageToken: null, total: 0, done: 0, skipped: 0 },
+          lastSyncAt: null,
+          lastMailAt: null,
+          lastError: null,
+          pending: false,
+        };
+    this.#setMeta("gmail", JSON.stringify(next));
+    await this.#wake();
+  }
+
+  /** Gmail's push said something changed. */
+  async gmailPushed(): Promise<boolean> {
+    const st = this.#gmail();
+    if (!st || st.status === "needs_reconnect") return false;
+    this.#setGmail({ pending: true });
+    await this.#wake();
+    return true;
+  }
+
+  /** What the Accounts page shows. No secrets. */
+  gmailStatus(): (Omit<GmailState, "sealedRefresh"> & { queued: number; changesWaiting: number }) | null {
+    const st = this.#gmail();
+    if (!st) return null;
+    const { sealedRefresh: _secret, ...rest } = st;
+    const waiting = this.ctx.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM gmail_outbox`).toArray()[0]?.n ?? 0;
+    return { ...rest, queued: this.#queueSize(), changesWaiting: waiting };
+  }
+
+  /** Stop syncing. Returns the sealed refresh token so the caller can revoke it; mail already here stays. */
+  async disconnectGmail(): Promise<string | null> {
+    const st = this.#gmail();
+    if (!st) return null;
+    try { await stopWatch(() => this.gmailAccessToken()); } catch { /* token may already be dead */ }
+    this.ctx.storage.sql.exec(`DELETE FROM meta WHERE k = 'gmail'`);
+    this.ctx.storage.sql.exec(`DELETE FROM gmail_queue`);
+    this.ctx.storage.sql.exec(`DELETE FROM gmail_outbox`);
+    this.#access = null;
+    this.#emit({ t: "nav" });
+    return st.sealedRefresh;
+  }
+
+  /** The Gmail thread a Busta message belongs to, for replying in the same Gmail thread. */
+  gmailThreadOf(messageId: string): string | null {
+    return this.ctx.storage.sql
+      .exec<{ t: string | null }>(`SELECT gmail_thread AS t FROM gmail_ext WHERE message_id = ? LIMIT 1`, messageId)
+      .toArray()[0]?.t ?? null;
+  }
+
+  linkGmail(gmailId: string, messageId: string, gmailThreadId: string): void {
+    this.ctx.storage.sql.exec(
+      `INSERT INTO gmail_ext (gmail_id, message_id, gmail_thread) VALUES (?, ?, ?)
+       ON CONFLICT(gmail_id) DO UPDATE SET message_id = excluded.message_id, gmail_thread = excluded.gmail_thread`,
+      gmailId, messageId, gmailThreadId,
+    );
+  }
+
+  isGmail(): boolean {
+    return this.#gmail() !== null;
+  }
+
+  #queueSize(): number {
+    return this.ctx.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM gmail_queue`).toArray()[0]?.n ?? 0;
+  }
+
+  /** Record a Busta-side change for Gmail, if this message came from Gmail. */
+  #toGmail(messageId: string, op: string): void {
+    if (this.#applyingRemote || !this.#meta("gmail")) return;
+    const ext = this.ctx.storage.sql
+      .exec<{ g: string }>(`SELECT gmail_id AS g FROM gmail_ext WHERE message_id = ? LIMIT 1`, messageId)
+      .toArray()[0];
+    if (!ext) return;
+    this.ctx.storage.sql.exec(`INSERT INTO gmail_outbox (gmail_id, op, next_at) VALUES (?, ?, ?)`, ext.g, op, Date.now());
+    void this.#wake(1000);
+  }
+
+  #applyingRemote = false;
+
+  #gmailHost(): GmailHost {
+    const sql = this.ctx.storage.sql;
+    const address = this.#meta("address") ?? "";
+    return {
+      env: this.env,
+      address,
+      token: () => this.gmailAccessToken(),
+      state: () => this.#gmail(),
+      update: (patch) => this.#setGmail(patch),
+      queuePush: (ids) => {
+        for (const x of ids) sql.exec(`INSERT OR IGNORE INTO gmail_queue (gmail_id, ord) VALUES (?, ?)`, x.id, x.order);
+      },
+      queueTake: (n) => sql.exec<{ g: string }>(`SELECT gmail_id AS g FROM gmail_queue ORDER BY ord ASC LIMIT ?`, n).toArray().map((r) => r.g),
+      queueDrop: (id) => { sql.exec(`DELETE FROM gmail_queue WHERE gmail_id = ?`, id); },
+      queueSize: () => this.#queueSize(),
+      local: (gmailId) => sql
+        .exec<Row<{ id: string; read: number; starred: number; deleted_at: number | null }>>(
+          `SELECT m.id, m.read, m.starred, m.deleted_at FROM gmail_ext e JOIN messages m ON m.id = e.message_id WHERE e.gmail_id = ?`, gmailId,
+        ).toArray()[0] ?? null,
+      link: (g, m, t) => this.linkGmail(g, m, t),
+      applyRemote: (id, c) => {
+        this.#applyingRemote = true;
+        try {
+          if (c.read !== undefined) this.setRead(id, c.read);
+          if (c.starred !== undefined) this.setStarred(id, c.starred);
+          if (c.trashed === true) this.trash(id);
+          if (c.trashed === false) this.restore(id);
+        } finally {
+          this.#applyingRemote = false;
+        }
+      },
+      outboxTake: (n) => sql
+        .exec<Row<{ seq: number; gmail_id: string; op: string; attempts: number }>>(
+          `SELECT seq, gmail_id, op, attempts FROM gmail_outbox WHERE next_at <= ? ORDER BY seq ASC LIMIT ?`, Date.now(), n,
+        ).toArray(),
+      outboxDone: (seq) => { sql.exec(`DELETE FROM gmail_outbox WHERE seq = ?`, seq); },
+      outboxRetry: (seq, attempts, error) => {
+        sql.exec(`UPDATE gmail_outbox SET attempts = ?, error = ?, next_at = ? WHERE seq = ?`, attempts, error.slice(0, 200), Date.now() + Math.min(2 ** attempts * 30_000, 3_600_000), seq);
+      },
+    };
   }
 
   /**
@@ -757,7 +955,8 @@ export class MailboxDO extends DurableObject<Env> {
       };
 
       try {
-        const result = await deliver(this.env, payload);
+        const result = await deliver(this.env, payload, () => this.gmailAccessToken());
+        if (result.gmail) this.linkGmail(result.gmail.id, storedId, result.gmail.threadId);
         this.settleOutbox(item.id, "sent");
         this.setDelivery(storedId, "sent", null, null);
         this.ctx.storage.sql.exec(
@@ -1129,11 +1328,13 @@ export class MailboxDO extends DurableObject<Env> {
       id,
     );
       this.#emit({ t: "row", id });
+    this.#toGmail(id, "trash");
   }
 
   restore(id: string): void {
     this.ctx.storage.sql.exec(`UPDATE messages SET deleted_at = NULL WHERE id = ?`, id);
       this.#emit({ t: "row", id });
+    this.#toGmail(id, "untrash");
   }
 
   setStarred(id: string, starred: boolean): void {
@@ -1143,11 +1344,13 @@ export class MailboxDO extends DurableObject<Env> {
       id,
     );
       this.#emit({ t: "row", id });
+    this.#toGmail(id, starred ? "star" : "unstar");
   }
 
   setRead(id: string, read: boolean): void {
     this.ctx.storage.sql.exec(`UPDATE messages SET read = ? WHERE id = ?`, read ? 1 : 0, id);
       this.#emit({ t: "row", id });
+    this.#toGmail(id, read ? "read" : "unread");
   }
 
   /**
@@ -1547,8 +1750,10 @@ export class MailboxDO extends DurableObject<Env> {
   }
 
   markRead(id: string): void {
+    const was = this.ctx.storage.sql.exec<{ read: number }>(`SELECT read FROM messages WHERE id = ?`, id).toArray()[0];
     this.ctx.storage.sql.exec(`UPDATE messages SET read = 1 WHERE id = ?`, id);
       this.#emit({ t: "row", id });
+    if (was && !was.read) this.#toGmail(id, "read");
   }
 
   unindex(id: string): void {
