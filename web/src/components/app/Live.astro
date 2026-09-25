@@ -9,6 +9,7 @@
  *   chat           a thread's messages (the reply box is never replaced)
  *   thread-folder  a thread's folder chip ("Sorting…" → "Bank")
  *   guide          the Getting started card on Messages
+ *   sync           connected-account progress on all mail ("Bringing in …")
  * Notices sent before the socket opens are missed, so on reconnect, or when
  * the page shows something in flight (data-live-pending: "Sorting…",
  * waiting for a test message), it re-fetches once as soon as it connects.
@@ -53,7 +54,7 @@ const { addresses } = Astro.props;
         if (res.redirected && document.querySelector("[data-live-follow]")) { location.assign(res.url); return; }
         if (!res.ok || res.redirected) return;
         const doc = new DOMParser().parseFromString(await res.text(), "text/html");
-        for (const key of ["nav", "chat", "thread-folder", "guide"]) {
+        for (const key of ["nav", "chat", "thread-folder", "guide", "sync"]) {
           const cur = document.querySelector(`[data-live='${key}']`);
           const nxt = doc.querySelector(`[data-live='${key}']`);
           if (cur && nxt && cur.innerHTML !== nxt.innerHTML) cur.replaceWith(nxt);

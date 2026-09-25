@@ -120,6 +120,12 @@ const subline = active?.label ?? (multi && current === null ? `${accounts.filter
     </section>
 
     <section>
+      <h3>Add an account</h3>
+      <a class="mb" href="/connect/gmail"><span class="check" aria-hidden="true"><Icon name="mail" size={14} /></span><span class="mb-addr">Connect Gmail</span></a>
+      <a class="mb" href="/accounts"><span class="check" aria-hidden="true"><Icon name="gear" size={14} /></span><span class="mb-addr">Accounts &amp; colors</span></a>
+    </section>
+
+    <section>
       <h3>Organization</h3>
       <OrganizationSwitcher hidePersonal afterSelectOrganizationUrl="/" afterCreateOrganizationUrl="/" afterLeaveOrganizationUrl="/" />
     </section>

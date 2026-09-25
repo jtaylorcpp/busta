@@ -14,13 +14,16 @@
 import { handle } from "@astrojs/cloudflare/handler";
 import legacy from "../../src/index";
 import { liveSocket } from "../../src/live";
+import { gmailPush } from "../../src/sources/push";
 
 export { MailboxDO, TenantDO, ThreadDO } from "../../src/index";
 
 /** Paths Astro owns in every environment, for any method. */
 const ASTRO_ROUTES: RegExp[] = [
   /^\/sign-in\/?$/,
-  /^\/accounts\/show\/?$/, // show / hide accounts in the combined list
+  /^\/accounts(\/[a-z]+)?\/?$/, // accounts: settings page, show / hide, color, disconnect
+  /^\/connect\/(gmail|google)\/?$/, // Connect Gmail: the page, then off to Google
+  /^\/oauth\/google\/callback\/?$/, // back from Google
   /^\/mb\/[^/]+\/folders(\/.*)?$/, // folders: list, editor, save/delete/move/test
   /^\/mb\/[^/]+\/start(\/.*)?$/, // Getting started guide: steps + progress actions
   /^\/mb\/[^/]+\/[0-9a-f-]{36}\/folder(\/retry)?\/?$/i, // file a message by hand / retry sorting
@@ -59,6 +62,8 @@ export default {
     // the auth + ownership + origin checks in src/live.ts.
     const live = path.match(/^\/mb\/([^/]+)\/live\/?$/);
     if (live && request.method === "GET") return liveSocket(request, env, live[1]!);
+    // Gmail's Pub/Sub alerts: signed by Google, checked in src/sources/push.ts.
+    if (path === "/hooks/gmail" && request.method === "POST") return gmailPush(request, env, ctx);
     return astroOwns(request.method, path, env) ? handle(request, env, ctx) : legacy.fetch(request, env, ctx);
   },
   email: legacy.email,

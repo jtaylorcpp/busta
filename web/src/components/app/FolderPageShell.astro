@@ -1,19 +1,20 @@
 ---
-/** Shell for the folders pages: app chrome, nav, a header with a back link, and flashes. */
+/** Shell for settings-style pages (folders, accounts): app chrome, nav, a header with a back link, and flashes. */
 import AppShell from "../../layouts/AppShell.astro";
 import { Banner } from "../ui";
 import MailboxNav from "./MailboxNav.astro";
 import AccountMenu from "./AccountMenu.astro";
+import type { Bin } from "../../lib/mail-data";
 
-interface Props { title: string; address: string; backHref: string; backLabel: string }
-const { title, address, backHref, backLabel } = Astro.props;
+interface Props { title: string; address: string; backHref: string; backLabel: string; bin?: Bin | null; current?: string | null }
+const { title, address, backHref, backLabel, bin = "folders", current = address } = Astro.props;
 const b = `/mb/${encodeURIComponent(address)}`;
 const ok = Astro.url.searchParams.get("ok");
 const error = Astro.url.searchParams.get("error");
 ---
 <AppShell title={title} mailbox={address} composeHref={`${b}/compose`} searchAction={`${b}/search`}>
-  <AccountMenu slot="account" current={address} />
-  <MailboxNav slot="nav" address={address} bin="folders" />
+  <AccountMenu slot="account" current={current} />
+  <MailboxNav slot="nav" address={address} bin={bin} />
   <header class="head">
     <a class="back" href={backHref}>← {backLabel}</a>
     <div class="row"><h1>{title}</h1><slot name="actions" /></div>

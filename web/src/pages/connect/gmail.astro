@@ -1,0 +1,100 @@
+---
+/**
+ * GET /connect/gmail — what connecting Gmail does and doesn't do, how far
+ * back to bring mail in, and whether to start with your folders; then off to
+ * Google (designs/2026-09-24-connect-gmail, screen 5). A plain GET form, so it
+ * works without JavaScript.
+ */
+import { env } from "cloudflare:workers";
+import FolderPageShell from "../../components/app/FolderPageShell.astro";
+import { Button, Icon } from "../../components/ui";
+import { googleMissing } from "../../../../src/sources/google";
+import { ALL, listAccounts } from "../../lib/accounts";
+
+const { userId, orgId } = Astro.locals.auth();
+if (!userId) return Astro.redirect("/sign-in");
+if (!orgId) return Astro.redirect("/");
+Astro.response.headers.set("cache-control", "no-store");
+const accounts = await listAccounts(env, orgId);
+if (accounts.length === 0) return Astro.redirect("/");
+const home = accounts[0]!.address;
+const missing = googleMissing(env);
+---
+<FolderPageShell title="Connect Gmail" address={home} backHref={accounts.length > 1 ? ALL : `/mb/${encodeURIComponent(home)}`} backLabel="Back to your mail" bin={null} current={accounts.length > 1 ? null : home}>
+  <form class="page" method="get" action="/connect/google">
+    <p class="lede">Your Gmail joins your mail in Busta, marked in its own color. New mail arrives within seconds and is sorted by your rules. Nothing changes in Gmail except what you do here: read, star and trash.</p>
+
+    {missing.length > 0 && (
+      <p class="setup">Gmail isn't set up on this server yet. Missing: <code>{missing.join(", ")}</code>.</p>
+    )}
+
+    <div class="gets">
+      <div class="gbox">
+        <h2>Busta will</h2>
+        <ul>
+          <li><span class="ok"><Icon name="check" size={14} /></span><span>Read your mail<small>Inbox and Sent. Not Spam.</small></span></li>
+          <li><span class="ok"><Icon name="check" size={14} /></span><span>Keep read, star and trash in step<small>Both ways, with the Gmail app on your phone</small></span></li>
+          <li><span class="ok"><Icon name="check" size={14} /></span><span>Send as your Gmail address<small>Through Google, saved in Gmail's Sent</small></span></li>
+        </ul>
+      </div>
+      <div class="gbox">
+        <h2>Busta won't</h2>
+        <ul>
+          <li><span class="no"><Icon name="lock" size={14} /></span><span>See your Google password<small>You sign in on Google's page</small></span></li>
+          <li><span class="no"><Icon name="lock" size={14} /></span><span>Permanently delete anything<small>Google's permission doesn't allow it</small></span></li>
+          <li><span class="no"><Icon name="lock" size={14} /></span><span>Change your Gmail labels<small>Busta folders stay in Busta</small></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <fieldset>
+      <legend>Bring in mail from the last</legend>
+      <div class="opts">
+        {[[7, "7 days"], [30, "30 days"], [90, "90 days"], [365, "1 year"]].map(([v, l]) => (
+          <label class="opt"><input type="radio" name="days" value={v} checked={v === 30} />{l}</label>
+        ))}
+      </div>
+      <p class="hint">Sorted by your rules as it arrives, oldest first. Older mail stays in Gmail.</p>
+    </fieldset>
+
+    <label class="toggle">
+      <input type="checkbox" name="copy" value="1" checked />
+      <span><b>Use my folders on Gmail too</b><small>Same rules in both accounts. You can split them later with each folder's Applies to.</small></span>
+    </label>
+
+    <div class="go">
+      <Button variant="primary" type="submit" disabled={missing.length > 0}><span class="g" aria-hidden="true">G</span>Continue with Google</Button>
+      <p class="hint">Google will say it hasn't verified Busta. That's expected for an app only you use: choose Advanced, then Go to busta.app.</p>
+    </div>
+  </form>
+</FolderPageShell>
+
+<style>
+  .page { display: grid; gap: var(--space-5); padding: var(--space-5); max-width: 760px; }
+  .lede { color: var(--muted); max-width: 62ch; margin: 0; }
+  .setup { margin: 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--warn-soft); color: var(--warn); font-size: var(--text-sm); }
+  .setup code { font-family: var(--font-mono); }
+  .gets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  @media (max-width: 640px) { .gets { grid-template-columns: 1fr; } }
+  .gbox { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 14px; display: grid; gap: 8px; align-content: start; }
+  .gbox h2 { font: 500 var(--text-xs)/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  .gbox ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .gbox li { display: grid; grid-template-columns: 18px 1fr; gap: 8px; font-size: var(--text-sm); }
+  .gbox small, .toggle small { display: block; color: var(--muted); font-size: var(--text-xs); }
+  .ok { color: var(--success); margin-top: 2px; }
+  .no { color: var(--muted); margin-top: 2px; }
+  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+  legend { font-size: var(--text-sm); font-weight: 600; margin-bottom: 8px; }
+  .opts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .opt { display: inline-flex; align-items: center; gap: 6px; font: 600 var(--text-sm) var(--font-sans); padding: 6px 12px; border-radius: var(--radius-pill); border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+  .opt input { position: absolute; opacity: 0; pointer-events: none; }
+  .opt:has(input:checked) { background: var(--primary-soft); border-color: transparent; color: var(--primary); }
+  .opt:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .hint { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+  .toggle { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; }
+  .toggle input { margin-top: 3px; accent-color: var(--primary); }
+  .toggle b { font-weight: 600; }
+  .go { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+  .go .hint { flex: 1; min-width: 24ch; }
+  .g { width: 20px; height: 20px; border-radius: 50%; background: var(--on-primary); color: var(--primary); display: inline-grid; place-items: center; font: 700 12px var(--font-sans); }
+</style>
