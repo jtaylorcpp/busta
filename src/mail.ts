@@ -18,7 +18,7 @@ import {
 } from "./delivery";
 import { downloadUrl, signDownloadToken } from "./download";
 import { describeBounce, detectBounce } from "./bounce";
-import { extractMetadata, type MessageMetadata } from "./metadata";
+import { AUTHSERV, extractMetadata, type MessageMetadata } from "./metadata";
 import type { ThreadAttachment, ThreadMessage } from "./thread-do";
 
 export { decodeAuth, decodeFlags, extractMetadata, FLAG } from "./metadata";
@@ -392,7 +392,8 @@ export async function ingest(
   const counterpart = outbound && firstTo ? normalizeAddress(firstTo) : address;
   const toCount = (parsed.to?.length ?? 0) + (parsed.cc?.length ?? 0);
   const size = envelope.rawSize || raw.byteLength;
-  const metadata = extractMetadata(parsed, stored.length);
+  // Provider mail (Gmail) carries Google's verdict; ours comes from Email Routing.
+  const metadata = extractMetadata(parsed, stored.length, options.trustThread ? AUTHSERV.gmail : AUTHSERV.routing);
 
   // Thread first: a crash before indexing leaves an unlisted message, which a
   // repair can recover. Indexing first would promise a body that is not there.

@@ -470,7 +470,9 @@ async function route(
           headers: {
             "content-type": att.mime_type ?? "application/octet-stream",
             "content-disposition": `attachment; filename="${att.filename.replace(/"/g, "")}"`,
-            "cache-control": "private, max-age=3600",
+            // Not kept by the browser: a shared computer shouldn't hold mail.
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
           },
         });
       }

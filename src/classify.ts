@@ -61,7 +61,8 @@ export async function classifyEmail(
     },
   } as never, {
     // Third-party models must run through an AI Gateway (Unified Billing).
-    gateway: { id: String(env.AI_GATEWAY_ID ?? "default") },
+    // No prompt/response logging at the gateway: prompts are email text.
+    gateway: { id: String(env.AI_GATEWAY_ID ?? "default"), collectLog: false },
   } as never)) as JevEnvelope | JevResult;
 
   // Through the AI binding the answer arrives wrapped as
@@ -73,7 +74,8 @@ export async function classifyEmail(
   }
   const answer = (wrapped.result ?? (response as JevResult)).answers?.folder;
   if (!answer?.choice) {
-    throw new Error(`classify: model returned no choice: ${JSON.stringify(response).slice(0, 600)}`);
+    // Shape only, never content: the response can echo the email.
+    throw new Error(`classify: model returned no choice (keys: ${Object.keys((wrapped.result ?? response) as object).join(",").slice(0, 80)})`);
   }
   const keyToId = (key: string) => (key === "none" ? "none" : folders[Number(key.slice(1))]?.id ?? "none");
   const probabilities: Record<string, number> = {};

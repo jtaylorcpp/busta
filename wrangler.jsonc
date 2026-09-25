@@ -8,7 +8,10 @@
   "main": "web/src/worker.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true },
+  // Our own console logs are kept; per-request invocation logs are not,
+  // because request URLs will carry one-time link tokens (/v/…, /a/…).
+  // `wrangler tail` still shows live requests.
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
 
   // Astro's client bundles (/_astro/*) and web/public. Served ahead of the
   // Worker, so nothing that needs auth may be put here.

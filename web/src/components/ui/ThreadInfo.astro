@@ -1,14 +1,19 @@
 ---
-/** Muted footer with where this thread lives: mailbox, id, size, copy source. */
+/**
+ * Muted footer with where this thread lives: mailbox, id, size, copy source,
+ * and the sender checks for the message in focus (from the receiving server
+ * we trust; "none" when it gave no verdict).
+ */
 interface Props {
   mailbox: string;
   threadId: string;
   size: string;
   source: "local" | "archive";
+  auth?: { spf: string; dkim: string; dmarc: string } | null;
 }
-const { mailbox, threadId, size, source } = Astro.props;
+const { mailbox, threadId, size, source, auth } = Astro.props;
 ---
-<p class="info">{mailbox} · thread {threadId} · {size} · {source === "archive" ? "Retrieved from R2 archive" : "Local copy"}</p>
+<p class="info">{mailbox} · thread {threadId} · {size} · {source === "archive" ? "Retrieved from R2 archive" : "Local copy"}{auth && ` · SPF ${auth.spf} · DKIM ${auth.dkim} · DMARC ${auth.dmarc}`}</p>
 
 <style>
   .info { padding: var(--space-2) var(--space-4) var(--space-4); font: var(--text-xs)/1.4 var(--font-mono); color: var(--muted); text-align: center; overflow-wrap: anywhere; }

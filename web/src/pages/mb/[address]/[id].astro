@@ -20,6 +20,7 @@ import "../../../styles/why.css";
 import AccountMenu from "../../../components/app/AccountMenu.astro";
 import { audienceChanges } from "../../../lib/audience";
 import { ALL, listAccounts } from "../../../lib/accounts";
+import { decodeAuth } from "../../../../../src/metadata";
 import {
   base, deliveryStatus, folderView, formatDay, formatSize, formatTime, loadThread, openMailbox, splitQuoted,
 } from "../../../lib/mail-data";
@@ -194,7 +195,7 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
       original={target.attachments.map((a) => ({ id: a.id, name: a.filename, size: formatSize(a.size) }))}
     />}
   </div>
-  <ThreadInfo mailbox={address} threadId={threadId} size={formatSize(focusEntry.message.size)} source={focusEntry.bodySource === "hot" ? "local" : "archive"} />
+  <ThreadInfo mailbox={address} threadId={threadId} size={formatSize(focusEntry.message.size)} source={focusEntry.bodySource === "hot" ? "local" : "archive"} auth={focus.direction === "in" ? decodeAuth(focus.auth) : null} />
 </AppShell>
 
 <style>

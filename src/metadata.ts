@@ -50,6 +50,31 @@ function header(email: Email, key: string): string | null {
   return found ? found.value : null;
 }
 
+/**
+ * The server whose authentication verdict we believe, by how the mail reached
+ * us: Cloudflare Email Routing for mail to busta.app, Google for mail imported
+ * from Gmail. Anyone can put an Authentication-Results header in a message
+ * they send, so a verdict counts only from the one server that received it
+ * for us; trusting both everywhere would let a sender forge Google's.
+ */
+export const AUTHSERV = { routing: ["mx.cloudflare.net"], gmail: ["mx.google.com"] } as const;
+
+/**
+ * The verdict line from a trusted server: Authentication-Results, or the
+ * ARC-Authentication-Results a forwarder adds ("i=1; mx.cloudflare.net; …").
+ * The first trusted one wins; the topmost header was added last, closest to us.
+ */
+export function trustedAuthResults(email: Email, trusted: readonly string[]): string {
+  for (const key of ["authentication-results", "arc-authentication-results"]) {
+    for (const h of email.headers.filter((x) => x.key === key)) {
+      const value = h.value.replace(/^\s*i=\d+\s*;\s*/i, "");
+      const authserv = value.split(";")[0]?.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+      if (trusted.includes(authserv)) return value;
+    }
+  }
+  return "";
+}
+
 function authResult(results: string, mechanism: string): number {
   const match = results.match(new RegExp(`\\b${mechanism}=(\\w+)`, "i"));
   if (!match) return AUTH.none;
@@ -97,7 +122,7 @@ export function normalizeSubject(subject: string): string {
   return parseSubject(subject).key;
 }
 
-export function extractMetadata(email: Email, attachmentCount: number): MessageMetadata {
+export function extractMetadata(email: Email, attachmentCount: number, trusted: readonly string[] = AUTHSERV.routing): MessageMetadata {
   const subject = email.subject ?? "";
   const parsedSubject = parseSubject(subject);
   const listId = header(email, "list-id") ?? header(email, "list-post");
@@ -125,7 +150,7 @@ export function extractMetadata(email: Email, attachmentCount: number): MessageM
   if (email.attachments.some((a) => a.mimeType?.includes("calendar"))) flags |= FLAG.hasCalendar;
   if (importance === "high" || importance === "1" || importance === "2") flags |= FLAG.highImportance;
 
-  const results = header(email, "authentication-results") ?? "";
+  const results = trustedAuthResults(email, trusted);
   const auth =
     authResult(results, "spf") |
     (authResult(results, "dkim") << 2) |

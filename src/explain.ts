@@ -40,7 +40,8 @@ async function askJson(env: Env, system: string, user: string, schema: object, m
     max_tokens: maxTokens,
     temperature: 0.2,
   } as never, {
-    gateway: { id: String(env.AI_GATEWAY_ID ?? "default") },
+    // No prompt/response logging at the gateway: prompts are email text.
+    gateway: { id: String(env.AI_GATEWAY_ID ?? "default"), collectLog: false },
   } as never)) as { response?: unknown };
   const r = out?.response;
   if (r && typeof r === "object") return r;
@@ -48,7 +49,8 @@ async function askJson(env: Env, system: string, user: string, schema: object, m
     const m = r.match(/\{[\s\S]*\}/);
     if (m) return JSON.parse(m[0]);
   }
-  throw new Error(`text model returned no JSON: ${JSON.stringify(out).slice(0, 300)}`);
+  // Never put the model's output in the error: it can quote the email.
+  throw new Error(`text model returned no JSON (${typeof r}, ${typeof r === "string" ? r.length : 0} chars)`);
 }
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
