@@ -57,6 +57,8 @@ export interface IndexedMessage {
   folder_suggest: string | null;
   folder_confidence: number | null;
   folder_probs: string | null;
+  /** When the current sort of it started (folder_state "pending"). */
+  folder_pending_at: number | null;
 }
 
 export interface Folder {
@@ -452,6 +454,8 @@ export class MailboxDO extends DurableObject<Env> {
       ["folder_confidence", "REAL"],
       /** JSON {folderId|"none": probability} for the top few options. */
       ["folder_probs", "TEXT"],
+      // When the current sort started: a re-sort of old mail isn't "stuck".
+      ["folder_pending_at", "INTEGER"],
       // Archived: done, but kept. Out of Messages and folders, in the Archive
       // bin, still searchable. For Gmail it mirrors leaving Gmail's Inbox.
       ["archived_at", "INTEGER"],
@@ -1759,7 +1763,7 @@ export class MailboxDO extends DurableObject<Env> {
   markSorting(id: string): boolean {
     const cur = this.lookup(id);
     if (!cur || cur.folder_source === "you") return false;
-    this.ctx.storage.sql.exec(`UPDATE messages SET folder_state = 'pending' WHERE id = ?`, id);
+    this.ctx.storage.sql.exec(`UPDATE messages SET folder_state = 'pending', folder_pending_at = ? WHERE id = ?`, Date.now(), id);
     this.#emit({ t: "row", id });
     return true;
   }

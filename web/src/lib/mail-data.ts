@@ -365,7 +365,7 @@ export async function loadAccount(env: Env, session: { userId: string; orgId: st
 
 // --- bins & folders ---------------------------------------------------------
 
-/** A just-filed "pending" row older than this is shown as failed (the sort was cut off). */
+/** A row still "pending" this long after its sort started is shown as failed (the sort was cut off). */
 export const SORTING_STALE_MS = 2 * 60_000;
 
 export type Bin = "messages" | "sent" | "drafts" | "archive" | "trash" | "folders";
@@ -391,7 +391,7 @@ export async function loadNav(stub: MailboxStub) {
 /** How a row's folder should look, from the index fields. */
 export function folderView(m: IndexedMessage, folders: { id: string; name: string }[]) {
   const name = (id: string | null) => (id ? folders.find((f) => f.id === id)?.name ?? null : null);
-  const stale = m.folder_state === "pending" && Date.now() - m.received_at > SORTING_STALE_MS;
+  const stale = m.folder_state === "pending" && Date.now() - (m.folder_pending_at ?? m.received_at) > SORTING_STALE_MS;
   const state = stale ? "failed" : m.folder_state;
   return {
     folderId: m.folder_id,
