@@ -2,7 +2,8 @@
 /**
  * The folder control in a thread's header. Shows how the message was filed
  * (rule + match %, +address, or by you) and opens a small panel with the
- * model's top probabilities, "Why not …?" (opens the explanation on the
+ * model's top scores in folder order (the sort order: the first folder at
+ * 75% wins, so a later folder that also fits gets "Move … above …"), "Why not …?" (opens the explanation on the
  * thread page), "Move to…" every folder, and "Not this folder".
  * Anything chosen here is a manual choice that rules never override.
  */
@@ -16,8 +17,12 @@ interface Props {
   action: string;
   /** The thread's own URL; "Why not …?" adds ?why=<folder id>. */
   threadHref?: string;
+  /** POST target for "Move … above …": /mb/<addr>/folders/order. */
+  orderAction?: string;
 }
-const { view: v, folders, action, threadHref } = Astro.props;
+const { view: v, folders, action, threadHref, orderAction } = Astro.props;
+const FILE_AT = 0.75;
+const ord = (i: number) => { const n = i + 1; const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"; return `${n}${s}`; };
 const pct = (n: number | null | undefined) => (typeof n === "number" ? `${Math.round(n * 100)}%` : "");
 const nameOf = (id: string) => (id === "none" ? "No folder" : folders.find((f) => f.id === id)?.name ?? "Deleted folder");
 const summary =
@@ -28,7 +33,19 @@ const summary =
     : v.state === "failed" ? "Couldn't sort"
     : v.source === "you" ? "No folder · by you"
     : "No folder";
-const probs = v.probs ? Object.entries(v.probs).sort((a, b) => b[1] - a[1]) : [];
+// Scores in folder order (the order mail is sorted in); "none" last.
+const rank = (id: string) => { const i = folders.findIndex((f) => f.id === id); return i < 0 ? folders.length : i; };
+const probs = v.probs ? Object.entries(v.probs).sort((a, b) => rank(a[0]) - rank(b[0])) : [];
+// Filed by rule, and a folder checked later fits too: say why this one won.
+const winAt = v.state === "filed" && v.source === "rule" && v.folderId ? rank(v.folderId) : -1;
+const fitsToo = winAt >= 0 ? probs.filter(([id, p]) => id !== v.folderId && p >= FILE_AT && rank(id) > winAt && rank(id) < folders.length) : [];
+const moveAbove = (id: string) => {
+  const names = folders.map((f) => f.name);
+  const name = folders[rank(id)]!.name;
+  names.splice(rank(id), 1);
+  names.splice(winAt, 0, name);
+  return names;
+};
 // "Why not …?" asks about folders it isn't in; default to the closest one.
 const others = folders.filter((f) => f.id !== v.folderId);
 const closest = v.suggestId ?? probs.map(([id]) => id).find((id) => id !== "none" && id !== v.folderId && others.some((f) => f.id === id)) ?? others[0]?.id;
@@ -40,9 +57,25 @@ const closest = v.suggestId ?? probs.map(([id]) => id).find((id) => id !== "none
     <Icon name="more" size={13} />
   </summary>
   <div class="panel">
+    {winAt >= 0 && (
+      <section>
+        <p class="order-note">Checked {ord(winAt)} of your folders, and the first at 75% or more.</p>
+        {fitsToo.map(([id, p]) => (
+          <>
+            <p class="order-note muted">{nameOf(id)} fits too ({pct(p)}), but it's checked {ord(rank(id))}.</p>
+            {orderAction && (
+              <form method="post" action={orderAction} class="above">
+                {moveAbove(id).map((n) => <input type="hidden" name="name" value={n} />)}
+                <button type="submit">Move {nameOf(id)} above {v.name}</button>
+              </form>
+            )}
+          </>
+        ))}
+      </section>
+    )}
     {probs.length > 0 && v.source === "rule" && (
       <section>
-        <h4>How the rule scored it</h4>
+        <h4>Scores, in your folder order</h4>
         <ul class="bars">
           {probs.map(([id, p]) => (
             <li><span class="n">{nameOf(id)}</span><span class="bar"><i style={`width:${Math.round(p * 100)}%`}></i></span><span class="p">{pct(p)}</span></li>
@@ -102,6 +135,10 @@ const closest = v.suggestId ?? probs.map(([id]) => id).find((id) => id !== "none
 </script>
 
 <style>
+  .order-note { margin: 0; font-size: var(--text-xs); color: var(--text); }
+  .order-note.muted { color: var(--muted); }
+  .above button { font: 600 var(--text-xs) var(--font-sans); padding: 4px 10px; border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--surface); color: var(--primary); cursor: pointer; }
+
   .tf { position: relative; }
   summary {
     list-style: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;

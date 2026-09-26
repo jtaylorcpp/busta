@@ -109,7 +109,7 @@ const bounced = entries.filter((e) => e.envelope.outbound && (e.row.delivery_sta
   >
     {account && <span slot="folder" class="acct-chip" title="The account this conversation is in"><i style={`background: var(--acct-${account.color})`}></i>{address}</span>}
     {focus.direction === "in" && (
-      <ThreadFolder slot="folder" view={folderView(focus, folders)} folders={folders} action={`${b}/${id}/folder?back=${encodeURIComponent(url.pathname)}`} threadHref={url.pathname} />
+      <ThreadFolder slot="folder" view={folderView(focus, folders)} folders={folders} action={`${b}/${id}/folder?back=${encodeURIComponent(url.pathname)}`} threadHref={url.pathname} orderAction={`${b}/folders/order?back=${encodeURIComponent(url.pathname)}`} />
     )}
   </ThreadHeader>
   {ok && (
