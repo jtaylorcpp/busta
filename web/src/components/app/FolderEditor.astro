@@ -104,6 +104,7 @@ const slug = (folder?.plus_label ?? folder?.name ?? preset?.name ?? "").toLowerC
   </fieldset>
 
   <SortPlaces client:load places={places} checked={folder ? ["messages", folder.id] : ["messages"]} folderId={folder?.id}
+    above={folder ? myFolders.slice(0, Math.max(0, myFolders.findIndex((f) => f.id === folder.id))).map((f) => f.id) : myFolders.map((f) => f.id)}
     ruleField="frule" days={SORT_WINDOW.days} limit={SORT_WINDOW.limit} />
 
   <div class="actions">
@@ -160,6 +161,7 @@ const slug = (folder?.plus_label ?? folder?.name ?? preset?.name ?? "").toLowerC
   .editor :global(.sort-places .place input) { accent-color: var(--primary); margin: 0; }
   .editor :global(.sort-places .place .c) { font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
   .editor :global(.sort-places .place .tag) { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: var(--radius-pill); background: var(--success-soft); color: var(--success); white-space: nowrap; }
+  .editor :global(.sort-places .place.first) { opacity: .7; cursor: default; }
   .editor :global(.sort-places .place .tag.zero) { background: var(--surface-2); color: var(--muted); }
   .editor :global(.sort-places .win) { font-size: var(--text-sm); }
   .editor :global(.sort-places .win input) { width: 64px; padding: 2px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; }

@@ -3,7 +3,9 @@
  * each folder, as checkboxes named `look` ("messages" or a folder id), plus
  * the window (days, limit). After "Test this rule" (the RuleTester island's
  * `busta:rule-tested` events) each place shows how many of its emails would
- * go in, or for the folder being edited, would leave it.
+ * go in, or for the folder being edited, would leave it. Folders above this
+ * one in the folder order keep their mail (they're checked first), so they
+ * can't be picked.
  *
  * A finished test is posted with the form as `tested`, so saving files what
  * the test found without asking the model again; editing the rule or the
@@ -19,12 +21,15 @@ interface Props {
   /** Checked at first: Messages, plus the edited folder. */
   checked: string[];
   folderId?: string;
+  /** Folders above this one in the sort order: checked first, so they keep their mail. */
+  above: string[];
   ruleField: string;
   days: number;
   limit: number;
 }
 
-export default function SortPlaces({ places, checked, folderId, ruleField, days, limit }: Props) {
+export default function SortPlaces({ places, checked, folderId, above, ruleField, days, limit }: Props) {
+  const first = new Set(above);
   const [on, setOn] = useState(true);
   const [picked, setPicked] = useState<Set<string>>(new Set(checked));
   const [test, setTest] = useState<RuleTestedDetail | null>(null);
@@ -55,7 +60,7 @@ export default function SortPlaces({ places, checked, folderId, ruleField, days,
     next.has(key) ? next.delete(key) : next.add(key);
     setPicked(next);
   };
-  const moving = live?.done ? places.filter((p) => picked.has(p.key) && p.key !== folderId).reduce((n, p) => n + (count(p.key)?.n ?? 0), 0) : null;
+  const moving = live?.done ? places.filter((p) => picked.has(p.key) && p.key !== folderId && !first.has(p.key)).reduce((n, p) => n + (count(p.key)?.n ?? 0), 0) : null;
   const leaving = live?.done && folderId && picked.has(folderId) ? count(folderId)?.n ?? 0 : null;
   const summary = [moving ? `${moving} will move here` : null, leaving ? `${leaving} will leave` : null].filter(Boolean).join(" · ");
   const tested = live?.done
@@ -79,6 +84,16 @@ export default function SortPlaces({ places, checked, folderId, ruleField, days,
           {places.map((p) => {
             const c = count(p.key);
             const verb = p.key === folderId ? "would leave" : "would go in";
+            if (first.has(p.key)) {
+              return (
+                <label class="place first" title={`${p.name} is above this folder in your order, so it's checked first and keeps its mail.`}>
+                  <input type="checkbox" disabled />
+                  <span class="pn">{p.name}</span>
+                  <span class="c">{c ? c.of : p.total}</span>
+                  <span class="tag zero">checked first</span>
+                </label>
+              );
+            }
             return (
               <label class="place">
                 <input type="checkbox" name="look" value={p.key} checked={picked.has(p.key)} onChange={() => toggle(p.key)} />
@@ -99,6 +114,7 @@ export default function SortPlaces({ places, checked, folderId, ruleField, days,
           {folderId && picked.has(folderId)
             ? "This folder is checked because you're changing its rule: mail that no longer fits leaves it, for another folder or Messages. "
             : "Checked places are sorted when you save. An email in a checked folder moves only if it would go in this one. "}
+          {first.size > 0 && "Folders above this one in your order keep their mail, since they're checked first: drag this folder higher on the Folders page to take mail from them. "}
           Mail you filed by hand never moves.{!live && places.length > 1 ? " Test the rule to see how many would go in from each." : ""}
         </p>
       </div>

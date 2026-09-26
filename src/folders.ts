@@ -78,21 +78,26 @@ export async function fileMessage(
 }
 
 /**
- * Re-sort recent received mail against the current folders, a few at a time.
- * Mail you filed by hand is skipped. Returns how many were processed.
+ * Re-sort received mail in the window (Messages and folders; never archived,
+ * trashed or filed by hand) against the current folders, in folder order, a
+ * few at a time. With `undoKey`, how each message was filed first is kept so
+ * the whole sort can be undone. Returns how many were processed.
  */
 export async function sortRecent(
   env: Env,
   address: string,
   window: { days: number; limit: number },
+  opts: { undoKey?: string } = {},
 ): Promise<number> {
   const mailbox = mailboxStub(env, address);
   const folders = (await mailbox.listFolders()) as FolderWithCounts[];
   if (folders.length === 0) return 0;
-  const rows = await mailbox.recentForSorting(window);
+  const rows = (await mailbox.sortCandidates(window)) as SortCandidate[];
+  if (opts.undoKey) await mailbox.startSortUndo(opts.undoKey);
   const queue = [...rows];
   const workers = Array.from({ length: 6 }, async () => {
     for (let row = queue.shift(); row; row = queue.shift()) {
+      if (opts.undoKey) await mailbox.rememberForUndo(opts.undoKey, row.id);
       await fileMessage(env, address, { id: row.id, threadId: row.thread_id, label: row.label }, folders);
     }
   });
@@ -134,7 +139,8 @@ export interface TestedVerdicts {
  * rule changed, over the places the user checked (folder ids; null is
  * Messages). Mail elsewhere was already sorted against the other rules, so
  * the only question for it is whether it goes in this folder: it moves only
- * if it does. The folder's own mail is sorted again against every rule, so
+ * if it does. Folder order is the sort order, so mail in a folder above
+ * this one stays put: that folder is checked first. The folder's own mail is sorted again against every rule, so
  * mail that no longer fits leaves. Everything moved can be undone.
  *
  * Verdicts from a rule test are used as they are (no model call); anything
@@ -159,7 +165,9 @@ export async function sortInto(
   const moved: Record<string, number> = {};
   if (!folder || !folder.rule.trim()) return { moved, checking: 0 };
   const rule = { id: folder.id, name: folder.name, rule: folder.rule };
-  const places = new Set(opts.places);
+  const order = ((await mailbox.listFolders()) as FolderWithCounts[]).map((f) => f.id);
+  const above = new Set(order.slice(0, Math.max(0, order.indexOf(folderId))));
+  const places = new Set(opts.places.filter((p) => p === null || !above.has(p)));
   const rows = ((await mailbox.sortCandidates({ days: opts.days, limit: opts.limit })) as SortCandidate[])
     .filter((r) => places.has(r.place));
   const t = opts.tested;
