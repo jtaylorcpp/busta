@@ -36,6 +36,11 @@ Decided after the mockup was approved; the code is the source of truth.
   sorted after the change (older scores were one shared vote). If jev won't
   take all folders in one request, it asks per folder in order, stopping at
   the first yes. The Folders page sidebar catches up on the next page load.
+- **Not in either mock**: a **Sort mail again** button on the Folders page
+  (last 30 days / 200 per account, every account, in folder order, with Undo
+  across accounts), for after reordering. Under Where to look, folders above
+  the one you're editing show "checked first" and can't be picked: they keep
+  their mail, so drag a new folder higher to take mail from one.
 - **Where to look** is a checkbox list, not the mock's switch. Editing a folder
   re-sorts its own mail only if the rule changed. Archived mail isn't sorted.
 - **Search highlights** are the primary tint, not amber (amber means in flight).
