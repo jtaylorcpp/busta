@@ -10,6 +10,7 @@
 import { env } from "cloudflare:workers";
 import AppShell from "../../layouts/AppShell.astro";
 import { Banner, Icon, ListFooter, MailList, MailRow } from "../../components/ui";
+import FolderDrag from "../../components/islands/FolderDrag";
 import CombinedNav from "../../components/app/CombinedNav.astro";
 import AccountMenu from "../../components/app/AccountMenu.astro";
 import FolderChip from "../../components/app/FolderChip.astro";
@@ -77,6 +78,7 @@ const bars = status.filter((x) => x.purge || x.live?.status === "needs_reconnect
 <AppShell title={`${heading} — All mail`} mailbox="all mail" live={shown.map((a) => a.address)} composeHref={`/mb/${encodeURIComponent(composeFrom)}/compose`} searchAction={`/mb/${encodeURIComponent(composeFrom)}/search`}>
   <AccountMenu slot="account" current={null} />
   <CombinedNav slot="nav" accounts={shown} bin={bin} folder={data.folder?.key ?? null} />
+  <FolderDrag client:idle />
 
   {ok && !archivedParam && <Banner tone="success">{ok}</Banner>}
   {archivedParam && (
