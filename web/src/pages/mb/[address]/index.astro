@@ -37,7 +37,7 @@ const warn = url.searchParams.get("warn");
 /** Link to this same view with some params changed (null removes one). */
 const withParams = (changes: Record<string, string | null>) => {
   const q = new URLSearchParams(url.searchParams);
-  for (const k of ["ok", "error", "warn", "before"]) q.delete(k);
+  for (const k of ["ok", "error", "warn", "before", "sorted"]) q.delete(k);
   for (const [k, v] of Object.entries(changes)) (v === null ? q.delete(k) : q.set(k, v));
   const s = q.toString();
   return `${b}${s ? `?${s}` : ""}`;
@@ -50,6 +50,8 @@ const back = url.pathname + url.search;
 // "Archived … Undo": the row action came back with ?archived=<address>:<id>.
 const archivedRaw = url.searchParams.get("archived");
 const archivedParam = archivedRaw && archivedRaw.includes(":") ? { address: archivedRaw.slice(0, archivedRaw.lastIndexOf(":")), id: archivedRaw.slice(archivedRaw.lastIndexOf(":") + 1) } : null;
+// "N moved here … Undo": a folder save sorted mail, ?sorted=<folder id>.
+const sortedFolder = url.searchParams.get("sorted");
 const undoBack = (() => { const q = new URLSearchParams(url.search); for (const k of ["ok", "error", "archived"]) q.delete(k); const s = q.toString(); return url.pathname + (s ? `?${s}` : ""); })();
 
 ---
@@ -57,7 +59,13 @@ const undoBack = (() => { const q = new URLSearchParams(url.search); for (const 
   <AccountMenu slot="account" current={address} />
   <MailboxNav slot="nav" address={address} bin={bin} folderId={data.activeFolder?.id ?? null} />
 
-  {ok && !archivedParam && <Banner tone="success">{ok}</Banner>}
+  {ok && !archivedParam && !sortedFolder && <Banner tone="success">{ok}</Banner>}
+  {ok && sortedFolder && !archivedParam && (
+    <Banner tone="success">
+      {ok}
+      <form method="post" action={`${b}/folders/${encodeURIComponent(sortedFolder)}/unsort`} class="undo"><button type="submit">Undo</button></form>
+    </Banner>
+  )}
   {archivedParam && (
     <Banner tone="success">
       {ok ?? "Archived."}
