@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import PostalMime from "postal-mime";
-import { classifyEmail, type ClassifyResult, type EmailForClassify } from "./classify";
+import { classifyEach, classifyEmail, type ClassifyResult, type EmailForClassify } from "./classify";
 import { explainFolder, ruleHash, type Explanation } from "./explain";
 
 export type Direction = "in" | "out";
@@ -342,15 +342,6 @@ export class ThreadDO extends DurableObject<Env> {
   }
 
   /**
-   * Ask Workers AI which of the given folders a message belongs in.
-   *
-   * Runs here, beside the message, so the body never has to be shipped to the
-   * caller. Uses typesafe/jev's `choice` question: each folder's plain-English
-   * rule is the description of its option, plus a "none" option. Returns the
-   * chosen folder id (null for none), its probability, and the probability of
-   * every option so the UI can show a match percentage.
-   */
-  /**
    * How likely this message helps answer `question` (Ask by text), scored by
    * jev with the question as the one "folder rule". Cheap: the body stays here.
    */
@@ -394,8 +385,25 @@ export class ThreadDO extends DurableObject<Env> {
     return { from: email.from, subject: email.subject, date: view.message.received_at, body: email.body.replace(/\s+\n/g, "\n").slice(0, maxChars), attachments };
   }
 
+  /**
+   * Ask Workers AI which of the given folders a message belongs in.
+   *
+   * Runs here, beside the message, so the body never has to be shipped to the
+   * caller. Uses typesafe/jev's `choice` question: each folder's plain-English
+   * rule is the description of its option, plus a "none" option. Returns the
+   * chosen folder id (null for none), its probability, and the probability of
+   * every option so the UI can show a match percentage.
+   */
   async classify(id: string, folders: { id: string; name: string; rule: string }[]): Promise<ClassifyResult> {
     return classifyEmail(this.env, await this.#emailFor(id), folders);
+  }
+
+  /**
+   * Score each folder's rule on its own (yes/no), for sorting in folder order.
+   * Runs here so the body stays beside the message. See classifyEach.
+   */
+  async classifyEach(id: string, folders: { id: string; name: string; rule: string }[], threshold: number): Promise<Record<string, number>> {
+    return classifyEach(this.env, await this.#emailFor(id), folders, threshold);
   }
 
   /**

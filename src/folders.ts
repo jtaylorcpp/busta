@@ -4,9 +4,10 @@
  * Order of precedence, cheapest first:
  *   1. a folder you picked by hand — never touched here
  *   2. a folder whose +address the mail was sent to (label match) — no AI
- *   3. the folders' plain-English rules, judged by Workers AI (typesafe/jev)
- *      via ThreadDO.classify. Below FOLDER_THRESHOLD the best guess is kept
- *      as a suggestion ("Unsure: Bank 48%") and the mail stays in Messages.
+ *   3. the folders' plain-English rules, each scored on its own by Workers AI
+ *      (typesafe/jev) via ThreadDO.classifyEach, in folder order: the first
+ *      folder at FOLDER_THRESHOLD wins. Below it, the best guess is kept as a
+ *      suggestion ("Unsure: Bank 58%") and the mail stays in Messages.
  */
 import { mailboxStub, threadStub } from "./mail";
 import type { Folder, FolderDecision, FolderWithCounts, SortCandidate } from "./mailbox-do";
@@ -46,19 +47,25 @@ export async function fileMessage(
   if (ruled.length === 0) return null;
   if (!(await mailbox.markSorting(message.id))) return null; // filed by hand
 
+  // Folder order is the sort order: each rule is scored on its own, and the
+  // first folder (in the user's order) at the threshold takes the message.
+  // Below it, the best guess is kept as "Unsure" if it's more likely than not.
   let d: FolderDecision;
   try {
-    const r = await threadStub(env, address, message.threadId).classify(
+    const scores = await threadStub(env, address, message.threadId).classifyEach(
       message.id,
       ruled.map((f) => ({ id: f.id, name: f.name, rule: f.rule })),
+      FOLDER_THRESHOLD,
     );
-    const probs = topProbs(r.probabilities);
-    if (!r.folderId) {
-      d = { folderId: null, source: "rule", state: "none", confidence: r.probability, probs };
-    } else if (r.probability >= FOLDER_THRESHOLD) {
-      d = { folderId: r.folderId, source: "rule", state: "filed", confidence: r.probability, probs };
+    const probs = topProbs(scores);
+    const first = ruled.find((f) => (scores[f.id] ?? 0) >= FOLDER_THRESHOLD);
+    const [bestId, best] = Object.entries(scores).sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
+    if (first) {
+      d = { folderId: first.id, source: "rule", state: "filed", confidence: scores[first.id]!, probs };
+    } else if (bestId && best >= 0.5) {
+      d = { folderId: null, source: "rule", state: "unsure", suggest: bestId, confidence: best, probs };
     } else {
-      d = { folderId: null, source: "rule", state: "unsure", suggest: r.folderId, confidence: r.probability, probs };
+      d = { folderId: null, source: "rule", state: "none", confidence: best, probs };
     }
   } catch (error) {
     console.error("folder classify failed", { address, id: message.id, error: String(error) });
