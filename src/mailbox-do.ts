@@ -1788,24 +1788,6 @@ export class MailboxDO extends DurableObject<Env> {
   }
 
   /**
-   * Received mail to re-sort: within the window, newest first, never trashed
-   * or already filed by hand. Ids only; the caller classifies each.
-   */
-  recentForSorting(input: { days: number; limit: number }): { id: string; thread_id: string; label: string | null }[] {
-    const since = Date.now() - Math.max(0, input.days) * 86_400_000;
-    return this.ctx.storage.sql
-      .exec<{ id: string; thread_id: string; label: string | null }>(
-        `SELECT id, thread_id, label FROM messages
-          WHERE direction = 'in' AND deleted_at IS NULL AND received_at >= ?
-            AND (folder_source IS NULL OR folder_source != 'you')
-          ORDER BY seq DESC LIMIT ?`,
-        since,
-        Math.max(1, Math.min(input.limit, 1000)),
-      )
-      .toArray();
-  }
-
-  /**
    * Received mail "Sort mail I already have" looks at, and the rule tester
    * checks: within the window, newest first, in Messages or a folder. Never
    * trashed, archived, or filed by hand.
