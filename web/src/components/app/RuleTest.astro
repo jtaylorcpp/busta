@@ -5,11 +5,19 @@
  */
 import RuleTester from "../islands/RuleTester";
 
-interface Props { endpoint: string; nameField: string; ruleField: string }
-const { endpoint, nameField, ruleField } = Astro.props;
+interface Props {
+  endpoint: string;
+  nameField: string;
+  ruleField: string;
+  daysField?: string;
+  limitField?: string;
+  folders?: { id: string; name: string }[];
+  folderId?: string;
+}
+const { endpoint, nameField, ruleField, daysField, limitField, folders, folderId } = Astro.props;
 ---
 <div class="rule-test">
-  <RuleTester client:visible endpoint={endpoint} nameField={nameField} ruleField={ruleField} />
+  <RuleTester client:visible endpoint={endpoint} nameField={nameField} ruleField={ruleField} daysField={daysField} limitField={limitField} folders={folders} folderId={folderId} />
 </div>
 
 <style>
@@ -41,4 +49,18 @@ const { endpoint, nameField, ruleField } = Astro.props;
     font: 500 10px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
     background: var(--warn-soft); color: var(--warn);
   }
+  .rule-test :global(.tester .scan) { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-xs); font-weight: 600; color: var(--warn); }
+  .rule-test :global(.tester .spin) { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--warn-fill); border-top-color: transparent; animation: rt-spin .9s linear infinite; }
+  @keyframes rt-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .rule-test :global(.tester .spin) { animation: none; } }
+  .rule-test :global(.tester .prog) { height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
+  .rule-test :global(.tester .prog i) { display: block; height: 100%; background: var(--warn-fill); border-radius: 3px; transition: width .3s; }
+  .rule-test :global(.tester .who) { flex: 1; }
+  .rule-test :global(.tester .where) { font-size: var(--text-xs); color: var(--muted); white-space: nowrap; }
+  .rule-test :global(.tester .where.in-folder) { color: var(--secondary); font-weight: 600; }
+  .rule-test :global(.tester .verdict) { min-width: 84px; text-align: right; }
+  .rule-test :global(.tester .sub2) { font: 500 10.5px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 2px 0; }
+  .rule-test :global(.tester button.more) { justify-self: start; border: 0; background: none; padding: 2px; color: var(--primary); font-size: var(--text-xs); }
+  .rule-test :global(.tester .empty2) { display: grid; gap: 4px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface); font-size: var(--text-sm); }
+  .rule-test :global(.tester .empty2 span) { color: var(--muted); font-size: var(--text-xs); }
 </style>
