@@ -1736,15 +1736,17 @@ export class MailboxDO extends DurableObject<Env> {
       this.#emit({ t: "list" });
   }
 
-  /** Move a folder one place up or down. Order only breaks ties between rules. */
-  moveFolder(id: string, direction: "up" | "down"): void {
+  /**
+   * Put folders in this order, by name (trimmed, case-insensitive): the order
+   * mail is sorted in. Folders not named keep their order, after the rest.
+   */
+  reorderFolders(names: string[]): void {
+    const rank = new Map(names.map((n, i) => [n.trim().replace(/\s+/g, " ").toLowerCase(), i]));
     const list = this.listFolders();
-    const i = list.findIndex((f) => f.id === id);
-    const j = direction === "up" ? i - 1 : i + 1;
-    if (i < 0 || j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j]!, list[i]!];
-    list.forEach((f, pos) => this.ctx.storage.sql.exec(`UPDATE folders SET position = ? WHERE id = ?`, pos, f.id));
-      this.#emit({ t: "nav" });
+    const key = (f: Folder) => rank.get(f.name.trim().replace(/\s+/g, " ").toLowerCase()) ?? names.length;
+    const next = list.map((f, i) => ({ f, i })).sort((a, b) => key(a.f) - key(b.f) || a.i - b.i);
+    next.forEach(({ f }, pos) => this.ctx.storage.sql.exec(`UPDATE folders SET position = ? WHERE id = ?`, pos, f.id));
+    this.#emit({ t: "nav" });
   }
 
   markFoldersSorted(ids: string[]): void {
