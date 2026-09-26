@@ -9,7 +9,7 @@
  *      as a suggestion ("Unsure: Bank 48%") and the mail stays in Messages.
  */
 import { mailboxStub, threadStub } from "./mail";
-import type { FolderDecision, FolderWithCounts } from "./mailbox-do";
+import type { Folder, FolderDecision, FolderWithCounts, SortCandidate } from "./mailbox-do";
 import { notifyFiled } from "./sms/notify";
 
 /** Minimum probability for a rule to file a message on its own. */
@@ -92,4 +92,110 @@ export async function sortRecent(
   await Promise.all(workers);
   await mailbox.markFoldersSorted(folders.map((f) => f.id));
   return rows.length;
+}
+
+/** The default window for "Sort mail I already have" and the rule tester. */
+export const SORT_WINDOW = { days: 30, limit: 200 };
+
+/**
+ * Would this one message go in this folder, judged by its rule alone? The
+ * rule tester and "Sort mail I already have" ask the same question.
+ */
+export async function judgeForFolder(
+  env: Env,
+  address: string,
+  message: { id: string; thread_id: string },
+  folder: { id: string; name: string; rule: string },
+): Promise<{ in: boolean; p: number }> {
+  const out = await threadStub(env, address, message.thread_id).classify(message.id, [folder]);
+  const p = out.probabilities[folder.id] ?? (out.folderId ? out.probability : 0);
+  return { in: out.folderId === folder.id && p >= FOLDER_THRESHOLD, p };
+}
+
+/** A rule test's verdicts, reused on save while the rule and window match. */
+export interface TestedVerdicts {
+  rule: string;
+  days: number;
+  limit: number;
+  /** Message id → probability, for the ones that would go in. */
+  in: Record<string, number>;
+  out: string[];
+}
+
+/**
+ * "Sort mail I already have" for a folder that was just created or had its
+ * rule changed, over the places the user checked (folder ids; null is
+ * Messages). Mail elsewhere was already sorted against the other rules, so
+ * the only question for it is whether it goes in this folder: it moves only
+ * if it does. The folder's own mail is sorted again against every rule, so
+ * mail that no longer fits leaves. Everything moved can be undone.
+ *
+ * Verdicts from a rule test are used as they are (no model call); anything
+ * the test didn't cover is judged in `background`. Returns what moved now,
+ * by where it was ("messages" or a folder id), and how many are still being
+ * checked.
+ */
+export async function sortInto(
+  env: Env,
+  address: string,
+  folderId: string,
+  opts: {
+    places: (string | null)[];
+    days: number;
+    limit: number;
+    tested?: TestedVerdicts | null;
+    background: (work: Promise<unknown>) => void;
+  },
+): Promise<{ moved: Record<string, number>; checking: number }> {
+  const mailbox = mailboxStub(env, address);
+  const folder = (await mailbox.getFolder(folderId)) as Folder | null;
+  const moved: Record<string, number> = {};
+  if (!folder || !folder.rule.trim()) return { moved, checking: 0 };
+  const rule = { id: folder.id, name: folder.name, rule: folder.rule };
+  const places = new Set(opts.places);
+  const rows = ((await mailbox.sortCandidates({ days: opts.days, limit: opts.limit })) as SortCandidate[])
+    .filter((r) => places.has(r.place));
+  const t = opts.tested;
+  const tested = t && t.rule.trim() === folder.rule.trim() && t.days === opts.days && t.limit === opts.limit ? t : null;
+  const outs = new Set(tested?.out ?? []);
+  await mailbox.startSortUndo(folderId);
+
+  const move = async (row: SortCandidate, p: number) => {
+    await mailbox.rememberForUndo(folderId, row.id);
+    const d: FolderDecision = { folderId, source: "rule", state: "filed", confidence: p, probs: { [folderId]: p } };
+    if (await mailbox.fileMessage(row.id, d)) moved[row.place ?? "messages"] = (moved[row.place ?? "messages"] ?? 0) + 1;
+  };
+
+  const check: SortCandidate[] = []; // judged against this folder only
+  const resort: SortCandidate[] = []; // this folder's own mail, against every rule
+  for (const row of rows) {
+    const p = tested?.in[row.id];
+    if (row.place === folderId) {
+      if (p === undefined) resort.push(row);
+    } else if (p !== undefined) {
+      await move(row, p);
+    } else if (!outs.has(row.id)) {
+      check.push(row);
+    }
+  }
+
+  const later = async () => {
+    const queue: (() => Promise<unknown>)[] = [
+      ...check.map((row) => async () => {
+        const v = await judgeForFolder(env, address, row, rule).catch(() => null);
+        if (v?.in) await move(row, v.p);
+      }),
+      ...resort.map((row) => async () => {
+        await mailbox.rememberForUndo(folderId, row.id);
+        await fileMessage(env, address, { id: row.id, threadId: row.thread_id, label: row.label });
+      }),
+    ];
+    await Promise.all(Array.from({ length: 6 }, async () => {
+      for (let job = queue.shift(); job; job = queue.shift()) await job();
+    }));
+    await mailbox.markFoldersSorted([folderId]);
+  };
+  if (check.length + resort.length > 0) opts.background(later().catch((e) => console.error("sortInto failed", address, String(e))));
+  else await mailbox.markFoldersSorted([folderId]);
+  return { moved, checking: check.length + resort.length };
 }

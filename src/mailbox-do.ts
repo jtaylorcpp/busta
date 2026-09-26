@@ -87,6 +87,18 @@ export interface FolderDecision {
   probs?: Record<string, number> | null;
 }
 
+/** A message a folder save may sort (and the rule tester checks). */
+export interface SortCandidate {
+  id: string;
+  thread_id: string;
+  label: string | null;
+  /** The folder it's in now, or null for Messages. */
+  place: string | null;
+  sender: string;
+  from_name: string | null;
+  subject: string;
+}
+
 export interface IndexInput {
   id: string;
   threadId: string;
@@ -483,6 +495,16 @@ export class MailboxDO extends DurableObject<Env> {
     `);
     // The rule before its last change, so "Undo" can put it back.
     this.#addColumn("folders", "prev_rule", "TEXT");
+    // The last "Sort mail I already have" for each folder: how every message
+    // it changed was filed before, so "Undo" can put them back.
+    sql.exec(`
+      CREATE TABLE IF NOT EXISTS sort_undo (
+        folder_id  TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        prev       TEXT NOT NULL,
+        PRIMARY KEY (folder_id, message_id)
+      );
+    `);
     sql.exec(`CREATE INDEX IF NOT EXISTS idx_idx_folder ON messages(folder_id, seq DESC);`);
     // The list runs in each message's own time (arrival order breaks ties), so
     // imported mail can arrive in any order and still land where it belongs.
@@ -1710,6 +1732,7 @@ export class MailboxDO extends DurableObject<Env> {
       id, id,
     );
     sql.exec(`DELETE FROM folders WHERE id = ?`, id);
+    sql.exec(`DELETE FROM sort_undo WHERE folder_id = ?`, id);
       this.#emit({ t: "list" });
   }
 
@@ -1778,6 +1801,68 @@ export class MailboxDO extends DurableObject<Env> {
         Math.max(1, Math.min(input.limit, 1000)),
       )
       .toArray();
+  }
+
+  /**
+   * Received mail "Sort mail I already have" looks at, and the rule tester
+   * checks: within the window, newest first, in Messages or a folder. Never
+   * trashed, archived, or filed by hand.
+   */
+  sortCandidates(input: { days: number; limit: number }): SortCandidate[] {
+    const since = Date.now() - Math.max(0, input.days) * 86_400_000;
+    return this.ctx.storage.sql
+      .exec<Row<SortCandidate>>(
+        `SELECT id, thread_id, label, folder_id AS place, sender, from_name, subject FROM messages
+          WHERE direction = 'in' AND deleted_at IS NULL AND archived_at IS NULL AND received_at >= ?
+            AND (folder_source IS NULL OR folder_source != 'you')
+          ORDER BY seq DESC LIMIT ?`,
+        since,
+        Math.max(1, Math.min(input.limit, 1000)),
+      )
+      .toArray() as SortCandidate[];
+  }
+
+  /** A new sort for this folder starts: forget the last one's Undo. */
+  startSortUndo(folderId: string): void {
+    this.ctx.storage.sql.exec(`DELETE FROM sort_undo WHERE folder_id = ?`, folderId);
+  }
+
+  /** Before a sort changes a message, remember how it was filed. */
+  rememberForUndo(folderId: string, messageId: string): void {
+    const cur = this.lookup(messageId);
+    if (!cur) return;
+    const prev = {
+      folder_id: cur.folder_id, folder_source: cur.folder_source, folder_state: cur.folder_state,
+      folder_suggest: cur.folder_suggest, folder_confidence: cur.folder_confidence, folder_probs: cur.folder_probs,
+    };
+    this.ctx.storage.sql.exec(
+      `INSERT OR IGNORE INTO sort_undo (folder_id, message_id, prev) VALUES (?, ?, ?)`,
+      folderId, messageId, JSON.stringify(prev),
+    );
+  }
+
+  /**
+   * Undo the last sort for this folder: every message it changed goes back to
+   * how it was filed, unless a person has filed it since. Returns how many.
+   */
+  undoSort(folderId: string): number {
+    const sql = this.ctx.storage.sql;
+    const rows = sql.exec<{ message_id: string; prev: string }>(`SELECT message_id, prev FROM sort_undo WHERE folder_id = ?`, folderId).toArray();
+    let n = 0;
+    for (const r of rows) {
+      const cur = this.lookup(r.message_id);
+      if (!cur || cur.folder_source === "you") continue;
+      const p = JSON.parse(r.prev) as Pick<IndexedMessage, "folder_id" | "folder_source" | "folder_state" | "folder_suggest" | "folder_confidence" | "folder_probs">;
+      sql.exec(
+        `UPDATE messages SET folder_id = ?, folder_source = ?, folder_state = ?, folder_suggest = ?,
+                folder_confidence = ?, folder_probs = ? WHERE id = ?`,
+        p.folder_id, p.folder_source, p.folder_state, p.folder_suggest, p.folder_confidence, p.folder_probs, r.message_id,
+      );
+      n += 1;
+    }
+    sql.exec(`DELETE FROM sort_undo WHERE folder_id = ?`, folderId);
+    if (n) this.#emit({ t: "list" });
+    return n;
   }
 
   /** Received mail for a rule preview: the newest few, filed or not. */
