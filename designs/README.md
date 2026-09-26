@@ -30,6 +30,12 @@ Decided after the mockup was approved; the code is the source of truth.
   look counts cover the account you're editing from. Other checked accounts
   (Applies to) sort the folders with the same names, judged in the background,
   and land on the combined list without Undo.
+- **Folder order**: one order is written to every account (folders match by
+  name). Below 75%, the best guess is "Unsure" only if it's over 50%; lower
+  is "No folder". The filing panel's "fits too … Move above" appears for mail
+  sorted after the change (older scores were one shared vote). If jev won't
+  take all folders in one request, it asks per folder in order, stopping at
+  the first yes. The Folders page sidebar catches up on the next page load.
 - **Where to look** is a checkbox list, not the mock's switch. Editing a folder
   re-sorts its own mail only if the rule changed. Archived mail isn't sorted.
 - **Search highlights** are the primary tint, not amber (amber means in flight).
