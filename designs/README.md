@@ -25,6 +25,12 @@ components with sample data; it is the working styleguide, not a snapshot.
 
 Decided after the mockup was approved; the code is the source of truth.
 
+- **Sort existing mail, with 2+ accounts**: "Test this rule" and the Where to
+  look counts cover the account you're editing from. Other checked accounts
+  (Applies to) sort the folders with the same names, judged in the background,
+  and land on the combined list without Undo.
+- **Where to look** is a checkbox list, not the mock's switch. Editing a folder
+  re-sorts its own mail only if the rule changed. Archived mail isn't sorted.
 - **Search highlights** are the primary tint, not amber (amber means in flight).
 - **Previously bounced recipients** get a warning and can still be sent to; the
   Compose mockup shows "won't send".
